@@ -1,0 +1,10 @@
+## Interface: 16001
+## IconTexture: Interface\AddOns\FPerl\FPerlIcon
+## Version: 1.0.0
+## Author: Zeta0xD; based on work by Ziliya, Resike, Halfdays, Zek and Nymbia
+## Title: F-Perl |cffeda55fRaid Monitor|r
+## Notes: Provides a casting monitor and mana status window.
+## SavedVariablesPerCharacter: FPerlRaidMonitorDB, ZPerlRaidMonConfig
+## RequiredDeps: FPerl
+
+FPerl_RaidMonitor.xml

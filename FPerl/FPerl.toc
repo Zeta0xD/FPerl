@@ -1,0 +1,35 @@
+## Interface: 16001
+## Version: 1.0.0
+## X-Upstream-Version: X-Perl UnitFrames | Revived 1.0.6 (in-file name X-Perl Forever; CurseForge xperl-uf)
+## Author: Zeta0xD; based on work by Ziliya, Resike, Halfdays, Zek and Nymbia
+## Title: F-Perl
+## Notes: The classic X-Perl unit-frame experience rebuilt and maintained for WoW Forever.
+## SavedVariables: FPerlDB, ZPerlConfigNew
+## SavedVariablesPerCharacter: FPerlPerCharacter, FPerlRoster, ZPerlConfigSavePerCharacter, ZPerl_Roster
+## IconTexture: Interface\AddOns\FPerl\FPerlIcon
+## OptionalDeps: Clique
+
+
+FPerl_Compat.lua
+FPerl_Core.lua
+FPerl_Positions.lua
+
+Libs\LibStub\LibStub.lua
+Libs\MSA-DropDownMenu-1.0\MSA-DropDownMenu-1.0.lua
+
+FPerl_Globals.xml
+FPerl.xml
+
+ArcaneBar\FPerl_ArcaneBar.xml
+AuraBlacklist\localization.lua
+AuraBlacklist\FPerl_AuraBlacklist.lua
+Party\FPerl_Party.xml
+PartyPet\FPerl_PartyPet.xml
+Player\FPerl_Player.xml
+PlayerBuffs\FPerl_PlayerBuffs.lua
+PlayerPet\FPerl_PlayerPet.xml
+Raid\FPerl_Raid.xml
+RaidPets\FPerl_RaidPets.xml
+CustomHighlight\FPerl_CustomHighlight.lua
+Target\FPerl_Target.xml
+TargetTarget\FPerl_TargetTarget.xml

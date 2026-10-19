@@ -1,0 +1,20 @@
+-- License: GNU GPL v3, 29 June 2007 (see LICENSE.txt)
+-- English only; other locales use these strings.
+
+FPERL_AURABL_ENABLE			= "Enable buff blacklist"
+FPERL_AURABL_IMPORT			= "Import from BetterBlizzFrames"
+FPERL_AURABL_IMPORT_DESC	= "Adds the BetterBlizzFrames blacklist entries that are not on this list yet. Entries already on this list are not changed. Needs BetterBlizzFrames to be enabled."
+FPERL_AURABL_IMPORT_NONE	= "Buff blacklist: no BetterBlizzFrames blacklist found (BetterBlizzFrames must be enabled)"
+FPERL_AURABL_IMPORTED		= "Buff blacklist: imported %d new spell(s) from BetterBlizzFrames, %d already listed, %d skipped (no spell ID)"
+FPERL_AURABL_ADD			= "Add"
+FPERL_AURABL_ADD_DESC		= "Spell ID or exact spell name:"
+FPERL_AURABL_ADDED			= "Buff blacklist: added %s (%d)"
+FPERL_AURABL_EXISTS			= "Buff blacklist: %s (%d) is already on the list"
+FPERL_AURABL_NOTFOUND		= "Buff blacklist: no spell found for \"%s\" - try the spell ID"
+FPERL_AURABL_COL_NAME		= "Name"
+FPERL_AURABL_COL_ID			= "Spell ID"
+FPERL_AURABL_COL_MINE		= "Show if mine"
+FPERL_AURABL_MINE_DESC		= "Still show this buff when you cast it (or your pet, if F-Perl's pet buffs option counts them as yours). Not possible while the game hides aura details (e.g. arena): then listed buffs are always hidden where they can be."
+FPERL_AURABL_REMOVE			= "Remove"
+FPERL_AURABL_COUNT			= "%d spells"
+FPERL_AURABL_SPELL			= "Spell %d"

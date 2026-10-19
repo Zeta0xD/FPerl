@@ -1,0 +1,43 @@
+<Bindings>
+	<Binding name="FPERL_TOGGLERAID" header="FPERL" category="ADDONS">
+		if (FPerl.layout.raid.enable) then
+			FPerl.layout.raid.enable = false
+		else
+			FPerl.layout.raid.enable = 1
+		end
+		if (FPerl.Raid.RaidTitles) then
+			FPerl.GroupVisibilityUpdate()
+			FPerl.Raid.RaidTitles()
+		end
+	</Binding>
+	<Binding name="FPERL_TOGGLERAIDPETS" category="ADDONS">
+		if (FPerl.layout.raidpet.enable) then
+			FPerl.layout.raidpet.enable = false
+		else
+			FPerl.layout.raidpet.enable = 1
+		end
+		if (FPerl.RaidPets.OptionActions) then
+			FPerl.RaidPets.OptionActions()
+		end
+	</Binding>
+	<Binding name="FPERL_TOGGLERANGEFINDER" category="ADDONS">
+		if (FPerl.layout.rangeFinder.enabled) then
+			FPerl.layout.rangeFinder.enabled = nil
+		else
+			FPerl.layout.rangeFinder.enabled = 1
+		end
+	</Binding>
+	<Binding name="FPERL_TOGGLEOPTIONS" category="ADDONS">
+		FPerl.OpenSettings()
+	</Binding>
+	<Binding name="FPERL_TOGGLEBUFFTYPE" category="ADDONS">
+		if (FPerl.Raid.ToggleRaidBuffs) then
+			FPerl.Raid.ToggleRaidBuffs()
+		end
+	</Binding>
+	<Binding name="FPERL_TOGGLEBUFFCASTABLE" category="ADDONS">
+		if (FPerl.Raid.ToggleRaidBuffs) then
+			FPerl.Raid.ToggleRaidBuffs(1)
+		end
+	</Binding>
+</Bindings>

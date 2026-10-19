@@ -1,0 +1,11 @@
+## Interface: 16001
+## IconTexture: Interface\AddOns\FPerl\FPerlIcon
+## Version: 1.0.0
+## Author: Zeta0xD; based on work by Ziliya, Resike, Halfdays, Zek and Nymbia
+## Title: F-Perl |cffeda55fRaid Helper|r
+## Notes: Replaces CTRA MT Targets window with extra functionality, and provides assists frame.
+## SavedVariablesPerCharacter: FPerlRaidHelperDB, FPerlRaidHelperTanks, ZPerlConfigHelper, ZPerl_MainTanks
+## RequiredDeps: FPerl
+
+FPerl_RaidHelper.xml
+FPerl_AssistFrame.xml

@@ -1,0 +1,12 @@
+## Interface: 16001
+## IconTexture: Interface\AddOns\FPerl\FPerlIcon
+## Version: 1.0.0
+## Author: Zeta0xD; based on work by Ziliya, Resike, Halfdays, Zek and Nymbia
+## Title: F-Perl |cffeda55fRaid Admin|r
+## Notes: Provides useful raid admin tools for todays raid leader.
+## SavedVariablesPerCharacter: FPerlRaidAdminDB, FPerlRaidAdminItems, ZPerl_Admin, ZPerl_CheckItems
+## RequiredDeps: FPerl
+
+FPerl_RaidAdmin.xml
+FPerl_Check.xml
+FPerl_RosterText.xml
