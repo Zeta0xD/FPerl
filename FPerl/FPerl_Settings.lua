@@ -501,24 +501,15 @@ function FPerl.SettingsRaidGroupsAll() raidGroupsAll(true) end
 function FPerl.SettingsRaidGroupsNone() raidGroupsAll(false) end
 
 ------------------------------------------------------------------------------------------------ builder
+-- A section header is a button row made through Blizzard's secure initializer path with no search tags: an initializer
+-- built with CreateFromMixins here, or tagged here, makes Blizzard's search read tainted fields (O33).
 local function header(name, state)
-	local init = CreateFromMixins(SettingsExpandableSectionInitializer)
-	init:Init("SettingsExpandableSectionTemplate")
-	init.data = {name = name}
-	function init:GetExtent() return 25 end
-	function init:InitFrame(frame)
-		frame:Init(self)
-		local function arrow()
-			frame.Button.Right:SetAtlas(state.open and "Options_ListExpand_Right_Expanded" or "Options_ListExpand_Right", true)
-		end
-		arrow()
-		frame.Button:SetScript("OnClick", function()
-			state.open = not state.open
-			arrow()
-			SettingsInbound.RepairDisplay()
-		end)
-	end
-	return init
+	local function label() return state.open and "Close" or "Open" end
+	return CreateSettingsButtonInitializer(name, label(), function(button)
+		state.open = not state.open
+		button:SetText(label())
+		SettingsInbound.RepairDisplay()
+	end, nil, false)
 end
 
 local function optionsFn(e)
@@ -594,6 +585,7 @@ end
 function FPerl.SettingsRefresh() refresh(true) end -- the layout and profile changes: only settings whose value changed
 
 local rootCategory
+local hookSearch
 
 -- Opens Esc > Options > AddOns > F-Perl. Opening it in combat is a blocked action (seen in game), so in
 -- combat it opens when combat ends.
@@ -607,6 +599,35 @@ function FPerl.OpenSettings()
 		FPerl.Notice("The settings open when combat ends.")
 	end
 	FPerl.AfterCombat(openNow)
+end
+
+-- Blizzard's search calls every row's ShouldShow, and a shown predicate is addon code: it taints the search handler, and
+-- a protected call later in the same handler (Social's IsUserOAuthed) is blamed on F-Perl (O33). So the rows carry no
+-- predicate while the search box has text; a closed section then shows its settings in the results, as search needs.
+local predRows, stripped = {}, false
+local function setPredicates(on)
+	if stripped == not on then return end
+	stripped = not on
+	for _, r in ipairs(predRows) do
+		r[1].shownPredicates = nil
+		if on then r[1]:AddShownPredicate(r[2]) end
+	end
+	if on then SettingsInbound.RepairDisplay() end -- the list was rebuilt without them: close the closed sections again
+end
+local function searchChanged()
+	local box = SettingsPanel.SearchBox
+	setPredicates(box:GetText() == "")
+end
+function hookSearch()
+	local box = SettingsPanel and SettingsPanel.SearchBox
+	if not box then return end
+	-- a key goes down before its character reaches the box: strip before Blizzard's text handler searches
+	box:HookScript("OnKeyDown", function() setPredicates(false) end)
+	box:HookScript("OnChar", function() setPredicates(false) end)
+	box:HookScript("OnTextChanged", searchChanged)
+	box:HookScript("OnKeyUp", searchChanged)
+	box:HookScript("OnEditFocusLost", searchChanged)
+	SettingsPanel:HookScript("OnHide", searchChanged)
 end
 
 local function build()
@@ -636,7 +657,14 @@ local function build()
 		local init
 		local tip = e.each and sharedTip(e) or function() return e.tip end
 		if e.type == "button" then
-			init = CreateSettingsButtonInitializer(e.label, e.label, function() click(e) end, e.tip, true)
+			-- backed by a setting that holds nothing: Blizzard's delegate writes the search tag of a setting row, while a tag
+			-- written here taints the search (O33)
+			local setting = Settings.RegisterProxySetting(page.cat, "FPerl_" .. e.id, Settings.VarType.Boolean, e.label, false,
+				function() return false end, function() end)
+			local data = Settings.CreateSettingInitializerData(setting, nil, e.tip)
+			data.buttonText = e.label
+			data.buttonClick = function() click(e) end
+			init = Settings.CreateSettingInitializer("SettingButtonControlTemplate", data)
 			page.layout:AddInitializer(init)
 		else
 			local vtype, default = Settings.VarType.Number
@@ -671,12 +699,14 @@ local function build()
 				init = Settings.CreateDropdown(page.cat, setting, optionsFn(e), tip)
 			end
 		end
-		-- a closed section still shows its settings while the panel lists search results, or search finds none of them
-		init:AddShownPredicate(function()
+		local pred = function()
 			if e.showif and not e.showif() then return false end
-			return state.open or (SettingsPanel and SettingsPanel.SearchBox and SettingsPanel.SearchBox:GetText() ~= "")
-		end)
+			return state.open
+		end
+		init:AddShownPredicate(pred)
+		predRows[#predRows + 1] = {init, pred}
 	end
+	hookSearch()
 	for _, p in ipairs(FPerl.SettingsPages) do
 		local frame = CreateFrame("Frame")
 		frame:Hide() -- the panel shows it; a frame created shown never gets the OnShow that builds the page

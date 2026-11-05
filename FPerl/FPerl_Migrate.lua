@@ -320,3 +320,126 @@ function FPerl.MigrateEngineNames()
 	end
 	s.schema = 7
 end
+
+------------------------------------------------------------------------------------------------ restore at load
+-- A tool that snapshots FPerlDB (FPerlDB.devRestore: tag, time, digest, data) restores it when its run ends. A run cut
+-- off leaves the snapshot in the file; FPerl.RestoreAtLoad puts the settings back at the next login, in every build.
+local RESTORE_MAX_AGE = 24 * 3600 -- an older snapshot is dropped, not restored
+local restoreNotice
+
+-- FPerl.RestoreInto(live, from)
+-- Puts the contents of from into live without replacing any table both hold: keys absent from from are deleted, tables
+-- recurse, other values (and tables live lacks, copied) are assigned.
+function FPerl.RestoreInto(live, from)
+	for k in pairs(live) do
+		if (from[k] == nil) then
+			live[k] = nil
+		end
+	end
+	for k, v in pairs(from) do
+		local lv = live[k]
+		if (type(v) == "table") then
+			if (type(lv) == "table") then
+				FPerl.RestoreInto(lv, v)
+			else
+				live[k] = FPerl.CopyTable(v)
+			end
+		else
+			live[k] = v
+		end
+	end
+end
+
+local function canon(v, out)
+	local t = type(v)
+	if (t == "table") then
+		local keys = {}
+		for k in pairs(v) do
+			keys[#keys + 1] = k
+		end
+		table.sort(keys, function(a, b) return type(a) .. tostring(a) < type(b) .. tostring(b) end)
+		out[#out + 1] = "{"
+		for _, k in ipairs(keys) do
+			canon(k, out)
+			out[#out + 1] = "="
+			canon(v[k], out)
+			out[#out + 1] = ";"
+		end
+		out[#out + 1] = "}"
+	elseif (t == "number") then
+		out[#out + 1] = string.format("%.6f", v)
+	elseif (t == "string") then
+		out[#out + 1] = string.format("%q", v)
+	elseif (t == "boolean") then
+		out[#out + 1] = tostring(v)
+	else
+		out[#out + 1] = "<" .. t .. ">"
+	end
+end
+
+-- FPerl.DigestOf(t)
+-- A short checksum of a table's contents, "<hash>-<length>", and the canonical string it is taken from.
+function FPerl.DigestOf(t)
+	local out = {}
+	canon(t, out)
+	local s = table.concat(out)
+	local h, byte = 5381, string.byte
+	for i = 1, #s do
+		h = (h * 33 + byte(s, i)) % 4294967296
+	end
+	return string.format("%08x-%d", h, #s), s
+end
+
+-- FPerl.RestoreAtLoad()
+-- Called for "FPerl" at ADDON_LOADED, before the settings are read. A snapshot is restored only when its data matches
+-- its digest and it is under 24 h old; anything else is dropped and the live settings stay. Either way the player gets
+-- one line, and FPerl.restoredAtLoad is the tag on a restore, "dropped: <reason>" on a drop, nil with no snapshot.
+function FPerl.RestoreAtLoad()
+	local snap = type(FPerlDB) == "table" and FPerlDB.devRestore
+	if (not snap) then
+		return
+	end
+	local tag, when, why = "?", "unknown date", nil
+	if (type(snap) ~= "table") then
+		why = "not a table"
+	else
+		if (snap.tag ~= nil) then
+			tag = tostring(snap.tag)
+		end
+		if (type(snap.time) == "number") then
+			local ok, d = pcall(date, "%Y-%m-%d", snap.time)
+			when = ok and d or when
+		end
+		if (type(snap.data) ~= "table") then
+			why = "data is not a table"
+		elseif (type(snap.time) ~= "number") then
+			why = "no time"
+		elseif (type(snap.digest) ~= "string") then
+			why = "no digest"
+		elseif (time() - snap.time > RESTORE_MAX_AGE) then
+			why = "older than 24 h"
+		elseif ((FPerl.DigestOf(snap.data)) ~= snap.digest) then
+			why = "digest mismatch"
+		end
+	end
+	if (why) then
+		FPerlDB.devRestore = nil
+		FPerl.restoredAtLoad = "dropped: " .. why
+		restoreNotice = string.format("Dropped dev snapshot %s of %s: %s.", tag, when, why)
+	else
+		FPerl.RestoreInto(FPerlDB, snap.data)
+		FPerlDB.devRestore = nil
+		FPerl.restoredAtLoad = tag
+		restoreNotice = string.format("Restored settings from dev snapshot %s of %s.", tag, when)
+	end
+	FPerl.PrintRestoreNotice()
+end
+
+-- FPerl.PrintRestoreNotice()
+-- Prints the restore line once the chat frame exists; PLAYER_LOGIN calls it again for a restore that found none.
+function FPerl.PrintRestoreNotice()
+	if (restoreNotice and DEFAULT_CHAT_FRAME) then
+		FPerl.Notice("%s", restoreNotice)
+		restoreNotice = nil
+	end
+end

@@ -516,6 +516,7 @@ function FPerl.RaidPets.OptionActions()
 		FPerl.AfterCombat(FPerl.RaidPets.OptionActions)
 		return
 	end
+	local d = FPerl.Dev; if d and d.listener then d.Emit("redisplay.raidpets") end
 
 	SetMainHeaderAttributes(FPerl_Raid_GrpPets)
 

@@ -105,7 +105,12 @@ local function UpdateUnit(self,forcedUpdate)
 
 		if (nameReadable) then
 			local remCount = 1
-			while ((self.text:GetStringWidth() >= (self:GetWidth() - 2)) and (string.len(name) > remCount)) do
+			while (string.len(name) > remCount) do
+				-- GetStringWidth() can be secret even for plain text; leave the name untrimmed then
+				local width = self.text:GetStringWidth()
+				if (FPerl.IsSecret(width) or width < self:GetWidth() - 2) then
+					break
+				end
 				name = string.sub(name, 1, string.len(name) - remCount)..".."
 				remCount = 3
 				self.text:SetText(name)

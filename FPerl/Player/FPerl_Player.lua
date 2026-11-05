@@ -26,7 +26,7 @@ local floor = floor
 local format = format
 
 local CreateFrame = CreateFrame
-local GetDifficultyColor = GetDifficultyColor or GetQuestDifficultyColor
+local GetDifficultyColor = GetCreatureDifficultyColor or GetQuestDifficultyColor
 local GetLootMethod = GetLootMethod or C_PartyInfo.GetLootMethod
 local GetNumGroupMembers = GetNumGroupMembers
 local GetPVPTimer = GetPVPTimer
@@ -450,7 +450,9 @@ local function UpdateXP(self)
 				else
 					FPerl.SetValuedText(xpBar.text, playerxp, playerxpmax, suffix)
 				end
-				if (xpBar.text:GetStringWidth() + 20 <= w) then
+				-- GetStringWidth() can be secret even for plain text; keep this mode then
+				local width = xpBar.text:GetStringWidth()
+				if (FPerl.IsSecret(width) or width + 20 <= w) then
 					break
 				end
 			end

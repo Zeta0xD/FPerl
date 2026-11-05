@@ -266,6 +266,7 @@ function FPerl.ArcaneBar.OnEvent(self, event, unit, ...)
 			self:SetValue(self.startTime)
 		end
 		self:SetAlpha(0.8)
+		self.castAlpha = 0.8
 		self.holdTime = 0
 		self.casting, self.channeling, self.fadeOut, self.flash = 1, nil, nil, nil
 		self:Show()
@@ -295,6 +296,7 @@ function FPerl.ArcaneBar.OnEvent(self, event, unit, ...)
 				self:SetStatusBarColor(barColours.success.r, barColours.success.g, barColours.success.b, conf.transparency.frame)
 				self.barSpark:Hide()
 				self.barFlash:SetAlpha(0)
+				self.flashAlpha = 0
 				self.barFlash:Show()
 				self.casting = nil
 				self.channeling = nil
@@ -390,6 +392,7 @@ function FPerl.ArcaneBar.OnEvent(self, event, unit, ...)
 			self:SetValue(self.endTime)
 		end
 		self:SetAlpha(1.0)
+		self.castAlpha = 1.0
 		self.holdTime = 0
 		self.casting, self.channeling, self.fadeOut, self.flash = nil, 1, nil, nil
 		self:Show()
@@ -481,6 +484,7 @@ function FPerl.ArcaneBar.OnUpdate(self, elapsed)
 			self.tex:SetTexCoord(0, 1, 0, 1)
 			self.casting = nil
 			self.barFlash:SetAlpha(0)
+			self.flashAlpha = 0
 			self.barFlash:Show()
 			if (not self.fadeOut) then
 				self.flash = 1
@@ -510,6 +514,7 @@ function FPerl.ArcaneBar.OnUpdate(self, elapsed)
 			self.channeling = nil
 			self.barSpark:Hide()
 			self.barFlash:SetAlpha(0)
+			self.flashAlpha = 0
 			self.barFlash:Show()
 			if (not self.fadeOut) then
 				self.flash = 1
@@ -532,13 +537,16 @@ function FPerl.ArcaneBar.OnUpdate(self, elapsed)
 	elseif (self.flash) then
 		-- A brief, restrained highlight, followed by the existing smooth fade.
 		-- Clamp the final frame too: a long frame must not skip the peak.
-		local alpha = min(0.22, self.barFlash:GetAlpha() + elapsed * 1.5)
+		-- Alphas are kept in fields: inside a range-faded party frame GetAlpha returns a secret.
+		local alpha = min(0.22, (self.flashAlpha or 0) + elapsed * 1.5)
+		self.flashAlpha = alpha
 		self.barFlash:SetAlpha(alpha)
 		if (alpha >= 0.22) then
 			self.flash = nil
 		end
 	elseif (self.fadeOut) then
-		local alpha = self:GetAlpha() - elapsed * 2			-- CASTING_BAR_ALPHA_STEP
+		local alpha = (self.castAlpha or 1) - elapsed * 2			-- CASTING_BAR_ALPHA_STEP
+		self.castAlpha = alpha
 		if (alpha > 0) then
 			self:SetAlpha(alpha)
 			self.barParentName:SetAlpha((1 - alpha) * conf.transparency.text)

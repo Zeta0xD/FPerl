@@ -659,6 +659,7 @@ function FPerl.Apply(names)
 		FPerl.AfterCombat(applyQueued)
 		return
 	end
+	local d = FPerl.Dev; if d and d.listener then d.Emit("apply", unpack(names)) end
 	if want.full then
 		FPerl.OptionActions()
 		return
@@ -683,6 +684,7 @@ function FPerl.OptionActions(which)
 		FPerl.AfterCombat(FPerl.OptionActions, which)
 		return
 	end
+	local d = FPerl.Dev; if d and d.listener then d.Emit("optionactions") end
 
 	FPerl.ResetBarColourCache() -- the health colour curve reads the colour options
 

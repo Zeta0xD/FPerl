@@ -409,7 +409,7 @@ function Events:UNIT_COMBAT(unit, action, descriptor, damage, damageType)
 
 	if (action == "HEAL") then
 		CombatFlash(self, 0, true, true)
-	elseif (damage and damage > 0) then
+	elseif (FPerl.IsHit(action, damage)) then
 		CombatFlash(self, 0, true)
 	end
 end
@@ -541,6 +541,7 @@ end
 
 -- FPerl.PartyPet.SetBits
 function FPerl.PartyPet.SetBits()
+	local d = FPerl.Dev; if d and d.listener then d.Emit("redisplay.partypet") end
 	for k, v in pairs(AllPetFrames) do
 		FPerl.PartyPet.SetBits1(v)
 	end

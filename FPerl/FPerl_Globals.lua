@@ -333,6 +333,8 @@ local function onAddonLoaded(_, addon)
 	-- 0.x saved-variable names to the new ones, before settingspart1 and before AuraBlacklist's own ADDON_LOADED
 	FPerl.Pcall(FPerl.MigrateSavedNames, addon)
 	if (addon == "FPerl") then
+		-- a dev run cut off between Begin and End: the saved settings go back (FPerl_Migrate.lua)
+		FPerl.Pcall(FPerl.RestoreAtLoad)
 		settingspart1()
 		for _, run in ipairs(afterConfig) do
 			FPerl.Pcall(run)
@@ -348,6 +350,7 @@ end
 local function onLogin()
 	FPerl.Off("ADDON_LOADED", onAddonLoaded)
 	FPerl.Off("PLAYER_LOGIN", onLogin)
+	FPerl.PrintRestoreNotice()
 	startupCheckSettings()
 	FPerl.MinimapButtonInit(FPerl_MinimapButton_Frame)
 end
@@ -424,6 +427,7 @@ end
 -- character's, and re-applies everything (FPerl.ReapplyLayout). The Player, Pet and Target
 -- enable keys and raid.enable need a reload.
 function FPerl.SelectLayout(name)
+	local d = FPerl.Dev; if d and d.listener then d.Emit("layout.select", name) end
 	if (FPerl.LayoutInCombat()) then
 		return
 	end
@@ -540,6 +544,7 @@ end
 -- that differ run (FPerl.Apply); without it, or with a differing key no settings row covers, every
 -- option changer runs.
 function FPerl.ReapplyLayout(before)
+	local d = FPerl.Dev; if d and d.listener then d.Emit("layout.reapply") end
 	FPerl.GiveConfig()
 	FPerl.RestoreAllPositions()
 	FPerl.StartupSpellRange()

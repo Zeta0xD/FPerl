@@ -6,7 +6,7 @@ local strfind = strfind
 local tonumber = tonumber
 
 local CreateFrame = CreateFrame
-local GetDifficultyColor = GetDifficultyColor or GetQuestDifficultyColor
+local GetDifficultyColor = GetCreatureDifficultyColor or GetQuestDifficultyColor
 local RegisterUnitWatch = RegisterUnitWatch
 local UnitAffectingCombat = UnitAffectingCombat
 local UnitClassification = UnitClassification
@@ -568,6 +568,7 @@ end
 
 -- FPerl.TargetTarget.SetBits
 function FPerl.TargetTarget.SetBits()
+	local d = FPerl.Dev; if d and d.listener then d.Emit("redisplay.targettarget") end
 	if not FPerl_TargetTarget then
 		return
 	end

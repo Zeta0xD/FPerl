@@ -23,7 +23,7 @@ local tonumber = tonumber
 local tremove = tremove
 local type = type
 local CreateFrame = CreateFrame
-local GetDifficultyColor = GetDifficultyColor or GetQuestDifficultyColor
+local GetDifficultyColor = GetCreatureDifficultyColor or GetQuestDifficultyColor
 local GetNumGroupMembers = GetNumGroupMembers
 local GetNumSubgroupMembers = GetNumSubgroupMembers
 local GetRaidRosterInfo = GetRaidRosterInfo
@@ -199,7 +199,9 @@ function FPerl.StatusBarSetValue(self, val)
 
 			if bar then
 				if not self.fadeAlpha then
-					self.fadeAlpha = self:GetParent():GetAlpha()
+					-- the party range fade sets a secret alpha, which BarUpdate cannot count down
+					local alpha = self:GetParent():GetAlpha()
+					self.fadeAlpha = CanAccess(alpha) and alpha or 1
 					bar:SetValue(current)
 				end
 

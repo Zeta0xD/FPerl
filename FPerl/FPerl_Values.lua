@@ -42,6 +42,15 @@ function FPerl.IsSecret(v)
 end
 local IsSecret = FPerl.IsSecret
 
+-- FPerl.IsHit(action, damage) - true when a UNIT_COMBAT event dealt damage. The amount is secret on
+-- Forever, so a secret amount counts as a hit when the action is a wound.
+function FPerl.IsHit(action, damage)
+	if (IsSecret(damage)) then
+		return action == "WOUND"
+	end
+	return damage ~= nil and damage > 0
+end
+
 -- Feature switches, evaluated once at load
 local HasHealthPercent = type(UnitHealthPercent) == "function" and CurveConstants ~= nil
 local HasPowerPercent = type(UnitPowerPercent) == "function" and CurveConstants ~= nil

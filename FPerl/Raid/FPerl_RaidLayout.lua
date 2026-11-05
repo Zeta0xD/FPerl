@@ -601,6 +601,7 @@ function FPerl.Raid.ChangeAttributes()
 		FPerl.AfterCombat(FPerl.Raid.ChangeAttributes)
 		return
 	end
+	local d = FPerl.Dev; if d and d.listener then d.Emit("header.rebuild") end
 
 	rconf.anchor = (rconf and rconf.anchor) or "TOP"
 
@@ -676,6 +677,7 @@ function FPerl.Raid.SetBits(self)
 		FPerl.AfterCombat(FPerl.Raid.SetBits, self)
 		return
 	end
+	local d = FPerl.Dev; if d and d.listener then d.Emit("redisplay.raid") end
 	if (Shared.raidLoaded) then
 		FPerl.GroupVisibilityUpdate()
 	end

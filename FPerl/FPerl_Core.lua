@@ -93,6 +93,9 @@ frame:SetScript("OnEvent", function()
 	-- A call that queues again lands in the new queue, so a failed lockdown check cannot loop.
 	local list, args = order, pending
 	order, pending = {}, {}
+	if (#list > 0) then
+		local d = FPerl.Dev; if d and d.listener then d.Emit("combatqueue.run", #list) end
+	end
 	for i = 1, #list do
 		runFunc = list[i]
 		runArg = args[runFunc]
@@ -217,7 +220,7 @@ function FPerl.Off(event, fn)
 	end
 end
 
-bus:SetScript("OnEvent", function(_, event, ...)
+local function onBusEvent(_, event, ...)
 	local list = listeners[event]
 	if (list) then
 		-- securecallfunction: an error goes to the error handler and the later listeners still run
@@ -225,7 +228,11 @@ bus:SetScript("OnEvent", function(_, event, ...)
 			securecallfunction(list[i], event, ...)
 		end
 	end
-end)
+end
+bus:SetScript("OnEvent", onBusEvent)
+
+-- The dev API (FPerl_Dev.lua) reads the listeners and dispatches an event to them.
+FPerl.DevBus = {listeners = listeners, dispatch = function(event, ...) onBusEvent(nil, event, ...) end}
 
 -- FPerl.Every(interval, fn) / FPerl.Cancel(fn)
 -- The scheduler: one C_Timer.NewTicker per distinct interval, created on first use and cancelled when

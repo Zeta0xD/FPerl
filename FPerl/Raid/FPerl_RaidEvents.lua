@@ -513,7 +513,7 @@ function Events:UNIT_COMBAT(unit, action, descriptor, damage, damageType)
 
 	if (action == "HEAL") then
 		CombatFlash(self, 0, true, true)
-	elseif (damage and damage > 0) then
+	elseif (FPerl.IsHit(action, damage)) then
 		CombatFlash(self, 0, true)
 	end
 end

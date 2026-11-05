@@ -454,13 +454,13 @@ function Events:UNIT_COMBAT(unit, action, descriptor, damage, damageType)
 	-- set first: the flash and hit text animate even when a later line raises on a secret amount
 	self:SetScript("OnUpdate", FPerl.PlayerPet.OnUpdate)
 
-	if pconf.hitIndicator and pconf.portrait then
+	if pconf.hitIndicator and pconf.portrait and not FPerl.IsSecret(damage) then
 		CombatFeedback_OnCombatEvent(self, action, descriptor, damage, damageType)
 	end
 
 	if action == "HEAL" then
 		CombatFlash(FPerl_Player_Pet, 0, true, true)
-	elseif (damage and damage > 0) then
+	elseif (FPerl.IsHit(action, damage)) then
 		CombatFlash(FPerl_Player_Pet, 0, true)
 	end
 end
@@ -655,6 +655,7 @@ end
 
 -- FPerl.PlayerPet.SetBits
 function FPerl.PlayerPet.SetBits(self)
+	local d = FPerl.Dev; if d and d.listener then d.Emit("redisplay.playerpet") end
 	if self.off then
 		return
 	end

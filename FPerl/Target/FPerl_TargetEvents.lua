@@ -51,13 +51,13 @@ function Events:UNIT_COMBAT(unit, action, descriptor, damage, damageType)
 
 	FPerl.Target.UpdateCombat(self)
 
-	if (self.conf.hitIndicator and self.conf.portrait) then
+	if (self.conf.hitIndicator and self.conf.portrait and not FPerl.IsSecret(damage)) then
 		CombatFeedback_OnCombatEvent(self, action, descriptor, damage, damageType)
 	end
 
 	if (action == "HEAL") then
 		FPerl.Target.CombatFlash(self, 0, true, true)
-	elseif (damage and damage > 0) then
+	elseif (FPerl.IsHit(action, damage)) then
 		FPerl.Target.CombatFlash(self, 0, true)
 	end
 end

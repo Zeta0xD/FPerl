@@ -38,7 +38,7 @@ local SafeBool = FPerl.SafeBool
 local max = max
 local tonumber = tonumber
 local type = type
-local GetDifficultyColor = GetDifficultyColor or GetQuestDifficultyColor
+local GetDifficultyColor = GetCreatureDifficultyColor or GetQuestDifficultyColor
 local RegisterUnitWatch = RegisterUnitWatch
 local UnitClassBase = UnitClassBase
 local UnitClassification = UnitClassification
@@ -530,6 +530,7 @@ end
 
 -- FPerl.Target.SetBits
 function FPerl.Target.SetBits(self)
+	local d = FPerl.Dev; if d and d.listener then d.Emit("redisplay.target") end
 	if self.off then
 		return
 	end
