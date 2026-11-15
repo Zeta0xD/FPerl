@@ -462,6 +462,7 @@ dropdown("general.highlights.debuff", "Debuff highlight", "Highlight units that 
 })
 check("general.highlights.curable", "Only curable", "Only highlight debuffs when it is something you can cure.", {path = "highlightDebuffs.class"})
 check("general.highlights.aggro", "Aggro glow", "Highlight units with a red border if they have aggro. Requires Raid Helper's Target Counter to be loaded and enabled.", {path = "highlight.AGGRO"})
+check("general.highlights.aggrowarning", "Aggro warning text", "Show the large \"- AGGRO -\" text when a mob targets you or your pet. Requires Raid Helper to be loaded.", {get = FPerl.SettingsGetAggroWarning, set = FPerl.SettingsSetAggroWarning, apply = {}})
 check("general.highlights.target", "Target glow", "Indicate your target on the frames.", {path = "highlightSelection"})
 check("general.highlights.heal", "Incoming heal glow", "Highlight units that are being healed in green.", {path = "highlight.HEAL"})
 check("general.highlights.hots", "HoTs", "Highlight units with a blue border that have your heal over time spells.", {path = "highlight.HOT"})

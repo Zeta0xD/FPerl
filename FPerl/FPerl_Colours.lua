@@ -494,8 +494,12 @@ function FPerl.CombatFlashSetFrames(self)
 			self.PlayerFlash = false
 		end
 
-		for i = 1, #self.FlashFrames do
-			self.FlashFrames[i]:SetBackdropBorderColor(r, g, b, a)
+		-- nil when the frame's OnLoad stopped before setting it; PlayerFlash must still reach false above
+		local frames = self.FlashFrames
+		if frames then
+			for i = 1, #frames do
+				frames[i]:SetBackdropBorderColor(r, g, b, a)
+			end
 		end
 	end
 end

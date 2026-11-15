@@ -472,6 +472,11 @@ function FPerl.SettingsGetRaid() return FPerl.layout.raid.enable and true or fal
 function FPerl.SettingsSetRaid(v)
 	FPerl.layout.raid.enable = v and 1 or false
 end
+-- Raid Helper's own per-character table (1 on, 0 off); read where the warning shows, so nothing to apply
+function FPerl.SettingsGetAggroWarning() return FPerlRaidHelperDB ~= nil and FPerlRaidHelperDB.AggroWarning == 1 end
+function FPerl.SettingsSetAggroWarning(v)
+	if FPerlRaidHelperDB then FPerlRaidHelperDB.AggroWarning = v and 1 or 0 end
+end
 local function groupGet(i) return function() return FPerl.layout.raid.group[i] and true or false end end
 local function groupSet(i) return function(v) FPerl.layout.raid.group[i] = v and 1 or false end end
 FPerl.SettingsGetRaidGroup1 = groupGet(1)

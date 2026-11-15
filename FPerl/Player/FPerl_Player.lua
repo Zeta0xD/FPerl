@@ -117,11 +117,7 @@ function FPerl.Player.OnLoad(self)
 
 	FPerl.Player.PVPTimerSetup(self.nameFrame.pvptimer)
 
-	local _, playerClass = UnitClass("player")
-	if (playerClass == "DRUID") or (playerClass == "SHAMAN") or (playerClass == "PRIEST") then
-		FPerl.Player.DruidBarUpdate(self)
-	end
-
+	-- no DruidBarUpdate here: pconf is nil until the config loads; SetBits builds the bar
 	FPerl.RegisterHighlight(self.highlight, 3)
 
 	local perlframes = {self.nameFrame, self.statsFrame, self.levelFrame, self.portraitFrame, self.groupFrame}
