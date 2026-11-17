@@ -136,33 +136,9 @@ end
 -- DoRangeCheck
 local function DoRangeCheck(unit, opt)
 	local range
-	if opt.PlusHealth then
-		local hp, hpMax = UnitHealth(unit), UnitHealthMax(unit)
-		-- the health check needs maths, so it is skipped while the
-		-- values are secret and the plain range check decides instead.
-		if (CanAccess(hp) and CanAccess(hpMax)) then
-			if (not ForeverAPI.healthPercent) then
-				hp = UnitIsGhost(unit) and 1 or (UnitIsDead(unit) and 0 or hp)
-			end
-			-- Begin 4.3 divide by 0 work around.
-			local percent
-			if UnitIsDeadOrGhost(unit) or (hp == 0 and hpMax == 0) then -- Probably dead target
-				percent = 0 -- So just automatically set percent to 0 and avoid division of 0/0 all together in this situation.
-			elseif hp > 0 and hpMax == 0 then -- We have current HP but max hp failed.
-				percent = 1 -- 100% if they are alive with > 0 cur hp, since curhp = maxhp in this hack.
-			else
-				percent = hp / hpMax -- Everything is dandy, so just do it right way.
-			end
-			-- End divide by 0 work around
-			if (percent > opt.HealthLowPoint) then
-				range = 0
-			end
-		end
-	end
-
 	-- UnitAuraByIndex fetches the aura list once per unit, filter and frame time (FPerl_Values.lua) and returns
 	-- at once while auras are secret; this runs per frame per range tick only with the PlusDebuff option on
-	if opt.PlusDebuff and ((opt.PlusHealth and range == 0) or not opt.PlusHealth) then
+	if opt.PlusDebuff then
 		local name = FPerl.UnitAuraByIndex(unit, 1, "HARMFUL|RAID")
 		if not name then
 			range = 0
@@ -183,7 +159,7 @@ local function DoRangeCheck(unit, opt)
 					end
 				end
 			else
-				range = nil -- Override's the health check, because there's a debuff on unit
+				range = nil -- a debuff on the unit: the plain range check decides
 			end
 		end
 	end
@@ -316,8 +292,8 @@ function FPerl.UpdateSpellRange2(self, overrideUnit, isRaidFrame)
 				end
 
 				if (rf.NameFrame.enabled) then
-					-- check for the same health rule. Saves doing the check multiple times
-					if (rf.Main.enabled and (rf.Main.PlusHealth == rf.NameFrame.PlusHealth)) then
+					-- the parts share one range check
+					if (rf.Main.enabled) then
 						if (mainA) then
 							nameA = rf.NameFrame.FadeAmount
 						end
@@ -330,8 +306,8 @@ function FPerl.UpdateSpellRange2(self, overrideUnit, isRaidFrame)
 					end
 				end
 				if (rf.StatsFrame.enabled) then
-					-- check for the same health rule. Saves doing the check multiple times
-					if (rf.Main.enabled and (rf.Main.PlusHealth == rf.StatsFrame.PlusHealth)) then
+					-- the parts share one range check
+					if (rf.Main.enabled) then
 						if (mainA) then
 							statsA = rf.StatsFrame.FadeAmount
 						end
@@ -418,9 +394,6 @@ function FPerl.StartupSpellRange()
 	local function Setup1(self)
 		if (not self.FadeAmount) then
 			self.FadeAmount = 0.3
-		end
-		if (not self.HealthLowPoint) then
-			self.HealthLowPoint = 0.7
 		end
 	end
 

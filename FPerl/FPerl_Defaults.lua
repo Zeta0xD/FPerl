@@ -159,6 +159,7 @@ local function TargetConfigDefault(default, section)
 			enable		= 1,
 		},
 		hitIndicator	= 1,			-- 2.1.7
+		hitIndicatorPos	= "PORTRAIT",
 		threat			= 1,
 		threatMode		= "portraitFrame",
 		classIcon		= 1,
@@ -225,6 +226,7 @@ local function PartyConfigDefault(default)
 		portrait		= 1,
 		portrait3D		= 1,
 		hitIndicator	= 1,			-- 2.1.7
+		hitIndicatorPos	= "PORTRAIT",
 		threat			= 1,
 		threatMode		= "portraitFrame",
 		target = {
@@ -305,6 +307,7 @@ local function PlayerConfigDefault(default)
 		portrait		= 1,
 		portrait3D		= 1,
 		hitIndicator	= 1,
+		hitIndicatorPos	= "PORTRAIT",
 		level			= 1,
 		healprediction	= 1,
 		absorbs			= 1,
@@ -338,6 +341,9 @@ local function PlayerConfigDefault(default)
 			enable		= 1,
 			size		= 25,
 		},
+		enchants = {					-- weapon enchants (poisons) at the start of the buff line
+			enable		= 1,
+		},
 		size = {
 			width		= 0,
 		},
@@ -355,6 +361,7 @@ local function PetConfigDefault(default)
 		portrait = 1,
 		portrait3D = 1,
 		hitIndicator= 1,
+		hitIndicatorPos	= "PORTRAIT",
 		happiness = {
 			enable = 1,
 			onlyWhenSad	= 1,
@@ -562,8 +569,8 @@ end
 function FPerl.DefaultRangeFinder()
 	return {						-- 2.1.7
 --		enabled		= e,	-- 2.3.4a Defaulting to OFF now, because of so many confused users complaining about faded frames. RTFM... (TODO: Write a manual)
-		Main		= {enabled = true, FadeAmount = 0.5, HealthLowPoint = 0.85},		-- PlusHealth = false,
-		NameFrame	= {FadeAmount = 0.5, HealthLowPoint = 0.85},
-		StatsFrame	= {FadeAmount = 0.5, HealthLowPoint = 0.85},
+		Main		= {enabled = true, FadeAmount = 0.5},
+		NameFrame	= {FadeAmount = 0.5},
+		StatsFrame	= {FadeAmount = 0.5},
 	}
 end

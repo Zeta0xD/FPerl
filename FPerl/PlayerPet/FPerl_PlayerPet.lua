@@ -37,7 +37,6 @@ local UnitPowerMax = UnitPowerMax
 local UnregisterUnitWatch = UnregisterUnitWatch
 
 local CombatFeedback_Initialize = CombatFeedback_Initialize
-local CombatFeedback_OnCombatEvent = CombatFeedback_OnCombatEvent
 local CombatFeedback_OnUpdate = CombatFeedback_OnUpdate
 
 -- secret value helpers from FPerl.lua
@@ -54,6 +53,7 @@ function FPerl.PlayerPet.OnLoad(self)
 	self.partyid = "pet"
 
 	CombatFeedback_Initialize(self, self.hitIndicator.text, 30)
+	self.portraitW = 50
 
 	--FPerl.SecureUnitButtonOnLoad(self, "pet", nil, PetFrameDropDown, FPerl_ShowGenericMenu)			--PetFrame.menu)
 	--FPerl.SecureUnitButtonOnLoad(self.nameFrame, "pet", nil, PetFrameDropDown, FPerl_ShowGenericMenu)	--PetFrame.menu)
@@ -200,7 +200,7 @@ end
 
 -- FPerl.PlayerPet.OnUpdate
 function FPerl.PlayerPet.OnUpdate(self, elapsed)
-	local feedback = pconf.hitIndicator and pconf.portrait
+	local feedback = pconf.hitIndicator
 	if feedback then
 		CombatFeedback_OnUpdate(self, elapsed)
 	end
@@ -454,8 +454,8 @@ function Events:UNIT_COMBAT(unit, action, descriptor, damage, damageType)
 	-- set first: the flash and hit text animate even when a later line raises on a secret amount
 	self:SetScript("OnUpdate", FPerl.PlayerPet.OnUpdate)
 
-	if pconf.hitIndicator and pconf.portrait and not FPerl.IsSecret(damage) then
-		CombatFeedback_OnCombatEvent(self, action, descriptor, damage, damageType)
+	if pconf.hitIndicator then
+		FPerl.HitIndicator(self, action, descriptor, damage, damageType, pconf)
 	end
 
 	if action == "HEAL" then
@@ -635,7 +635,7 @@ local function ApplyLayout(self)
 
 	if pconf.portrait then
 		self.portraitFrame:Show()
-		self.portraitFrame:SetWidth(50)
+		self.portraitFrame:SetWidth(self.portraitW)
 		self.statsFrame.resurrect:Hide()
 	else
 		self.portraitFrame:Hide()

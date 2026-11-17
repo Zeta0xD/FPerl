@@ -177,7 +177,7 @@ end
 
 -- Shows or hides the grid for the current state.
 function FPerl.AlignmentGridUpdate()
-	local editing = FPerl.Locked == 0 or (SettingsPanel and SettingsPanel:IsShown())
+	local editing = FPerl.Locked == 0 or (_G.FPerl_OptionsWindow and _G.FPerl_OptionsWindow:IsShown())
 	if (gridDB().alignmentGrid and editing and not InCombatLockdown()) then
 		gridShow()
 	else
@@ -221,12 +221,6 @@ function FPerl.AlignmentGridSnapSaved(frame)
 	snapBusy = false
 end
 
-FPerl.On("PLAYER_LOGIN", function()
-	if (SettingsPanel) then
-		SettingsPanel:HookScript("OnShow", FPerl.AlignmentGridUpdate)
-		SettingsPanel:HookScript("OnHide", FPerl.AlignmentGridUpdate)
-	end
-end)
 FPerl.On("PLAYER_REGEN_DISABLED", FPerl.AlignmentGridHide)
 FPerl.On("PLAYER_REGEN_ENABLED", FPerl.AlignmentGridUpdate)
 

@@ -1,22 +1,21 @@
--- The options panel: at login registers the category "F-Perl" in Blizzard's Settings panel, one subcategory per
--- page of FPerl.SettingsList, one proxy setting per entry. List format: the header of
--- FPerl_SettingsList.lua.
+-- The value logic of the options window (Options/): get and store per list entry, the appliers, the shared controls and the
+-- layout and raid functions the rows call. List format: the header of FPerl_SettingsList.lua. The window reads this file's
+-- functions through FPerl.SettingsCore (end of file).
 --
 -- Every getter and setter re-resolves FPerl.layout, which is replaced on a profile switch. A stored nil and false
--- read the same. Section headers are Blizzard's expandable-section template with our own click handler; the
--- entries of a section are stock initializers with a shown predicate on the section's open flag.
+-- read the same.
 --
 -- A shared control (list entry with `each`, General's Shown on frames and Auras sections) has no key of its own: its
 -- setter calls the store of each ticked frame's own entry (the "Apply to" picker, a bitmask kept in `masks`, session
 -- state), its getter reads the first ticked frame's entry, its tooltip names the ticked frames that differ.
 
 local format, floor = string.format, math.floor
--- Pages other addons add: {key, name, create}. build() registers each as a canvas subcategory of "F-Perl" with
--- a frame it keeps in `frame` and `category`; create(frame) runs the first time the frame is shown.
+-- Pages other addons add: {key, name, create}. The options window makes each a tab with a frame it keeps in `frame`;
+-- create(frame) runs the first time the tab is shown.
 FPerl.SettingsPages = FPerl.SettingsPages or {}
 
 local function norm(v) return v or false end
-local byId, settingById = nil, {} -- byId: built on first use, the list file loads after this one
+local byId = nil -- byId: built on first use, the list file loads after this one
 local function rowById(id)
 	if not byId then
 		byId = {}
@@ -24,7 +23,7 @@ local function rowById(id)
 	end
 	return byId[id]
 end
-local refresh -- re-reads every setting into the open panel
+local function refresh() if FPerl.Options then FPerl.Options.Refresh() end end -- re-reads every control of the open window
 local sharedValue, sharedStore, setMask, maskOf -- shared controls, below
 
 -- Parent table and last key of a dotted path (an integer key is its own last key). create: build missing tables.
@@ -186,7 +185,9 @@ local function store(e, v)
 		if e.with then for _, w in ipairs(e.with) do write(w, v and e.on or e.off) end end
 	elseif t == "slider" then
 		v = e.min + floor((v - e.min) / e.step + 0.5) * e.step
-		write(e.path, tonumber(format("%.6f", v)))
+		v = tonumber(format("%.6f", v))
+		write(e.path, v)
+		if e.with then for _, w in ipairs(e.with) do write(w, v) end end
 	elseif t == "colour" then
 		local a, r, g, b = string.match(v, "^(%x%x)(%x%x)(%x%x)(%x%x)$")
 		if not a then return end
@@ -212,7 +213,7 @@ local function store(e, v)
 	end
 	-- Blizzard's Defaults button sets every setting to its default in no fixed order: the side effect would undo one
 	-- refresh only on a change: a colour drag stores every step, and refreshing the whole panel each step lags the game
-	if e.also and not (SettingsPanel and SettingsPanel:CheckIsSettingDefaults()) then
+	if e.also then
 		local changed
 		for path, v in pairs(e.also) do
 			if norm(read(FPerl.layout, path)) ~= norm(v) then
@@ -292,7 +293,6 @@ end
 -- Write v through the entry of each ticked frame (overwriting its value), then run the appliers they want once. The Defaults
 -- button would push one frame's default into all of them: it leaves shared controls alone.
 function sharedStore(e, v)
-	if SettingsPanel and SettingsPanel:CheckIsSettingDefaults() then return end
 	local mask = maskOf(e.section)
 	collect = {}
 	local ok, err = pcall(function()
@@ -322,10 +322,7 @@ end
 -- The picker's setter: the shared controls of the section show the first ticked frame's value.
 function setMask(section, v)
 	masks[section] = v
-	if SettingsPanel and SettingsPanel:CheckIsSettingDefaults() then return end
-	for _, x in ipairs(FPerl.SettingsList) do
-		if x.each and x.section == section and settingById[x.id] then settingById[x.id]:NotifyUpdate() end
-	end
+	refresh()
 end
 
 -- The tooltip: the entry's text, the ticked frames whose value differs from the shown one, and, for a dropdown, the ticked
@@ -347,16 +344,6 @@ local function sharedTip(e)
 		if #skipped > 0 then text = text .. "\nNot changed: " .. table.concat(skipped, ", ") end
 		return text
 	end
-end
-
-local function framesOptions()
-	local c = Settings.CreateControlTextContainer()
-	for i, fl in ipairs(FPerl.SettingsFrames) do c:AddCheckbox(i, fl) end
-	return c:GetData()
-end
-local function framesText(selections)
-	if #selections == 0 then return "None" end
-	if #selections == #FPerl.SettingsFrames then return "All frames" end
 end
 
 ------------------------------------------------------------------------------------------------ popup
@@ -400,7 +387,6 @@ end
 function FPerl.SettingsGetLayout() return FPerl.ActiveLayout() or "Default" end
 
 function FPerl.SettingsSelectLayout(name)
-	if SettingsPanel and SettingsPanel:CheckIsSettingDefaults() then return end
 	if name ~= FPerl.ActiveLayout() then FPerl.SelectLayout(name) end
 	refresh()
 end
@@ -432,16 +418,8 @@ function FPerl.SettingsDeleteLayout(name)
 	end)
 end
 
--- Aura blacklist...: the blacklist editor is a settings page AuraBlacklist/ adds through FPerl.SettingsPages.
-function FPerl.SettingsOpenBlacklist()
-	for _, p in ipairs(FPerl.SettingsPages) do
-		if p.key == "AuraBlacklist" and p.category then
-			Settings.OpenToCategory(p.category:GetID())
-			return
-		end
-	end
-	FPerl.Notice("The aura blacklist page is missing.")
-end
+-- Aura blacklist...: the blacklist editor is a tab of the options window (AuraBlacklist/ adds it through FPerl.SettingsPages).
+function FPerl.SettingsOpenBlacklist() FPerl.Options.Open("Aura blacklist") end
 
 -- Reset colours: every colour default, the frame backdrop and border, and the transparency.
 function FPerl.ResetColours()
@@ -505,47 +483,7 @@ end
 function FPerl.SettingsRaidGroupsAll() raidGroupsAll(true) end
 function FPerl.SettingsRaidGroupsNone() raidGroupsAll(false) end
 
------------------------------------------------------------------------------------------------- builder
--- A section header is a button row made through Blizzard's secure initializer path with no search tags: an initializer
--- built with CreateFromMixins here, or tagged here, makes Blizzard's search read tainted fields (O33).
-local function header(name, state)
-	local function label() return state.open and "Close" or "Open" end
-	return CreateSettingsButtonInitializer(name, label(), function(button)
-		state.open = not state.open
-		button:SetText(label())
-		SettingsInbound.RepairDisplay()
-	end, nil, false)
-end
-
-local function optionsFn(e)
-	return function()
-		local c = Settings.CreateControlTextContainer()
-		if e.map then
-			for i, m in ipairs(e.map) do c:Add(i, m[1]) end
-		elseif type(e.options) == "table" then
-			for i, o in ipairs(e.options) do c:Add(i, o[2]) end
-		else
-			for _, o in ipairs(e.options()) do c:Add(o[1], o[2]) end
-		end
-		return c:GetData()
-	end
-end
-
-local function sliderOptions(e)
-	local o = Settings.CreateSliderOptions(e.min, e.max, e.step)
-	o.steps = floor((e.max - e.min) / e.step + 0.5)
-	local label
-	if e.percent then
-		label = function(v) return format("%d%%", floor(v * 100 + 0.5)) end
-	elseif e.step >= 1 then
-		label = function(v) return e.zero and v < 0.5 and e.zero or format("%d", floor(v + 0.5)) end
-	else
-		label = function(v) return (format("%.2f", v):gsub("(%.%d-)0+$", "%1"):gsub("%.$", "")) end
-	end
-	o:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right, label)
-	return o
-end
-
+------------------------------------------------------------------------------------------------ click
 local function click(e)
 	if e.nocombat and refuseInCombat() then return end
 	local function run()
@@ -558,175 +496,15 @@ local function click(e)
 	if e.confirm then confirm((e.confirm:gsub("{layout}", function() return FPerl.ActiveLayout() or "Default" end)), run) else run() end
 end
 
-local settingObjects = {}
--- seen[id]: the value the panel last showed for a plain setting. Entries read through a function, shared
--- controls, the frame picker and dropdowns whose choices come from a function have no cached value: always notified.
-local seen, settingEntry = {}, {}
-local function plain(e) return not (e.get or e.each or e.type == "frames" or type(e.options) == "function") end
-function refresh(changedOnly)
-	for i, s in ipairs(settingObjects) do
-		local e = settingEntry[i]
-		if plain(e) then
-			local v = valueOf(e, FPerl.layout)
-			if changedOnly and seen[e.id] == v then s = nil else seen[e.id] = v end
-		end
-		if s then s:NotifyUpdate() end
-	end
-
-end
-
 -- The panel row's own write path, for other callers (the frame menu): the value write, then the row's appliers.
 function FPerl.SettingsSetRow(id, v)
-	seen[id] = nil
 	store(rowById(id), v)
 end
 function FPerl.SettingsGetRow(id) return valueOf(rowById(id), FPerl.layout) end
-local pageCategory = {}
-function FPerl.SettingsOpenPage(name)
-	local cat = pageCategory[name]
-	if cat then FPerl.AfterCombat(function() Settings.OpenToCategory(cat:GetID()) end) end
-end
+function FPerl.SettingsRefresh() refresh() end -- the layout and profile changes
 
-function FPerl.SettingsRefresh() refresh(true) end -- the layout and profile changes: only settings whose value changed
-
-local rootCategory
-local hookSearch
-
--- Opens Esc > Options > AddOns > F-Perl. Opening it in combat is a blocked action (seen in game), so in
--- combat it opens when combat ends.
-local function openNow() Settings.OpenToCategory(rootCategory:GetID()) end
-function FPerl.OpenSettings()
-	if not rootCategory then
-		FPerl.Notice("The settings are not ready yet.")
-		return
-	end
-	if InCombatLockdown() then
-		FPerl.Notice("The settings open when combat ends.")
-	end
-	FPerl.AfterCombat(openNow)
-end
-
--- Blizzard's search calls every row's ShouldShow, and a shown predicate is addon code: it taints the search handler, and
--- a protected call later in the same handler (Social's IsUserOAuthed) is blamed on F-Perl (O33). So the rows carry no
--- predicate while the search box has text; a closed section then shows its settings in the results, as search needs.
-local predRows, stripped = {}, false
-local function setPredicates(on)
-	if stripped == not on then return end
-	stripped = not on
-	for _, r in ipairs(predRows) do
-		r[1].shownPredicates = nil
-		if on then r[1]:AddShownPredicate(r[2]) end
-	end
-	if on then SettingsInbound.RepairDisplay() end -- the list was rebuilt without them: close the closed sections again
-end
-local function searchChanged()
-	local box = SettingsPanel.SearchBox
-	setPredicates(box:GetText() == "")
-end
-function hookSearch()
-	local box = SettingsPanel and SettingsPanel.SearchBox
-	if not box then return end
-	-- a key goes down before its character reaches the box: strip before Blizzard's text handler searches
-	box:HookScript("OnKeyDown", function() setPredicates(false) end)
-	box:HookScript("OnChar", function() setPredicates(false) end)
-	box:HookScript("OnTextChanged", searchChanged)
-	box:HookScript("OnKeyUp", searchChanged)
-	box:HookScript("OnEditFocusLost", searchChanged)
-	SettingsPanel:HookScript("OnHide", searchChanged)
-end
-
-local function build()
-	local defaults = {}
-	FPerl.Defaults(defaults)
-	local root, rootLayout = Settings.RegisterVerticalLayoutCategory("F-Perl")
-	rootCategory = root
-	local pages = {}
-	for _, e in ipairs(FPerl.SettingsList) do
-		local page = pages[e.page]
-		if not page then
-			page = {}
-			if e.page == "General" then
-				page.cat, page.layout = root, rootLayout -- General is the F-Perl page itself
-			else
-				page.cat, page.layout = Settings.RegisterVerticalLayoutSubcategory(root, e.page)
-			end
-			pages[e.page] = page
-			pageCategory[e.page] = page.cat
-		end
-		if page.section ~= e.section then
-			page.section = e.section
-			page.state = {open = false}
-			page.layout:AddInitializer(header(e.section, page.state))
-		end
-		local state = page.state
-		local init
-		local tip = e.each and sharedTip(e) or function() return e.tip end
-		if e.type == "button" then
-			-- backed by a setting that holds nothing: Blizzard's delegate writes the search tag of a setting row, while a tag
-			-- written here taints the search (O33)
-			local setting = Settings.RegisterProxySetting(page.cat, "FPerl_" .. e.id, Settings.VarType.Boolean, e.label, false,
-				function() return false end, function() end)
-			local data = Settings.CreateSettingInitializerData(setting, nil, e.tip)
-			data.buttonText = e.label
-			data.buttonClick = function() click(e) end
-			init = Settings.CreateSettingInitializer("SettingButtonControlTemplate", data)
-			page.layout:AddInitializer(init)
-		else
-			local vtype, default = Settings.VarType.Number
-			if e.type == "check" then
-				vtype = Settings.VarType.Boolean
-			elseif e.type == "colour" or type(e.options) == "function" then
-				vtype = Settings.VarType.String
-			end
-			if e.type == "frames" then
-				default = full()
-			elseif e.get or type(e.options) == "function" then
-				default = valueOf(e)
-			else
-				default = valueOf(e, defaults)
-			end
-			local setting = Settings.RegisterProxySetting(page.cat, "FPerl_" .. e.id, vtype, e.label, default,
-				function() return valueOf(e, FPerl.layout) end,
-				function(v) FPerl.SettingsSetRow(e.id, v) end)
-			settingObjects[#settingObjects + 1] = setting
-			settingEntry[#settingObjects] = e
-			settingById[e.id] = setting
-			if e.type == "check" then
-				init = Settings.CreateCheckbox(page.cat, setting, tip)
-			elseif e.type == "slider" then
-				init = Settings.CreateSlider(page.cat, setting, sliderOptions(e), tip)
-			elseif e.type == "colour" then
-				init = Settings.CreateColorSwatch(page.cat, setting, tip)
-			elseif e.type == "frames" then
-				init = Settings.CreateDropdown(page.cat, setting, framesOptions, tip)
-				init.getSelectionTextFunc = framesText
-			else
-				init = Settings.CreateDropdown(page.cat, setting, optionsFn(e), tip)
-			end
-		end
-		local pred = function()
-			if e.showif and not e.showif() then return false end
-			return state.open
-		end
-		init:AddShownPredicate(pred)
-		predRows[#predRows + 1] = {init, pred}
-	end
-	hookSearch()
-	for _, p in ipairs(FPerl.SettingsPages) do
-		local frame = CreateFrame("Frame")
-		frame:Hide() -- the panel shows it; a frame created shown never gets the OnShow that builds the page
-		frame:SetScript("OnShow", function(self)
-			self:SetScript("OnShow", nil)
-			xpcall(function() p.create(self) end, geterrorhandler())
-		end)
-		p.frame = frame
-		p.category = Settings.RegisterCanvasLayoutSubcategory(root, frame, p.name)
-	end
-	Settings.RegisterAddOnCategory(root)
-end
-
-local function onLogin()
-	FPerl.Off("PLAYER_LOGIN", onLogin)
-	build()
-end
-FPerl.On("PLAYER_LOGIN", onLogin)
+-- What the options window (Options/) uses: the value logic stays here.
+FPerl.SettingsCore = {
+	valueOf = valueOf, store = store, rowById = rowById, sharedTip = sharedTip, click = click, maskOf = maskOf, setMask = setMask,
+	read = read, norm = norm, on = on, hexOf = hexOf, ticked = ticked,
+}

@@ -25,7 +25,6 @@ local UnitExists = UnitExists
 local UnitGUID = UnitGUID
 local UnitIsUnit = UnitIsUnit
 local UnregisterUnitWatch = UnregisterUnitWatch
-local CombatFeedback_OnCombatEvent = CombatFeedback_OnCombatEvent
 local CombatFeedback_OnUpdate = CombatFeedback_OnUpdate
 local CanAccess = FPerl.CanAccess
 local SafeBool = FPerl.SafeBool
@@ -62,7 +61,7 @@ function FPerl.Party.OnUpdate(self, elapsed)
 		return
 	end
 
-	local feedback = pconf.hitIndicator and pconf.portrait
+	local feedback = pconf.hitIndicator
 	if feedback then
 		CombatFeedback_OnUpdate(self, elapsed)
 	end
@@ -242,8 +241,8 @@ function Events:UNIT_COMBAT(unit, action, descriptor, damage, damageType)
 	-- set first: the flash and hit text animate even when a later line raises on a secret amount
 	self:SetScript("OnUpdate", FPerl.Party.OnUpdate)
 
-	if (pconf.hitIndicator and pconf.portrait and not FPerl.IsSecret(damage)) then
-		CombatFeedback_OnCombatEvent(self, action, descriptor, damage, damageType)
+	if pconf.hitIndicator then
+		FPerl.HitIndicator(self, action, descriptor, damage, damageType, pconf)
 	end
 
 	UpdateCombat(self)

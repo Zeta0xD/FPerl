@@ -12,7 +12,12 @@
 -- frame whose entry words it differently. A frame whose entry has no choice for the label is left alone. `apply` and
 -- `throttle` of a shared control are derived from its frames' entries. Entries of these sections without `each` are
 -- not per frame: the key they write is read from the profile's top level for every frame.
--- A check may take `with = {path, ...}`: more keys that get the same stored value as `path`.
+-- A check or slider may take `with = {path, ...}`: more keys that get the same stored value as `path`.
+-- Fields for the own options window (set at the end of FPerl_SettingsListPages.lua): `basic = true` shows the row while "Show advanced options" is off;
+-- `inline = "<tag>"` rows of one tag draw in one line; `group = "<title>"` puts the row in a titled block (General's "Apply to" rows);
+-- `reload = true` marks a row that takes effect after a reload: the options window labels it "(reload)" and offers Reload UI after a change.
+-- `needs` greys the row while its condition fails: `needs = "<saved key>"` is active when the key is truthy,
+-- `{key = "<saved key>", ["not"] = value}` when the key differs from value, a list of these when all hold.
 -- `keys = {path, ...}` names the saved keys of a row with get/set (no path or map), so a layout switch can tell which
 -- appliers a changed key needs (FPerl.ReapplyLayout, FPerl_Globals.lua). A saved key no row names runs every applier.
 -- Entry fields beyond the format: `get`/`set` (functions) read and write a value outside FPerl.layout:
@@ -44,15 +49,6 @@ local BARS = {"party", "partypet", "player", "playerpet", "raid", "raidpets", "t
 local RANGE = {"party", "partypet", "raid", "raidpets", "target"} -- modules that re-run the range fade on a display update
 local BACKDROP = {"skin", "party", "partypet", "player", "playerpet", "raid", "raidhelper", "target"}
 local APPLY = {
-	["general.frames.pettarget"] = {"targettarget", "playerpet"},
-	["general.frames.targettarget"] = {"targettarget"},
-	["general.frames.targettargettarget"] = {"targettarget"},
-	["general.frames.focustarget"] = {"targettarget"},
-	["general.frames.focus"] = {"target"},
-	["general.frames.party"] = {"party"},
-	["general.frames.partypet"] = {"partypet"},
-	["general.frames.raid"] = {"raid"},
-	["general.frames.raidpet"] = {"raidpets", "raid"},
 	["general.frames.snap"] = {},
 	["general.look.bartexture"] = {"bartextures"},
 	["general.look.bgbartex"] = {"bartextures"},
@@ -118,14 +114,15 @@ local APPLY = {
 	["player.auras.debuffsize"] = {"playerbuffs"},
 	["player.auras.wrap"] = {"playerbuffs"},
 	["player.auras.bigbuffs"] = {"playerbuffs"},
+	["player.auras.enchants"] = {"playerenchants"},
 	["player.player.precast"] = {},
 	["player.player.originalcastbar"] = {"arcanebar"},
 	["player.player.hideblizzbuffs"] = {"playerbuffs"},
 }
 for _, part in ipairs({"main", "name", "bars"}) do
-	for _, k in ipairs({"enable", "health", "debuff"}) do APPLY["general.range." .. part .. "." .. k] = RANGE end
+	for _, k in ipairs({"enable", "debuff"}) do APPLY["general.range." .. part .. "." .. k] = RANGE end
 	-- the range polls (0.2 s) read the sliders; running RANGE on every drag step lagged the game
-	for _, k in ipairs({"fade", "marker"}) do APPLY["general.range." .. part .. "." .. k] = {} end
+	APPLY["general.range." .. part .. ".fade"] = {}
 end
 for _, k in ipairs({"scale", "width"}) do APPLY["player.size." .. k] = {"player"} end
 for _, k in ipairs({"portrait", "level", "classicon", "pvp", "hit", "healthtext", "absorbs", "healprediction"}) do APPLY["player.shown." .. k] = {"player"} end
@@ -189,8 +186,6 @@ APPLY["raid.helper.sort"] = {}
 APPLY["raid.helper.visible"] = {}
 for _, k in ipairs({"enable", "alpha", "blend"}) do APPLY["raid.custom." .. k] = {"custom"} end
 APPLY["raid.custom.enable"] = {"custom", "raid"}
-APPLY["raid.visibility.party"] = APPLY["party.visibility.inparty"]
-APPLY["raid.visibility.onegroup"] = APPLY["party.visibility.insmallraid"]
 APPLY["general.shown.afk"] = {"party", "player", "target", "targettarget", "raid"}
 APPLY["general.shown.readycheck"] = {"party", "raid"} -- the modules that call FPerl.UnitUpdateReadyState
 local AURAS = {"playerbuffs", "playerpet", "target", "targettarget", "party", "partypet", "raid"} -- modules that style aura buttons
@@ -264,9 +259,11 @@ local function of(prefix, suffix, frames, more)
 	return t
 end
 local MAIN = {PLAYER, TARGET, FOCUS, PARTY} -- the frames with a class icon and a PvP flag
-local function framesPicker(id, label, tip) add("frames", id, label, tip, {apply = {}}) end
+local APPLY_TO = "Apply to several frames"
+local function framesPicker(id, label, tip) add("frames", id, label, tip, {apply = {}, group = APPLY_TO}) end
 local function shared(kind, id, label, tip, e)
 	e.apply = {} -- derived at the end of FPerl_SettingsListPages.lua
+	e.group = APPLY_TO
 	add(kind, id, label, tip, e)
 end
 
@@ -286,7 +283,7 @@ local function auraLayout(pre, k, ap)
 	})
 	for _, kind in ipairs({"buff", "debuff"}) do
 		for _, ax in ipairs({"x", "y"}) do
-			slider(pre .. kind .. ax, (kind == "buff" and "Buff " or "Debuff ") .. string.upper(ax), "Move the " .. kind .. "s sideways (X) or up (Y), in pixels.", {path = k .. "." .. kind .. "s." .. ax, min = -300, max = 300, step = 1, apply = ap})
+			slider(pre .. kind .. ax, (kind == "buff" and "Buff " or "Debuff ") .. string.upper(ax), "Move the " .. kind .. "s sideways (X) or up (Y), in pixels. Dragging the " .. kind .. "s while the frames are unlocked sets the same value.", {path = k .. "." .. kind .. "s." .. ax, min = -300, max = 300, step = 1, apply = ap})
 		end
 	end
 	button(pre .. "resetpos", "Reset position", "Set the buff and debuff offsets of this frame back to 0.", {func = FPerl.SettingsResetAuraPos, arg = k, apply = ap})
@@ -300,18 +297,6 @@ R.page = "General"
 
 R.section = "Frames"
 button("general.frames.arrange", "Unlock frames and hide menu", "Closes this window, unlocks the frames and shows a small toolbar.", {func = FPerl.ArrangeMode, nocombat = true})
-check("general.frames.player", "Player", "Show the player frame. Takes effect after a reload.", {path = "player.enable", apply = {}})
-check("general.frames.pet", "Pet", "Show the pet frame. Takes effect after a reload.", {path = "pet.enable", apply = {}})
-check("general.frames.pettarget", "Pet target", "Show the pet's target frame.", {path = "pettarget.enable"})
-check("general.frames.target", "Target", "Show the target frame. Takes effect after a reload.", {path = "target.enable", apply = {}})
-check("general.frames.targettarget", "Target of target", "Show the frame of your target's target.", {path = "targettarget.enable"})
-check("general.frames.targettargettarget", "Target of target of target", "Show the frame of your target's target's target.", {path = "targettargettarget.enable"})
-check("general.frames.focus", "Focus", "Show the focus frame.", {path = "focus.enable"})
-check("general.frames.focustarget", "Focus target", "Show the frame of your focus's target.", {path = "focustarget.enable"})
-check("general.frames.party", "Party", "Show the party frames.", {path = "party.enable"})
-check("general.frames.partypet", "Party pets", "Show the party members' pet frames.", {path = "partypet.enable"})
-check("general.frames.raid", "Raid", "Show the raid frames.", {get = FPerl.SettingsGetRaid, set = FPerl.SettingsSetRaid})
-check("general.frames.raidpet", "Raid pets", "Show the raid members' pet frames.", {path = "raidpet.enable"})
 button("general.frames.reload", "Reload UI", "Reload the interface. The Player, Pet and Target switches take effect after a reload.", {func = ReloadUI})
 button("general.frames.grid", "Alignment grid", "Show or hide the alignment grid.", {func = FPerl.AlignmentGridToggle})
 check("general.frames.unlock", "Unlock frames", "Show the move handles and the party placeholder frames so frames can be dragged. Not saved: frames are locked after a reload. Closing this window does not lock them.", {get = FPerl.SettingsGetUnlock, set = FPerl.SettingsSetUnlock, nocombat = true, apply = {}})
@@ -397,7 +382,8 @@ shared("dropdown", "general.shown.portrait", "Portrait", "The portrait of the ti
 shared("check", "general.shown.level", "Level", "Show the unit's level.", {each = of(SHOWN_ID, "level", {PLAYER, PET, PETTARGET, TARGET, TOT, TOTT, FOCUS, FOCUSTARGET, PARTY, PARTYPETS})})
 shared("check", "general.shown.classicon", "Class icon", "Show the unit's class icon.", {each = of(SHOWN_ID, "classicon", MAIN)})
 shared("check", "general.shown.pvp", "PvP flag", "Show the unit's PvP status.", {each = of(SHOWN_ID, "pvp", MAIN)})
-shared("check", "general.shown.hit", "Hit indicators", "Show combat hit indicators over the portrait.", {each = of(SHOWN_ID, "hit", {PLAYER, PET, TARGET, FOCUS, PARTY})})
+shared("check", "general.shown.hit", "Hit indicators", "Show damage and heal numbers on the frame, at the portrait spot or the name (Hit text position).", {each = of(SHOWN_ID, "hit", {PLAYER, PET, TARGET, FOCUS, PARTY})})
+shared("dropdown", "general.shown.hitpos", "Hit text position", "Where the hit indicator text of the ticked frames appears: at the place the portrait has (also with the portrait off), or over the name.", {each = of(SHOWN_ID, "hitpos", {PLAYER, PET, TARGET, FOCUS, PARTY})})
 shared("dropdown", "general.shown.healthtext", "Health text", "How health is written on the bars. The pet has its own health and mana text switch on its page. The raid frames have no Current, no Missing and maximum and no Current, maximum and missing.", {
 	each = of(SHOWN_ID, "healthtext", {PLAYER, PETTARGET, TARGET, TOT, TOTT, FOCUS, FOCUSTARGET, PARTY, RAID}),
 	alias = {[RAID] = {["Current and percent"] = "Current and maximum", ["Missing (healer)"] = "Missing (healer mode)"}},
@@ -436,15 +422,11 @@ for _, e in ipairs({
 	{"slider", "debuffperline", "Debuff icons per line", "The most debuff icons in a line before it wraps. Applies while Wrap is on. Auto: as many as fit the frame width on Top and Bottom, one line on Left and Right."},
 	{"check", "buffreverse", "Buff reverse fill", "Fill from the right (rows) or the bottom (columns)."},
 	{"check", "debuffreverse", "Debuff reverse fill", "Fill from the right (rows) or the bottom (columns)."},
-	{"slider", "buffx", "Buff X", "Move the buffs sideways, in pixels."},
-	{"slider", "buffy", "Buff Y", "Move the buffs up, in pixels."},
-	{"slider", "debuffx", "Debuff X", "Move the debuffs sideways, in pixels."},
-	{"slider", "debuffy", "Debuff Y", "Move the debuffs up, in pixels."},
 }) do
 	shared(e[1], "general.auras." .. e[2], e[3], e[4], {each = of(AURA_ID, e[2], LAYOUT)})
 end
 check("general.auras.cooldown", "Cooldown sweep", "Show the cooldown sweep on aura icons. Applies to all frames.", {path = "buffs.cooldown"})
-check("general.auras.cooldownany", "Sweep on all auras", "Show the cooldown sweep on every aura, not only your own. Acts in the X-Perl aura style.", {path = "buffs.cooldownAny"})
+check("general.auras.cooldownany", "Sweep on all auras", "Show the cooldown sweep on every aura, not only your own.", {path = "buffs.cooldownAny"})
 check("general.auras.countdown", "Countdown numbers", "Show the time left as a number on aura icons.", {path = "buffs.countdown"})
 check("general.auras.countdownany", "Numbers on all auras", "Show the countdown on every aura, not only your own.", {path = "buffs.countdownAny"})
 check("general.auras.blizzardnumbers", "Big countdown numbers", "Show Blizzard's large countdown numbers over the aura icons.", {path = "buffs.blizzard"})
@@ -478,8 +460,6 @@ local function rangePart(sectionName, key, idPart, first)
 	R.section = sectionName
 	check("general.range." .. idPart .. ".enable", "Enable", "Fade this part of the frame when out of range.", {path = "rangeFinder." .. key .. ".enabled", on = true})
 	slider("general.range." .. idPart .. ".fade", "Fade amount", "How much to fade from the normal transparency when out of range.", {path = "rangeFinder." .. key .. ".FadeAmount", min = 0.1, max = 0.8, step = 0.1, percent = true})
-	check("general.range." .. idPart .. ".health", "Health check", "Only units that need healing and are in range are clear.", {path = "rangeFinder." .. key .. ".PlusHealth", on = true})
-	slider("general.range." .. idPart .. ".marker", "Health marker", "The low health point for the health check.", {path = "rangeFinder." .. key .. ".HealthLowPoint", min = 0.1, max = 0.95, step = 0.05, percent = true})
 	check("general.range." .. idPart .. ".debuff", "Debuff check", "Only units that need curing and are in range are clear.", {path = "rangeFinder." .. key .. ".PlusDebuff", on = true})
 end
 rangePart("Range: Whole frame", "Main", "main", true)

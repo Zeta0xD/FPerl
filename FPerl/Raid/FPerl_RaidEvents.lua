@@ -670,7 +670,6 @@ Shared.EnableEvents = function(self)
 	self.updatePower = UpdateMana
 	self.updatePowerType = updateManaType
 	self.conf = rconf
-	self.auraNoHandles = true
 	-- the raid header leaves no room beside a frame: RIGHT and LEFT overlay the ends of the bars
 	self.auraInside = {RIGHT = true, LEFT = true}
 	FPerl.UnitFrameInit(self, nil, {"Health", "Raid", "Auras"})

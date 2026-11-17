@@ -13,7 +13,6 @@ local max = max
 local InCombatLockdown = InCombatLockdown
 local UnitOnTaxi = UnitOnTaxi
 local UnitPowerType = UnitPowerType
-local CombatFeedback_OnCombatEvent = CombatFeedback_OnCombatEvent
 
 -- Update functions of FPerl_Player.lua
 local UpdateAssignedRoles = FPerl.Player.UpdateAssignedRoles
@@ -87,8 +86,8 @@ function Events:UNIT_COMBAT(unit, action, descriptor, damage, damageType)
 	-- set first: the flash and hit text animate even when a later line raises on a secret amount
 	self:SetScript("OnUpdate", FPerl.Player.OnUpdate)
 
-	if (pconf.hitIndicator and pconf.portrait and not FPerl.IsSecret(damage)) then
-		CombatFeedback_OnCombatEvent(self, action, descriptor, damage, damageType)
+	if pconf.hitIndicator then
+		FPerl.HitIndicator(self, action, descriptor, damage, damageType, pconf)
 	end
 
 	if (action == "HEAL") then

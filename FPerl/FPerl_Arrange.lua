@@ -66,15 +66,13 @@ function FPerl.ArrangeBarUpdate()
 	FPerl.FrameMenuUpdate()
 end
 
--- Closes the settings window, unlocks the frames and shows the toolbar.
+-- Closes the options window, unlocks the frames and shows the toolbar.
 function FPerl.ArrangeMode()
 	if InCombatLockdown() then
 		FPerl.Notice("Not available in combat.")
 		return
 	end
-	if SettingsPanel and SettingsPanel:IsShown() then
-		HideUIPanel(SettingsPanel)
-	end
+	if _G.FPerl_OptionsWindow then _G.FPerl_OptionsWindow:Hide() end
 	FPerl.UnlockFrames()
 end
 

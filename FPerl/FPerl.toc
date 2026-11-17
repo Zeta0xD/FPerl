@@ -1,5 +1,5 @@
 ## Interface: 16001
-## Version: 1.0.2
+## Version: 1.1.0
 ## X-Upstream-Version: X-Perl UnitFrames | Revived 1.0.6 (in-file name X-Perl Forever; CurseForge xperl-uf)
 ## Author: Zeta0xD; based on work by Ziliya, Resike, Halfdays, Zek and Nymbia
 ## Title: F-Perl
@@ -27,6 +27,7 @@ Party\FPerl_Party.xml
 PartyPet\FPerl_PartyPet.xml
 Player\FPerl_Player.xml
 PlayerBuffs\FPerl_PlayerBuffs.lua
+PlayerBuffs\FPerl_WeaponEnchants.lua
 PlayerPet\FPerl_PlayerPet.xml
 Raid\FPerl_Raid.xml
 RaidPets\FPerl_RaidPets.xml

@@ -12,6 +12,9 @@
 	<Script file="FPerl_FrameMenu.lua"/>
 	<Script file="FPerl_SettingsList.lua"/>
 	<Script file="FPerl_SettingsListPages.lua"/>
+	<Script file="Options\FPerl_OptionsControls.lua"/>
+	<Script file="Options\FPerl_OptionsWindow.lua"/>
+	<Script file="Options\FPerl_OptionsBlizzard.lua"/>
 
 	<Frame name="FPerl_BackdropTemplate" mixin="FPerl_BackdropTemplateMixin" virtual="true">
 		<Scripts>

@@ -55,6 +55,7 @@ function FPerl.PlayerBuffs.PlayerBuffSetup(self)
 	-- the aura element; debuffs only show with buffs on
 	self.auraInset = Inset
 	self.auraDebuffsNeedBuffs = true
+	self.auraCancel = true -- right-click cancels a buff, as on Blizzard's buff frame
 	FPerl.UnitFrameEnable(self, "Auras")
 
 	-- (re)build the AuraContainer fallback so it picks up any

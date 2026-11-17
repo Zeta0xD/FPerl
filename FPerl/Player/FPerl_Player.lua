@@ -748,7 +748,7 @@ end
 
 -- FPerl.Player.OnUpdate
 function FPerl.Player.OnUpdate(self, elapsed)
-	local feedback = pconf.hitIndicator and pconf.portrait
+	local feedback = pconf.hitIndicator
 	if feedback then
 		CombatFeedback_OnUpdate(self, elapsed)
 	end

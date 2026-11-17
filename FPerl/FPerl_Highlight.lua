@@ -21,16 +21,10 @@ local type = type
 
 local CreateFrame = CreateFrame
 local GetTime = GetTime
-local UnitCastingInfo = UnitCastingInfo
 local UnitClass = UnitClass
-local UnitGetIncomingHeals = UnitGetIncomingHeals
 local UnitGUID = UnitGUID
-local UnitHealth = UnitHealth
-local UnitHealthMax = UnitHealthMax
 local UnitInParty = UnitInParty
-local UnitInRaid = UnitInRaid
 local UnitIsDeadOrGhost = UnitIsDeadOrGhost
-local UnitIsUnit = UnitIsUnit
 local UnitPlayerOrPetInParty = UnitPlayerOrPetInParty
 local UnitPlayerOrPetInRaid = UnitPlayerOrPetInRaid
 
@@ -48,7 +42,6 @@ local colours = {
 	HOT = {r = 0.2, g = 0.4, b = 0.8, canFlash = true},
 	SHIELD = {r = 0.6, g = 0.1, b = 0.6, canFlash = true},
 	AGGRO = {r = 0.8, g = 0, b = 0},
-	HEAL = {r = 0.2, g = 0.8, b = 0.2},
 	SEL = {r = 0.86, g = 0.82, b = 0.41},
 	TARGET = {r = 0.7167, g = 0.6833, b = 0.31467} -- Coloured so that colour * 1.2 == SEL colour
 }
@@ -59,6 +52,7 @@ local gradFrom, gradTo = CreateColor(0, 0, 0, 1), CreateColor(0, 0, 0, 1)
 xpHigh.list = {}
 xpHigh.callbacks = {}
 xpHigh.flashers = {}
+xpHigh.healBars = {}
 
 -- rotate
 -- Positive angle is clockwise rotation
@@ -101,18 +95,6 @@ function xpHigh:Add(guid, highlightType, duration, source)
 				self:Send(guid)
 			else
 				local newEndTime = GetTime() + duration
-				if (highlightType == "HEAL" and (UnitInRaid(source) or UnitInParty(source))) then
-					if (source and not FPerl.SafeBool(UnitIsUnit("player", source), false)) then
-						-- We'll query their cast bar and get accurate highlight time info
-						local spellName, _, _, _, endTime = UnitCastingInfo(source)
-						if (spellName and CanAccess(endTime)) then
-							newEndTime = endTime / 1000
-						end
-
-						--newEndTime = newEndTime + 0.8		-- Add some because other highlights expire 1 sec early
-					end
-				end
-
 				local current = a[highlightType]
 				if (not current or current < newEndTime) then
 					a[highlightType] = newEndTime
@@ -190,7 +172,7 @@ end
 
 local function expireTick() xpHigh:Expire() end
 
--- The expiry check, every 0.2 s on the scheduler while HOT / SHIELD / HEAL highlights are on
+-- The expiry check, every 0.2 s on the scheduler while HOT / SHIELD highlights are on
 function xpHigh:Expire()
 	-- We expire things 1 second early so people can cast in time for buff to expire
 	local now = GetTime() --  + 1
@@ -228,6 +210,7 @@ function xpHigh:SetHighlight(frame, guid)
 		FPerl.Notice("No .highlight region for "..frame:GetName())
 		return
 	end
+	self:ShowHealGlow(frame)
 
 	local unitid
 	if (not guid) then
@@ -618,24 +601,56 @@ local function listen(event, on)
 	end
 end
 
+-- The incoming heal glow. The heal amount is secret, so no code branches on it: a StatusBar of range 0 to 1 takes it
+-- through SetValue (accepts secrets), and the client fills the bar fully for any amount of 1 or more and not at all
+-- for 0. The bar's texture is the highlight texture, so the glow looks like the other highlights.
+local function setHealBar(bar)
+	local unit = SecureButton_GetUnit(bar.owner)
+	if (unit and not UnitIsDeadOrGhost(unit)) then
+		-- no truth test on the secret (`x or 0`): whether the client allows one is unverified
+		local amount = UnitGetIncomingHeals(unit)
+		if (FPerl.IsSecret(amount)) then
+			bar:SetValue(amount)
+		else
+			bar:SetValue(amount or 0)
+		end
+	else
+		bar:SetValue(0)
+	end
+end
+
+function xpHigh:ShowHealGlow(frame)
+	local h = frame.highlight
+	local bar = h.healBar
+	if (not (conf.highlight and conf.highlight.enable and conf.highlight.HEAL)) then
+		if (bar) then
+			bar:Hide()
+		end
+		return
+	end
+	if (not bar) then
+		bar = CreateFrame("StatusBar", nil, h)
+		bar:SetAllPoints()
+		bar:SetMinMaxValues(0, 1)
+		bar:SetStatusBarTexture("Interface\\AddOns\\FPerl\\Images\\FPerl_Highlight")
+		bar:GetStatusBarTexture():SetBlendMode("ADD")
+		bar:SetStatusBarColor(0.2, 0.8, 0.2)
+		bar.owner = frame
+		h.healBar = bar
+		self.healBars[bar] = true
+	end
+	bar:GetStatusBarTexture():SetTexCoord(h.tex:GetTexCoord())
+	bar:Show()
+	setHealBar(bar)
+end
+
 -- UNIT_HEAL_PREDICTION
 function xpHigh:UNIT_HEAL_PREDICTION(unit)
-	local guid = UnitGUID(unit)
-	if (conf.highlight and conf.highlight.HEAL) then
-		local amount = UnitGetIncomingHeals(unit) or 0
-		-- a secret heal amount cannot be tested, so no highlight
-		if (CanAccess(amount) and amount > 0 and not UnitIsDeadOrGhost(unit)) then
-			local health, healthmax = UnitHealth(unit), UnitHealthMax(unit)
-			if (CanAccess(health) and CanAccess(healthmax)) then
-				local missing = healthmax - health
-				if (missing > healthmax / 20) then -- More than 5% to heal
-					self:Add(guid, "HEAL", amount)
-					return
-				end
-			end
+	for bar in pairs(self.healBars) do
+		if (SecureButton_GetUnit(bar.owner) == unit) then
+			setHealBar(bar)
 		end
 	end
-	self:Remove(guid, "HEAL")
 end
 
 -- xpHigh:HasMyShield(unit)
@@ -770,8 +785,8 @@ function xpHigh:OptionChange()
 			listen("UNIT_HEAL_PREDICTION", true)
 		else
 			listen("UNIT_HEAL_PREDICTION", false)
-			self:ClearAll("HEAL")
 		end
+		FPerl.SetHighlights()
 	end
 
 	if (conf.highlight.enable and (conf.highlight.HOTCOUNT or conf.highlight.HOT or conf.highlight.SHIELD)) then
@@ -791,7 +806,7 @@ function xpHigh:OptionChange()
 	end
 
 	-- a highlight ends by the clock and no event fires at its end, so the expiry is polled, only while a timed type is on
-	if (conf.highlight.enable and (conf.highlight.HOT or conf.highlight.SHIELD or conf.highlight.HEAL)) then
+	if (conf.highlight.enable and (conf.highlight.HOT or conf.highlight.SHIELD)) then
 		FPerl.Every(0.2, expireTick)
 	else
 		FPerl.Cancel(expireTick)

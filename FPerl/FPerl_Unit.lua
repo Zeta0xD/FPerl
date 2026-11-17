@@ -351,7 +351,6 @@ FPerl.Elements.Power = {events = {UNIT_POWER_FREQUENT = updatePower, UNIT_MAXPOW
 --   auraAnchor        region the blocks are placed against (default the frame)
 --   auraInset         function(frame, side): extra distance from the anchor on that side
 --   auraDebuffsNeedBuffs  debuffs show only while buffs are on
---   auraNoHandles     no drag handles
 --   auraInside        set of sides ({RIGHT = true}) whose block next to the frame sits inside the anchor's
 --                     edge on that side, icons filling inward from it
 -- Update shows Blizzard's AuraContainer on every UNIT_AURA and combat change.
@@ -445,18 +444,23 @@ local function coverHandle(frame, kind)
 	if (not handlesOn) then
 		return
 	end
+	local size = frame.conf[kind].size or 25
+	h:SetFrameLevel(container:GetFrameLevel() + 20)
 	local cl, cb, fl, fb = container:GetLeft(), container:GetBottom(), frame:GetLeft(), frame:GetBottom()
-	if (not (cl and cb and fl and fb) or not (FPerl.CanAccess(cl) and FPerl.CanAccess(cb))) then
+	local w, ht = container:GetWidth(), container:GetHeight()
+	local A = FPerl.CanAccess
+	if (not (A(cl) and A(cb) and A(fl) and A(fb) and A(w) and A(ht))) then
+		-- the client hides the container's rect: anchor the handle as the holder is anchored, the size of
+		-- four icons along the block's line; beyond the nearer block it hangs off that block's handle
+		local a = frame.auraHandleAnchor[kind]
+		local target = a.after and frame[a.after == "buffs" and "buffHandle" or "debuffHandle"] or a.target
+		h:ClearAllPoints()
+		h:SetPoint(point, target, a.rel, a.x, a.y)
+		h:SetSize(a.rows and size * 4 or size, a.rows and size or size * 4)
 		return
 	end
 	h:ClearAllPoints()
 	h:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", cl - fl, cb - fb)
-	h:SetFrameLevel(container:GetFrameLevel() + 20)
-	local size = frame.conf[kind].size or 25
-	local w, ht = container:GetWidth() or 0, container:GetHeight() or 0
-	if (not (FPerl.CanAccess(w) and FPerl.CanAccess(ht))) then
-		w, ht = 0, 0
-	end
 	h:SetSize(max(w, size), max(ht, size))
 end
 
@@ -558,9 +562,6 @@ function FPerl.AurasSyncHandles()
 end
 
 local function ensureHandles(frame)
-	if (frame.auraNoHandles) then
-		return
-	end
 	if (not frame.buffHandle) then
 		frame.buffHandle, frame.debuffHandle = makeHandle(frame, "buffs"), makeHandle(frame, "debuffs")
 		handled[#handled + 1] = frame
@@ -642,15 +643,42 @@ function FPerl.AurasPlace(frame, fresh)
 		else
 			away = (side == "TOP" and gap or 0) + (frame.auraInset and frame.auraInset(frame, side) or 0)
 		end
-		holder:SetPoint(point, target, rel, (o.x or 0) + ax * away, (o.y or 0) + ay * away)
+		local x, y = (o.x or 0) + ax * away, (o.y or 0) + ay * away
+		frame.auraHandleAnchor = frame.auraHandleAnchor or {}
+		local spacer = kind == "buffs" and target == anchor and not inside and frame.auraSpacer
+		if (spacer) then
+			-- frame.auraSpacer (the Player's weapon enchants) takes the start of the buff line and the holder
+			-- hangs off its far end: resizing the spacer, allowed in combat, moves the buffs without a
+			-- holder setter call, which the client refuses while auras are secret
+			local far = rows and point:gsub("LEFT", "<"):gsub("RIGHT", "LEFT"):gsub("<", "RIGHT")
+				or point:gsub("TOP", "<"):gsub("BOTTOM", "TOP"):gsub("<", "BOTTOM")
+			spacer:ClearAllPoints()
+			spacer:SetPoint(point, target, rel, x, y)
+			-- a frame of length 0 has no rect, and neither would the holder: the spacer is 1 longer
+			-- than its icons and the holder steps back by that 1
+			local bx, by = rows and -h or 0, rows and 0 or -v
+			holder:SetPoint(point, spacer, far, bx, by)
+			frame.auraSpacerFlow = {point = point, h = h, v = v, rows = rows}
+			frame.auraHandleAnchor[kind] = {target = spacer, rel = far, x = bx, y = by, rows = rows}
+		else
+			holder:SetPoint(point, target, rel, x, y)
+			frame.auraHandleAnchor[kind] = {target = anchor, after = target ~= anchor and near.kind or nil, rel = rel,
+				x = x, y = y, rows = rows}
+			if (kind == "buffs") then
+				frame.auraSpacerFlow = nil
+			end
+		end
 		-- a disabled kind draws nothing, so it does not push the other one away
 		if (o.enable) then
-			near = near or {side = side, container = container}
+			near = near or {side = side, container = container, kind = kind}
 		end
 		frame.auraHandlePoint = frame.auraHandlePoint or {}
 		frame.auraHandlePoint[kind] = point
 	end
 	ensureHandles(frame)
+	if (frame.onAurasPlaced) then
+		frame.onAurasPlaced(frame)
+	end
 end
 
 -- FPerl.AurasGroups(c, kind[, exclude]): the aura groups of a frame's buff or debuff container, from

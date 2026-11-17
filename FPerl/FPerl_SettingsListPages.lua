@@ -11,6 +11,7 @@ local VIS_ONEGROUP, HEALTHTEXT, auraLayout = R.VIS_ONEGROUP, R.HEALTHTEXT, R.aur
 R.page = "Player"
 
 R.section = "Size"
+check("player.size.enable", "Show player frame", "Show the player frame. Takes effect after a reload.", {reload = true, path = "player.enable", apply = {}})
 slider("player.size.scale", "Scale", "The size of the player frame.", {path = "player.scale", min = 0.5, max = 1.5, step = 0.01, percent = true})
 slider("player.size.width", "Extra width", "Widen the player frame.", {path = "player.size.width", min = 0, max = 100, step = 1})
 
@@ -27,7 +28,15 @@ dropdown("player.shown.portrait", "Portrait", "The portrait of the player frame.
 check("player.shown.level", "Level", "Show the player's level.", {path = "player.level"})
 check("player.shown.classicon", "Class icon", "Show the player's class icon.", {path = "player.classIcon"})
 check("player.shown.pvp", "PvP flag", "Show the player's PvP status.", {path = "player.pvpIcon"})
-check("player.shown.hit", "Hit indicators", "Show combat hit indicators over the portrait.", {path = "player.hitIndicator"})
+local HITPOS = {
+	{"Portrait spot", {hitIndicatorPos = "PORTRAIT"}},
+	{"Name", {hitIndicatorPos = "NAME"}},
+}
+check("player.shown.hit", "Hit indicators", "Show damage and heal numbers on the frame, at the portrait spot or the name (Hit text position).", {path = "player.hitIndicator"})
+dropdown("player.shown.hitpos", "Hit text position", "Where the hit indicator text appears: at the place the portrait has (also with the portrait off), or over the name.", {
+	base = "player", needs = "player.hitIndicator", apply = {},
+	map = HITPOS,
+})
 dropdown("player.shown.healthtext", "Health text", "How health is written on the bars.", {
 	base = "player",
 	map = HEALTHTEXT,
@@ -49,8 +58,10 @@ check("player.auras.buffs", "Buffs", "Show the player's buffs.", {path = "player
 check("player.auras.debuffs", "Debuffs", "Show the player's debuffs.", {path = "player.debuffs.enable"})
 slider("player.auras.buffsize", "Buff size", "The size of the buff icons.", {path = "player.buffs.size", min = 7, max = 38, step = 1})
 slider("player.auras.debuffsize", "Debuff size", "The size of the debuff icons.", {path = "player.debuffs.size", min = 7, max = 45, step = 1})
+slider("player.auras.aurasize", "Aura size", "The size of the buff and debuff icons together. Buff size and Debuff size set them apart.", {path = "player.buffs.size", with = {"player.debuffs.size"}, min = 7, max = 38, step = 1, apply = {"playerbuffs"}})
 check("player.auras.wrap", "Wrap", "Wrap aura icons that exceed the width of the frame.", {path = "player.buffs.wrap"})
 check("player.auras.bigbuffs", "Big buffs", "Show your own buffs larger.", {path = "player.buffs.big"})
+check("player.auras.enchants", "Weapon enchants", "Show poisons and other weapon enchants first in the buff line; the buffs move over while one is on. Right-click one to remove it.", {path = "player.enchants.enable", needs = "player.buffs.enable"})
 auraLayout("player.auras.", "player", {"playerbuffs"})
 
 R.section = "Player"
@@ -69,6 +80,7 @@ check("player.player.hideblizzbuffs", "Hide Blizzard's buff bars", "Hide the def
 R.page = "Pet"
 
 R.section = "Size"
+check("pet.size.enable", "Show pet frame", "Show the pet frame. Takes effect after a reload.", {reload = true, path = "pet.enable", apply = {}})
 slider("pet.size.scale", "Scale", "The size of the pet frame.", {path = "pet.scale", min = 0.5, max = 1.5, step = 0.01, percent = true})
 slider("pet.size.width", "Extra width", "Widen the pet frame.", {path = "pet.size.width", min = 0, max = 100, step = 1})
 
@@ -82,7 +94,11 @@ dropdown("pet.shown.portrait", "Portrait", "The portrait of the pet frame.", {
 	},
 })
 check("pet.shown.level", "Level", "Show the pet's level.", {path = "pet.level"})
-check("pet.shown.hit", "Hit indicators", "Show combat hit indicators over the portrait.", {path = "pet.hitIndicator"})
+check("pet.shown.hit", "Hit indicators", "Show damage and heal numbers on the frame, at the portrait spot or the name (Hit text position).", {path = "pet.hitIndicator"})
+dropdown("pet.shown.hitpos", "Hit text position", "Where the hit indicator text appears: at the place the portrait has (also with the portrait off), or over the name.", {
+	base = "pet", needs = "pet.hitIndicator", apply = {},
+	map = HITPOS,
+})
 check("pet.shown.healthtext", "Health and mana text", "Show the health and mana numbers on the pet bars.", {path = "pet.values"})
 check("pet.shown.absorbs", "Absorbs", "Show the absorb bar.", {path = "pet.absorbs"})
 check("pet.shown.healprediction", "Heal prediction", "Show the heal prediction bar.", {path = "pet.healprediction"})
@@ -93,6 +109,7 @@ check("pet.auras.buffs", "Buffs", "Show the pet's buffs.", {path = "pet.buffs.en
 check("pet.auras.debuffs", "Debuffs", "Show the pet's debuffs.", {path = "pet.debuffs.enable"})
 slider("pet.auras.buffsize", "Buff size", "The size of the buff icons.", {path = "pet.buffs.size", min = 7, max = 38, step = 1})
 slider("pet.auras.debuffsize", "Debuff size", "The size of the debuff icons.", {path = "pet.debuffs.size", min = 7, max = 38, step = 1})
+slider("pet.auras.aurasize", "Aura size", "The size of the buff and debuff icons together. Buff size and Debuff size set them apart.", {path = "pet.buffs.size", with = {"pet.debuffs.size"}, min = 7, max = 38, step = 1, apply = {"playerpet"}})
 check("pet.auras.wrap", "Wrap", "Wrap aura icons that exceed the width of the frame.", {path = "pet.buffs.wrap"})
 slider("pet.auras.rows", "Rows", "The most rows of wrapped aura icons.", {path = "pet.buffs.rows", min = 1, max = 10, step = 1})
 check("pet.auras.castable", "Castable only", "Only show the buffs you can cast.", {path = "pet.buffs.castable"})
@@ -140,6 +157,9 @@ local function auraSettings(id, k, who, ap, main)
 	check(id .. ".debuffs", "Debuffs", "Show the " .. who .. "'s debuffs.", {path = k .. ".debuffs.enable", apply = ap})
 	slider(id .. ".buffsize", "Buff size", "The size of the buff icons.", {path = k .. ".buffs.size", min = 7, max = 38, step = 1, apply = ap})
 	slider(id .. ".debuffsize", "Debuff size", "The size of the debuff icons.", {path = k .. ".debuffs.size", min = 7, max = 45, step = 1, apply = ap})
+	if main then
+		slider(id .. ".aurasize", "Aura size", "The size of the buff and debuff icons together. Buff size and Debuff size set them apart.", {path = k .. ".buffs.size", with = {k .. ".debuffs.size"}, min = 7, max = 38, step = 1, apply = ap})
+	end
 	check(id .. ".wrap", "Wrap", "Wrap aura icons that exceed the width of the frame.", {path = k .. ".buffs.wrap", apply = ap})
 	slider(id .. ".rows", "Rows", "The most rows of aura icons when wrapping.", {path = k .. ".buffs.rows", min = 1, max = 10, step = 1, apply = ap})
 	check(id .. ".castable", "Castable buffs only", "Show only the buffs you can cast.", {path = k .. ".buffs.castable", apply = ap})
@@ -175,6 +195,9 @@ local function unitPage(pageName, k, isTarget)
 	local own = id .. "." .. id
 	R.page = pageName
 	R.section = "Size"
+	if isTarget then
+		check(id .. ".size.enable", "Show target frame", "Show the target frame. Takes effect after a reload.", {reload = true, path = k .. ".enable", apply = {}})
+	end
 	slider(id .. ".size.scale", "Scale", "The size of the " .. k .. " frame.", {path = k .. ".scale", min = 0.5, max = 1.5, step = 0.01, percent = true, apply = ap})
 	slider(id .. ".size.width", "Extra width", "Widen the " .. k .. " frame.", {path = k .. ".size.width", min = 0, max = 100, step = 1, apply = ap})
 
@@ -191,7 +214,10 @@ local function unitPage(pageName, k, isTarget)
 	check(id .. ".shown.level", "Level", "Show the unit's level.", {path = k .. ".level", apply = ap})
 	check(id .. ".shown.classicon", "Class icon", "Show the unit's class icon.", {path = k .. ".classIcon", apply = ap})
 	check(id .. ".shown.pvp", "PvP flag", "Show the unit's PvP status.", {path = k .. ".pvpIcon", apply = ap})
-	check(id .. ".shown.hit", "Hit indicators", "Show combat hit indicators over the portrait.", {path = k .. ".hitIndicator", apply = {}})
+	check(id .. ".shown.hit", "Hit indicators", "Show damage and heal numbers on the frame, at the portrait spot or the name (Hit text position).", {path = k .. ".hitIndicator", apply = {}})
+	dropdown(id .. ".shown.hitpos", "Hit text position", "Where the hit indicator text appears: at the place the portrait has (also with the portrait off), or over the name.", {
+		base = k, needs = k .. ".hitIndicator", apply = {}, map = HITPOS,
+	})
 	dropdown(id .. ".shown.healthtext", "Health text", "How health is written on the bars.", {
 		base = k, map = HEALTHTEXT, apply = ap,
 	})
@@ -266,6 +292,7 @@ unitPage("Focus", "focus", false)
 R.page = "Party"
 
 R.section = "Size"
+check("party.size.enable", "Show party frames", "Show the party frames.", {path = "party.enable", apply = {"party"}})
 slider("party.size.scale", "Scale", "The size of the party frames.", {path = "party.scale", min = 0.5, max = 1.5, step = 0.01, percent = true})
 slider("party.size.width", "Extra width", "Widen the party frames.", {path = "party.size.width", min = 0, max = 100, step = 1})
 
@@ -282,7 +309,11 @@ dropdown("party.shown.portrait", "Portrait", "The portrait of the party frames."
 check("party.shown.level", "Level", "Show the party members' levels.", {path = "party.level"})
 check("party.shown.classicon", "Class icon", "Show the party members' class icons.", {path = "party.classIcon"})
 check("party.shown.pvp", "PvP flag", "Show the party members' PvP status.", {path = "party.pvpIcon"})
-check("party.shown.hit", "Hit indicators", "Show combat hit indicators over the portrait.", {path = "party.hitIndicator"})
+check("party.shown.hit", "Hit indicators", "Show damage and heal numbers on the frame, at the portrait spot or the name (Hit text position).", {path = "party.hitIndicator"})
+dropdown("party.shown.hitpos", "Hit text position", "Where the hit indicator text appears: at the place the portrait has (also with the portrait off), or over the name.", {
+	base = "party", needs = "party.hitIndicator", apply = {},
+	map = HITPOS,
+})
 dropdown("party.shown.healthtext", "Health text", "How health is written on the bars.", {
 	base = "party",
 	map = HEALTHTEXT,
@@ -296,13 +327,14 @@ check("party.auras.buffs", "Buffs", "Show the party members' buffs.", {path = "p
 check("party.auras.debuffs", "Debuffs", "Show the party members' debuffs.", {path = "party.debuffs.enable"})
 slider("party.auras.buffsize", "Buff size", "The size of the buff icons.", {path = "party.buffs.size", min = 7, max = 38, step = 1})
 slider("party.auras.debuffsize", "Debuff size", "The size of the debuff icons.", {path = "party.debuffs.size", min = 7, max = 45, step = 1})
+slider("party.auras.aurasize", "Aura size", "The size of the buff and debuff icons together. Buff size and Debuff size set them apart.", {path = "party.buffs.size", with = {"party.debuffs.size"}, min = 7, max = 38, step = 1, apply = {"party"}})
 check("party.auras.wrap", "Wrap", "Wrap aura icons that exceed the width of the frame.", {path = "party.buffs.wrap"})
-check("party.auras.castable", "Castable buffs only", "Only show the buffs you can cast. Acts in the X-Perl aura style, out of combat.", {path = "party.buffs.castable"})
-check("party.auras.curable", "Curable debuffs only", "Only show the debuffs you can cure. Acts in the X-Perl aura style, out of combat.", {path = "party.debuffs.curable"})
-check("party.auras.onlymine", "Only my buffs", "Only show the buffs you cast. Acts in the X-Perl aura style, out of combat.", {path = "party.buffs.onlyMine"})
-check("party.auras.big", "Big buffs", "Show your own buffs bigger. Acts in the X-Perl aura style, out of combat.", {path = "party.buffs.big"})
-slider("party.auras.rows", "Buff rows", "The number of rows wrapped buffs fill. Acts in the X-Perl aura style, out of combat.", {path = "party.buffs.rows", min = 1, max = 10, step = 1})
-check("party.auras.halfsize", "Wrap lots", "Show many debuffs at half size. Acts in the X-Perl aura style, out of combat.", {path = "party.debuffs.halfSize"})
+check("party.auras.castable", "Castable buffs only", "Only show the buffs you can cast.", {path = "party.buffs.castable"})
+check("party.auras.curable", "Curable debuffs only", "Only show the debuffs you can cure.", {path = "party.debuffs.curable"})
+check("party.auras.onlymine", "Only my buffs", "Only show the buffs you cast.", {path = "party.buffs.onlyMine"})
+check("party.auras.big", "Big buffs", "Show your own buffs bigger.", {path = "party.buffs.big"})
+slider("party.auras.rows", "Buff rows", "The number of rows wrapped buffs fill.", {path = "party.buffs.rows", min = 1, max = 10, step = 1})
+check("party.auras.halfsize", "Wrap lots", "Show many debuffs at half size.", {path = "party.debuffs.halfSize"})
 auraLayout("party.auras.", "party", {"party"})
 
 R.section = "Party"
@@ -340,7 +372,7 @@ slider("party.pets.buffsize", "Buff size", "The size of the pets' buff icons.", 
 slider("party.pets.debuffsize", "Debuff size", "The size of the pets' debuff icons.", {path = "partypet.debuffs.size", min = 5, max = 20, step = 1})
 auraLayout("party.pets.", "partypet", {"partypet"})
 
-R.section = "Visibility"
+R.section = "Visibility (party and raid)"
 dropdown("party.visibility.inparty", "In a party use", "Which frames show for the members of a party: the party frames, or the raid frames.", {
 	base = "raid",
 	map = {
@@ -395,11 +427,12 @@ dropdown("raid.auras.castable", "Aura filter", "Limit the buff and debuff displa
 		{"Castable or curable only", {["buffs.castable"] = 1, ["debuffs.curable"] = 1}},
 	},
 })
+slider("raid.auras.aurasize", "Aura size", "The size of the buff and debuff icons together.", {path = "raid.buffs.size", with = {"raid.debuffs.size"}, min = 5, max = 20, step = 1, apply = {"raid"}})
 check("raid.auras.text", "Duration text", "Show the time left on the raid aura icons, as the General duration text setting says. Off by default: the text does not fit the raid frame.", {path = "raid.auraText", on = true, off = false})
 auraLayout("raid.auras.", "raid", {"raid"})
 
 R.section = "Raid"
-check("raid.raid.enable", "Show raid frames", "Show the raid frames. Blizzard's own raid frames are hidden while this is on, after a reload.", {get = FPerl.SettingsGetRaid, set = FPerl.SettingsSetRaid, keys = {"raid.enable"}})
+check("raid.raid.enable", "Show raid frames", "Show the raid frames. Blizzard's own raid frames are hidden while this is on, after a reload.", {reload = true, get = FPerl.SettingsGetRaid, set = FPerl.SettingsSetRaid, keys = {"raid.enable"}})
 check("raid.raid.titles", "Group titles", "Show the titles of the raid groups.", {path = "raid.titles"})
 check("raid.raid.notinbg", "Hide in battlegrounds", "Do not show the raid frames in a battleground.", {path = "raid.notInBG"})
 
@@ -454,20 +487,6 @@ dropdown("raid.custom.blend", "Blend", "How the custom highlight icons blend wit
 	options = {{"ADD", "Add"}, {"BLEND", "Blend"}},
 })
 
-R.section = "Visibility"
--- The same two settings as the Party page's Visibility section (same keys and maps).
-dropdown("raid.visibility.party", "In a party use", "Which frames show for the members of a party: the party frames, or the raid frames.", {
-	base = "raid",
-	map = {
-		{"Party frames", {inParty = false}},
-		{"Raid frames", {inParty = 1}},
-	},
-})
-dropdown("raid.visibility.onegroup", "In a one-group raid use", "Which frames show in a raid of one group: the party frames, or the raid frames.", {
-	base = "party",
-	map = VIS_ONEGROUP,
-})
-
 -- Shared controls: resolve `each` (the per-frame entries are defined by now). A dropdown's options are the union of
 -- its frames' choice labels, in frame order (renamed back by `alias`); a slider spans its frames' ranges; `apply` is the
 -- union of the frames' appliers.
@@ -516,6 +535,158 @@ do
 			if e.type == "slider" then e.throttle = throttleOf(apply) end
 		end
 	end
+end
+
+-- Fields for the own options window (format: the header of FPerl_SettingsList.lua): `basic` rows, the `inline` group of the
+-- raid group checks, and `needs`. A misspelled id is an error at load.
+do
+	local byId = {}
+	for _, e in ipairs(list) do byId[e.id] = e end
+	local function row(id) return byId[id] or error("settings list: no row " .. id) end
+	local function need(id, ...)
+		local e = row(id)
+		local n = e.needs
+		if n == nil then n = {} elseif type(n) == "string" or n.key then n = {n} end
+		for _, c in ipairs({...}) do n[#n + 1] = c end
+		e.needs = #n == 1 and n[1] or n
+	end
+	for _, id in ipairs({
+		"general.frames.arrange", "general.layouts.active", "general.profiles.reset", "general.look.bartexture", "general.look.transparency",
+		"general.colours.classbars", "general.colours.classnames", "general.highlights.debuff", "general.range.enable", "general.tooltips.unit",
+		"general.auras.cooldown", "general.auras.countdown", "general.misc.minimap",
+		"player.size.enable", "player.size.scale", "player.shown.portrait", "player.shown.healthtext", "player.shown.castbar", "player.auras.buffs", "player.auras.debuffs", "player.auras.enchants",
+		"player.auras.aurasize", "player.player.xp", "player.player.rep",
+		"pet.size.enable", "pet.size.scale", "pet.shown.portrait", "pet.shown.healthtext", "pet.shown.castbar", "pet.auras.buffs", "pet.auras.debuffs",
+		"pet.auras.aurasize", "pet.pet.happiness", "pet.pettarget.enable",
+		"target.size.enable", "target.size.scale", "target.shown.portrait", "target.shown.healthtext", "target.shown.castbar", "target.auras.buffs",
+		"target.auras.debuffs", "target.auras.aurasize", "target.auras.onlymybuffs", "target.auras.onlymydebuffs", "target.target.combo", "target.tot.enable",
+		"focus.focus.enable", "focus.size.scale", "focus.shown.portrait", "focus.shown.healthtext", "focus.shown.castbar", "focus.auras.buffs",
+		"focus.auras.debuffs", "focus.auras.aurasize", "focus.auras.onlymybuffs", "focus.auras.onlymydebuffs", "focus.focustarget.enable",
+		"party.size.enable", "party.size.scale", "party.shown.portrait", "party.shown.healthtext", "party.shown.castbar", "party.auras.buffs",
+		"party.auras.debuffs", "party.auras.aurasize", "party.party.showplayer", "party.pets.enable", "party.party.targets",
+		"party.visibility.inparty", "party.visibility.insmallraid",
+		"raid.raid.enable", "raid.size.scale", "raid.shown.healthtext", "raid.auras.show", "raid.auras.aurasize", "raid.groups.sort", "raid.shown.role",
+	}) do row(id).basic = true end
+	for i = 1, 8 do
+		local e = row("raid.groups." .. i)
+		e.basic, e.inline = true, "groups"
+	end
+
+	-- every row of a frame needs that frame switched on (the switch row itself excepted)
+	local function switchOf(e)
+		local pg, sec = e.page, e.section
+		if pg == "Player" then return "player.enable"
+		elseif pg == "Pet" then return sec == "Pet's target" and "pettarget.enable" or "pet.enable"
+		elseif pg == "Target" then
+			return sec == "Target of target" and "targettarget.enable" or sec == "Target of target of target" and "targettargettarget.enable" or "target.enable"
+		elseif pg == "Focus" then return sec == "Focus target" and "focustarget.enable" or "focus.enable"
+		elseif pg == "Party" then
+			if sec:find("^Visibility") then return nil end
+			return sec == "Party pets" and "partypet.enable" or "party.enable"
+		elseif pg == "Raid" then
+			if sec == "Buff helper" or sec == "Custom highlights" then return nil end
+			return sec == "Raid pets" and "raidpet.enable" or "raid.enable"
+		end
+	end
+	for _, e in ipairs(list) do
+		local key = switchOf(e)
+		if key and e.type ~= "frames" and e.path ~= key and not (e.keys and e.keys[1] == key) then need(e.id, key) end
+	end
+
+	-- aura rows: the matching Buffs or Debuffs switch (a pet's target and the party pets switch both with Buffs); icons per line and Rows need Wrap
+	local AURAS = {
+		{"player.auras.", "player"}, {"pet.auras.", "pet"}, {"pet.pettarget.", "pettarget"}, {"target.auras.", "target"},
+		{"target.tot.", "targettarget"}, {"target.tott.", "targettargettarget"}, {"focus.auras.", "focus"},
+		{"focus.focustarget.", "focustarget"}, {"party.auras.", "party"}, {"party.pets.", "partypet"}, {"raid.auras.", "raid"},
+	}
+	for _, f in ipairs(AURAS) do
+		local pre, k = f[1], f[2]
+		local buffs = k .. ".buffs.enable"
+		local debuffs = (k == "partypet") and buffs or k .. ".debuffs.enable"
+		local wrap = k .. ".buffs.wrap"
+		local function on(suffixes, key)
+			for _, sfx in ipairs(suffixes) do if byId[pre .. sfx] then need(pre .. sfx, key) end end
+		end
+		on({"buffside", "buffreverse", "buffsize", "bigbuffs", "bigstealable", "onlymybuffs", "onlymine", "big"}, buffs)
+		on({"debuffside", "debuffreverse", "debuffsize", "bigdebuffs", "onlymydebuffs", "halfsize"}, debuffs)
+		if k ~= "raid" then on({"castable"}, buffs) end
+		on({"curable"}, debuffs)
+		on({"buffperline"}, buffs)
+		on({"debuffperline"}, debuffs)
+		if byId[pre .. "wrap"] or k == "raid" then on({"buffperline", "debuffperline", "rows"}, wrap) end
+	end
+
+	need("general.look.fadetime", "bar.fading")
+	for _, id in ipairs({"gradientstart", "gradientstart.alpha", "gradientend", "gradientend.alpha"}) do need("general.look." .. id, "colour.gradient.enable") end
+	need("general.colours.brightness", "colour.classbar")
+	for _, id in ipairs({"debuff", "curable", "aggro", "aggrowarning", "target", "heal", "hots", "shields", "hotcount", "sparkles"}) do need("general.highlights." .. id, "highlight.enable") end
+	need("general.highlights.curable", "highlightDebuffs.enable")
+	need("general.range.raidonly", "rangeFinder.enabled")
+	for part, key in pairs({main = "Main", name = "NameFrame", bars = "StatsFrame"}) do
+		local on = "rangeFinder." .. key .. ".enabled"
+		need("general.range." .. part .. ".enable", "rangeFinder.enabled")
+		for _, id in ipairs({"fade", "debuff"}) do need("general.range." .. part .. "." .. id, "rangeFinder.enabled", on) end
+	end
+	for _, id in ipairs({"modifier", "hideincombat", "fading"}) do need("general.tooltips." .. id, "tooltip.enable") end
+	need("general.auras.cooldownany", "buffs.cooldown")
+	need("general.auras.countdownany", "buffs.countdown")
+	need("general.auras.blizzardnumbers", "buffs.countdown")
+	need("pet.pet.onlysad", "pet.happiness.enable")
+	need("pet.pet.flashsad", "pet.happiness.enable")
+	need("target.target.classtext", "target.classIcon")
+	need("focus.focus.classtext", "focus.classIcon")
+	need("party.party.targetsize", "party.target.enable")
+	need("party.party.targetlarge", "party.target.enable")
+	need("raid.pets.align", "raidpet.enable")
+	need("raid.helper.sort", "buffHelper.enable")
+	need("raid.helper.visible", "buffHelper.enable")
+	need("raid.custom.alpha", "custom.enable")
+	need("raid.custom.blend", "custom.enable")
+	need("raid.shown.manapercent", "raid.mana")
+	need("raid.shown.manaprecision", "raid.mana")
+end
+
+-- Canonical order: rows that several frame sections share come first, in this order, in every section of the frame pages
+-- (the enable row leads); a section's own rows follow in the order they were added. Listed by label. docs/fperl/README.md.
+do
+	local ORDER = {
+		"Scale", "Extra width", "Portrait", "Level", "Class icon", "PvP flag", "Hit indicators", "Hit text position", "Health text",
+		"Health and mana text", "Absorbs", "Heal prediction", "Cast bar", "Cast time text", "Mana bar", "Debuff highlight",
+		"Buffs", "Debuffs", "Buff size", "Debuff size", "Aura size", "Wrap", "Rows", "Buff rows", "Castable only", "Castable buffs only",
+		"Curable only", "Curable debuffs only", "Only my buffs", "Only my debuffs", "Big buffs", "Big stealable buffs", "Big debuffs",
+	}
+	local rank = {}
+	for i, l in ipairs(ORDER) do rank[l] = i + 1 end
+	local function rankOf(e) return e.id:find("%.enable$") and 1 or rank[e.label] or 1000 end
+	local bySec = {}
+	for i, e in ipairs(list) do
+		if e.page ~= "General" then
+			local k = e.page .. "|" .. e.section
+			bySec[k] = bySec[k] or {}
+			local t = bySec[k]
+			t[#t + 1] = {e = e, i = i}
+		end
+	end
+	local out = {}
+	local done = {}
+	for i, e in ipairs(list) do
+		if e.page == "General" then
+			out[#out + 1] = e
+		else
+			local k = e.page .. "|" .. e.section
+			if not done[k] then
+				done[k] = true
+				local t = bySec[k]
+				table.sort(t, function(a, b)
+					local ra, rb = rankOf(a.e), rankOf(b.e)
+					if ra ~= rb then return ra < rb end
+					return a.i < b.i
+				end)
+				for _, x in ipairs(t) do out[#out + 1] = x.e end
+			end
+		end
+	end
+	for i = 1, #list do list[i] = out[i] end
 end
 
 FPerl.SettingsList = list

@@ -411,7 +411,7 @@ function FPerl.Target.OnUpdate(self, elapsed)
 		return
 	end
 
-	local feedback = (tconf.hitIndicator and tconf.portrait) or (fconf.hitIndicator and fconf.portrait)
+	local feedback = tconf.hitIndicator or fconf.hitIndicator
 	if feedback then
 		CombatFeedback_OnUpdate(self, elapsed)
 	end

@@ -2,7 +2,7 @@
 --
 -- Hides chosen buffs on the Target, Focus, Target's Target and Focus Target
 -- frames. The only links to the core are FPerl.AuraBlacklist.Set (read by
--- FPerl.AurasRebuild) and an entry in FPerl.SettingsPages for its settings page.
+-- FPerl.AurasRebuild) and an entry in FPerl.SettingsPages for its tab in the options window.
 
 if (not FPerl.AurasUpdate or not FPerl.CanAccess or not FPerl.SafeBool) then
 	return
@@ -514,8 +514,8 @@ local function CreateConfig(parent)
 	return f
 end
 
--- Our page in F-Perl's settings panel. FPerl_Settings.lua reads this list at login and registers each entry as
--- a subcategory; create() runs the first time the page is shown.
+-- Our tab in F-Perl's options window. The window (Options/) makes a tab of each entry and a frame it passes to
+-- create(), the first time the tab is shown.
 FPerl.SettingsPages = FPerl.SettingsPages or {}
 tinsert(FPerl.SettingsPages, {
 	key = "AuraBlacklist",

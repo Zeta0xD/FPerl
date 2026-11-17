@@ -17,7 +17,6 @@ local UnitExists = UnitExists
 local UnitIsEnemy = UnitIsEnemy
 local UnitIsFriend = UnitIsFriend
 local UnitIsUnit = UnitIsUnit
-local CombatFeedback_OnCombatEvent = CombatFeedback_OnCombatEvent
 
 -------------------
 -- Event Handler --
@@ -51,8 +50,8 @@ function Events:UNIT_COMBAT(unit, action, descriptor, damage, damageType)
 
 	FPerl.Target.UpdateCombat(self)
 
-	if (self.conf.hitIndicator and self.conf.portrait and not FPerl.IsSecret(damage)) then
-		CombatFeedback_OnCombatEvent(self, action, descriptor, damage, damageType)
+	if self.conf.hitIndicator then
+		FPerl.HitIndicator(self, action, descriptor, damage, damageType, self.conf)
 	end
 
 	if (action == "HEAL") then
