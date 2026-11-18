@@ -14,8 +14,6 @@ FPerl.RequestConfig(function(New)
 	rconf = New.raidpet
 end, "$Revision:  $")
 
---local new, del, copy = FPerl.GetReusableTable, FPerl.FreeTable, FPerl.CopyTable
-
 local pairs = pairs
 
 local GetNumGroupMembers = GetNumGroupMembers
@@ -31,7 +29,7 @@ local UnitName = UnitName
 
 local SecureButton_GetUnit = SecureButton_GetUnit
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local CanAccess = FPerl.CanAccess
 
 local LOCALIZED_CLASS_NAMES_MALE = LOCALIZED_CLASS_NAMES_MALE
@@ -173,8 +171,6 @@ end
 function FPerl.RaidPets.OnLoad(self)
 	self.Array = { }
 
-	--FPerl_Raid_GrpPets:UnregisterEvent("UNIT_NAME_UPDATE") -- Fix for WoW 2.1 UNIT_NAME_UPDATE issue
-
 
 	FPerl.RegisterOptionChanger(FPerl.RaidPets.OptionActions, nil, "raidpets")
 
@@ -208,7 +204,7 @@ local function RaidTargetUpdate(self)
 	end
 end
 
--- FPerl.RaidPets.UpdateDisplay
+-- FPerl.RaidPets.UpdateDisplayAll
 function FPerl.RaidPets.UpdateDisplayAll()
 	for k, frame in pairs(RaidPetFrameArray) do
 		if (frame:IsShown()) then
@@ -303,15 +299,12 @@ function Bus.UNIT_ENTERED_VEHICLE(event, unit)
 			UpdateName(frame)
 		end
 	end
-	--TitlesUpdateFrame:Show()
 end
--- the vehicle swap the 0.2 s poll used to catch as a changed GUID: not checked in game
+-- a vehicle swap puts a different unit on the pet token
 Bus.UNIT_EXITED_VEHICLE = Bus.UNIT_ENTERED_VEHICLE
 
 -- GROUP_ROSTER_UPDATE
 function Bus.GROUP_ROSTER_UPDATE()
-	--TitlesUpdateFrame:Show()
-	--FPerl.ProtectedCall(FPerl.RaidPets.Align)
 	RaidPetUpdateGUIDs()
 end
 
@@ -335,7 +328,7 @@ end
 local function onAttrChanged(self, name, value)
 	if (name == "unit") then
 		if (value) then
-			SetFrameArray(self, value)		-- "raidpet"..strmatch(value, "^raid(%d+)"))
+			SetFrameArray(self, value)
 			self.ownerid = value:gsub("(%a+)pet(%d+)", "%1%2")
 
 			local guid = UnitGUID(self.partyid)
@@ -380,7 +373,6 @@ function FPerl.RaidPets.RaidPetSingleOnLoad(self)
 	FPerl.RegisterHighlight(self.highlight, 2)
 
 	FPerl.RegisterPerlFrames(self)
-	--self.FlashFrames = {self}
 
 	self:SetScript("OnAttributeChanged", onAttrChanged)
 	FPerl.RegisterClickCastFrame(self)
@@ -393,15 +385,6 @@ function FPerl.RaidPets.RaidPetSingleOnLoad(self)
 	self:SetAttribute("type2", "togglemenu")
 
 end
-
--- initialConfigFunction
---local function initialConfigFunction(self)
-	-- This is the only place we're allowed to set attributes whilst in combat
-	--self:SetAttribute("unitsuffix", "pet")
-	--self:SetAttribute("*type1", "target")
-	--self:SetAttribute("initial-height", 30)
-	--FPerl.RaidPets.UpdateDisplay(self)
---end
 
 -- SetMainHeaderAttributes
 local function SetMainHeaderAttributes(self)
@@ -443,8 +426,6 @@ local function SetMainHeaderAttributes(self)
 		self:SetAttribute("xOffset", -conf.raid.spacing)
 		self:SetAttribute("yOffset", 0)
 	end
-	--self:SetAttribute("template", "FPerl_RaidPet_FrameTemplate")
-	--self:SetAttribute("templateType", "Button")
 
 	-- Fix Secure Header taint in combat
 	local maxColumns = self:GetAttribute("maxColumns") or 1
@@ -456,10 +437,8 @@ local function SetMainHeaderAttributes(self)
 	self:SetAttribute("startingIndex", - maxUnits + 1)
 	self:SetAttribute("startingIndex", startingIndex)
 
-	-- the header makes buttons for what its attributes allow, so the decider waits for them
+	-- the header makes buttons for what its attributes allow, so FPerl.GroupVisibilityUpdate waits for them
 	FPerl.RaidPets.Ready = true
-
-	--self.initialConfigFunction = initialConfigFunction
 end
 
 -- FPerl.RaidPets.ChangeAttributes

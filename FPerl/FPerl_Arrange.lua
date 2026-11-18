@@ -54,7 +54,7 @@ local snap = button("Snap", snapText(), 142, function(self)
 end)
 button("Settings", "Settings", 210, function() FPerl.OpenSettings() end)
 
--- Called by FPerl.UnlockFrames, FPerl.LockFrames and the combat events.
+-- Called by FPerl.UnlockFrames, FPerl.LockFrames and at combat end.
 function FPerl.ArrangeBarUpdate()
 	if FPerl.Locked == 0 and not InCombatLockdown() then
 		grid:SetText(gridText())

@@ -5,7 +5,6 @@ local Events = { } -- unit events, one set per frame (element Party)
 local Bus = { } -- events no frame owns (FPerl.On)
 FPerl.Elements.Party = {events = Events}
 local allFrames = { } -- every party frame, in creation order
---local checkRaidNextUpdate
 local PartyFrames = { }
 local conf, pconf
 FPerl.RequestConfig(function(new)
@@ -56,7 +55,7 @@ local UnitPhaseReason = UnitPhaseReason
 
 local CombatFeedback_Initialize = CombatFeedback_Initialize
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local CanAccess = FPerl.CanAccess
 local IsSecret = FPerl.IsSecret
 local SetAlphaFromBoolean = FPerl.SetAlphaFromBoolean
@@ -67,9 +66,6 @@ local partyAnchor
 
 local HighlightCallback
 
---local feignDeath = (C_Spell and C_Spell.GetSpellInfo(5384)) and C_Spell.GetSpellInfo(5384).name or GetSpellInfo(5384)
---local spiritOfRedemption = (C_Spell and C_Spell.GetSpellInfo(27827)) and C_Spell.GetSpellInfo(27827).name or GetSpellInfo(27827)
-
 ----------------------
 -- Loading Function --
 ----------------------
@@ -77,8 +73,6 @@ function FPerl.Party.EventsOnLoad(self)
 	for event, fn in pairs(Bus) do
 		FPerl.On(event, fn)
 	end
-
-	--partyHeader:UnregisterEvent("UNIT_NAME_UPDATE") -- IMPORTANT! Fix for WoW 2.1 UNIT_NAME_UPDATE lockup issues
 
 
 	-- Hide Blizzard party frames
@@ -100,10 +94,8 @@ function FPerl.Party.EventsOnLoad(self)
 			end
 		end
 
-		-- Disable "Raid-style party frames" CVar only — do NOT touch CompactRaidFrameManager
-		-- itself, as that also controls the Blizzard raid frames. Hiding/disabling the
-		-- manager here would suppress the native raid UI even when FPerl_RaidFrames is
-		-- not loaded, or when the user has "Disable the default raid frames" turned off.
+		-- Only the "Raid-style party frames" CVar is turned off here. CompactRaidFrameManager also runs the
+		-- Blizzard raid frames, so the raid module hides it, and only while F-Perl raid frames are enabled.
 		FPerl.Pcall(SetCVar, "useCompactPartyFrames", "0")
 	end
 
@@ -114,8 +106,6 @@ function FPerl.Party.EventsOnLoad(self)
 	FPerl_Highlight:Register(HighlightCallback, self)
 
 	FPerl.Party.SetBits()
-
-	--FPerl.Party.EventsOnLoad = nil
 end
 
 -- HighlightCallback
@@ -130,7 +120,7 @@ function HighlightCallback(self, updateGUID)
 	end
 end
 
--- SetFrameArray
+-- LayoutPreviewSlots
 -- Options preview: while the options window is open and the player is solo, every party slot
 -- shows the player, so layout and aura sizes can be judged without a group. showSolo makes the
 -- header put the player in child1; children 2-4 are given the player unit and stacked the way
@@ -258,7 +248,6 @@ function FPerl.Party.OnLoad(self)
 
 	local id = strmatch(self:GetName(), ".+(%d)")
 	self:SetID(tonumber(id))
-	--_G["FPerl_party"..self:GetID()] = self
 
 	partyHeader:SetAttribute("showPlayer", pconf.showPlayer)
 	partyHeader:SetAttribute("child"..self:GetID(), self)
@@ -298,7 +287,7 @@ function FPerl.Party.OnLoad(self)
 	self.FlashFrames = {self.nameFrame, self.levelFrame, self.statsFrame, self.portraitFrame}
 
 	self:SetScript("OnAttributeChanged", onAttrChanged)
-	self:SetScript("OnShow", FPerl.Party.UpdateDisplay) -- FPerl.UnitUpdatePortrait)
+	self:SetScript("OnShow", FPerl.Party.UpdateDisplay)
 
 	if (FPerl.ArcaneBar.RegisterFrame) then
 		if self.partyid == "player" then
@@ -427,8 +416,8 @@ end
 -- UpdatePlayerFlags(self)
 local function UpdatePlayerFlags(self)
 	local change
-	-- A party member's own AFK/DND state can be secret too (190x in one crash
-	-- batch), same shape as the sibling fixes in Player/Target.
+	-- UnitIsAFK and UnitIsDND can return secret booleans for a party member;
+	-- SafeBool reads those as false.
 	if (SafeBool(UnitIsAFK(self.partyid), false) and conf.showAFK) then
 		if (not self.afk) then
 			change = true
@@ -480,9 +469,6 @@ local function placeAuras(self)
 end
 FPerl.Party.PlaceAuras = placeAuras
 
--------------------------
--- The Update Function --
--------------------------
 local function CombatFlash(self, elapsed, argNew, argGreen)
 	if (FPerl.CombatFlashSet(self, elapsed, argNew, argGreen)) then
 		FPerl.CombatFlashSetFrames(self)
@@ -499,12 +485,11 @@ local function UpdateName(self)
 		self.nameFrame.text:SetFontObject(GameFontNormal)
 		-- Partyname stays the bare first name for the change
 		-- detection in onAttrChanged above; only the displayed text gets the
-		-- full "First Last" (or "First-Realm") form
+		-- full "First Last" form
 		self.nameFrame.text:SetText(FPerl.UnitFullName(partyid))
 
-		-- GetStringWidth() can be secret even for plain text
-		-- (section 3 taint-propagation nuance); leave the font as-is when it
-		-- can't be measured.
+		-- GetStringWidth() can be secret even for plain text; leave the font
+		-- as it is when the width is secret.
 		local nameWidth = self.nameFrame.text:GetStringWidth()
 		if (not IsSecret(nameWidth) and nameWidth > self.nameFrame:GetWidth() - 4) then
 			self.nameFrame.text:SetFontObject(GameFontNormalSmall)
@@ -581,7 +566,7 @@ local function UpdateAllAssignedRoles()
 	end
 end
 
--- UpdatePhaseIndicators
+-- UpdatePhasingDisplays
 local function UpdatePhasingDisplays(self)
 	local unit = self.partyid
 	local inPhase = type(UnitPhaseReason) == "function" and UnitPhaseReason(unit)
@@ -596,8 +581,7 @@ end
 -- UpdateLeader
 local function UpdateLeader(self)
 	local partyid = self.partyid
-	-- same secret-boolean shape confirmed live crashing the
-	-- sibling UpdateLeader; fixed proactively here.
+	-- UnitIsGroupLeader can return a secret boolean; SafeBool reads it as false.
 	if (SafeBool(UnitIsGroupLeader(partyid), false)) then
 		self.nameFrame.leaderIcon:Show()
 	else
@@ -613,8 +597,8 @@ local function UpdateLeader(self)
 			self.nameFrame.masterIcon:Hide()
 		end
 	end
-	-- Removed the call to UpdateAllAssignedRoles because UpdateLeader() is called by UpdateDisplay()
-	-- and UpdateDisplay() already call the UpdateAssignedRoles() function
+	-- No role icon update here: UpdateDisplay calls UpdateAssignedRoles after UpdateLeader, and the
+	-- role icon is placed after the leader and master icons.
 end
 
 -- UpdatePVP
@@ -704,7 +688,7 @@ local function UpdateMana(self)
 	end
 end
 
--- FPerl_Party_UpdateRange
+-- UpdateRange
 local function UpdateRange(self, overrideUnit)
 	local partyid = overrideUnit or self.partyid
 	if not partyid then
@@ -775,7 +759,7 @@ local function TargetUpdateHealth(self)
 	local targetid = self.targetid
 	FPerl.HealthSetBar(tf.healthBar, targetid, true)
 
-	-- direct: one format for plain and secret; FormatPercent rounds a readable value and adds a decimal below 10
+	-- UnitHealthPercent can return a secret number; SetFormattedText accepts it, so one format serves both
 	tf.healthBar.text:SetFormattedText(percD, UnitHealthPercent(targetid, true, CurveConstants.ScaleTo100))
 	tf.healthBar.text:Show()
 
@@ -837,7 +821,6 @@ local function UpdateTarget(self)
 		if (targetid and UnitIsConnected(partyid) and UnitExists(partyid) and UnitIsVisible(partyid)) then
 			local targetname = UnitName(targetid)
 			if (targetname and (not CanAccess(targetname) or targetname ~= UNKNOWNOBJECT)) then
-				--self.targetFrame:SetAlpha(1)
 				self.targetFrame.text:SetText(targetname)
 				FPerl.SetUnitNameColor(self.targetFrame.text, targetid)
 				TargetUpdateHealth(self)

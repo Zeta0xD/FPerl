@@ -1,5 +1,6 @@
 -- Frozen legacy data: the profile keys the old X-Perl checkboxes stored as nil when unticked. The schema 2
--- migration (FPerl_Globals.lua, FPerl.SetUntickedKeys) sets them false in a profile from before schema 2.
+-- migration (FPerl.MigrateConfig, FPerl_Migrate.lua) sets them false in a profile from before schema 2, through
+-- FPerl.SetUntickedKeys (FPerl_Defaults.lua).
 -- Do not add keys: a key added here turns nil into false in such a profile instead of its default.
 -- {path relative to the profile, key} of every option a checkbox writes (1 ticked, false unticked).
 FPerl.CheckboxKeys = {

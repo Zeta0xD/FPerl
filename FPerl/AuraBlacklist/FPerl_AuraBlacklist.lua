@@ -154,8 +154,8 @@ function FPerl.AuraBlacklist.Set(frame)
 	return excludeSet
 end
 
--- Refresh(frame) - rebuild the frame's containers with the current list (a rebuild in combat stays
--- pending until auras are readable), then show the result
+-- Refresh(frame) - rebuild the frame's containers with the current list (a rebuild while auras are secret
+-- stays pending until they are readable), then show the result
 local function Refresh(frame)
 	if (frame and frame.buffContainer) then
 		FPerl.AurasRebuild(frame)

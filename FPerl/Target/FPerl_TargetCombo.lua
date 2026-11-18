@@ -23,13 +23,10 @@ local UnitPowerMax = UnitPowerMax
 
 -- Helper frame for the TargetCombo element (below)
 local ComboEventFrame = CreateFrame("Frame")
--- Forever protects combo-point values. Reparenting or registering Blizzard's
--- ComboFrame from addon code taints its own update path, so leave that frame
--- entirely under Blizzard control and use F-Perl's independent displays.
--- Forever still creates Blizzard's legacy combo-point widget, but touching that
--- protected frame from addon code taints its secret-value update path.  The
--- client CVar is the safe, supported way to suppress it while our replacement
--- is active (1 = target, 2 = player, 0 = hidden).
+-- Forever protects combo-point values. Reparenting Blizzard's ComboFrame or registering
+-- its events from addon code taints its secret-value update path, so that frame stays under
+-- Blizzard's control and F-Perl draws its own displays. The comboPointLocation CVar
+-- (1 = target, 2 = player, 0 = hidden) suppresses Blizzard's widget while they are active.
 local function FPerl_HideBlizzardComboDisplay()
 	-- Some Forever builds expose this CVar but clamp/ignore its hidden value.
 	-- Keep setting it for builds which honor it, then make the legacy artwork
@@ -108,7 +105,8 @@ local function UpdateCombo(self)
 	end
 
 	-- comboPoints can be secret; GetComboColor's num == n chain can't
-	-- run on it, but StatusBar:SetValue / FontString:SetText below accept it raw
+	-- run on it, so the meter and the indicator below show a readable value only.
+	-- The display above hands it raw to StatusBar:SetValue.
 	local r, g, b
 	if not IsSecret(comboPoints) then
 		r, g, b = GetComboColor(comboPoints)

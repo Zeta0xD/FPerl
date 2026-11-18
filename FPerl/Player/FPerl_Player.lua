@@ -15,12 +15,6 @@ end, "$Revision:  $")
 local perc1F = "%.1f"..PERCENT_SYMBOL
 local percD = "%.0f"..PERCENT_SYMBOL
 
---[===[@debug@
-local function d(...)
-	ChatFrame1:AddMessage(format(...))
-end
---@end-debug@]===]
-
 -- Upvalues
 local floor = floor
 local format = format
@@ -61,15 +55,12 @@ local UnitXPMax = UnitXPMax
 local CombatFeedback_Initialize = CombatFeedback_Initialize
 local CombatFeedback_OnUpdate = CombatFeedback_OnUpdate
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local GetPowerPercent = FPerl.GetPowerPercent
 local SafeBool = FPerl.SafeBool
 
 local PlayerStatusOnUpdate
 local HighlightCallback
-
---local feignDeath = (C_Spell and C_Spell.GetSpellInfo(5384)) and C_Spell.GetSpellInfo(5384).name or GetSpellInfo(5384)
---local spiritOfRedemption = (C_Spell and C_Spell.GetSpellInfo(27827)) and C_Spell.GetSpellInfo(27827).name or GetSpellInfo(27827)
 
 
 ----------------------
@@ -95,7 +86,6 @@ function FPerl.Player.OnLoad(self)
 	self:SetAttribute("type2", "togglemenu")
 	self:SetAttribute("unit", self.partyid)
 
-	--RegisterAttributeDriver(self.nameFrame, "unit", "[vehicleui] vehicle; player")
 	RegisterAttributeDriver(self, "unit", "[vehicleui] vehicle; player")
 
 	FPerl.RegisterClickCastFrame(self.portraitFrame)
@@ -126,7 +116,6 @@ function FPerl.Player.OnLoad(self)
 
 	FPerl.RegisterOptionChanger(FPerl.Player.SetBits, self, "player")
 	FPerl_Highlight:Register(HighlightCallback, self)
-	--self.IgnoreHighlightStates = {AGGRO = true}
 
 	if (FPerl.layout) then
 		self.conf = FPerl.layout.player
@@ -135,7 +124,7 @@ function FPerl.Player.OnLoad(self)
 	FPerl.Player.OnLoad = nil
 end
 
--- HighlightCallback(updateName)
+-- HighlightCallback(updateGUID)
 function HighlightCallback(self, updateGUID)
 	if (updateGUID == UnitGUID("player")) then
 		FPerl_Highlight:SetHighlight(self, updateGUID)
@@ -298,7 +287,7 @@ end
 
 -- UpdateName()
 local function UpdateName(self)
-	-- full "First Last" (or "First-Realm") display name
+	-- "First Surname" when the client gives a surname, else the name alone
 	playerName = FPerl.UnitFullName(self.partyid)
 	self.nameFrame.text:SetText(playerName)
 	UpdateCombat(self)
@@ -474,7 +463,7 @@ local function UpdateXP(self)
 	end
 end
 
--- UpdatePVPTimer
+-- PVPTimerTick
 -- the timer text, every 0.5 s on the scheduler while the timer frame is shown (OnShow / OnHide below)
 local function PVPTimerTick()
 	local timeLeft = GetPVPTimer()
@@ -504,7 +493,6 @@ end
 -- UpdatePVP
 local function UpdatePVP(self)
 	-- PVP Status settings
-	--local nf = self.nameFrame
 	if (UnitAffectingCombat(self.partyid)) then
 		self.nameFrame.text:SetTextColor(1, 0, 0)
 	else
@@ -584,7 +572,6 @@ function FPerl.Player.DruidBarUpdate(self)
 	druidBar.text:SetFormattedText("%d/%d", currMana, barMax)
 	druidBar.percent:SetFormattedText(percD, GetPowerPercent("player", 0))
 
-	--local druidBarExtra
 	if ((FPerl.Player.playerClass == "DRUID" or FPerl.Player.playerClass == "PRIEST") and UnitPowerType(self.partyid) > 0) then -- Shaman's UnitPowerType is buggy
 		if (pconf.values) then
 			druidBar.text:Show()
@@ -597,14 +584,8 @@ function FPerl.Player.DruidBarUpdate(self)
 			druidBar.percent:Hide()
 		end
 		druidBar:Show()
-		--druidBar:SetHeight(10)
-		--druidBarExtra = 1
 	else
-		--druidBar.percent:Hide()
-		--druidBar.text:Hide()
 		druidBar:Hide()
-		--druidBar:SetHeight(1)
-		--druidBarExtra = 0
 	end
 
 	-- Layout per power event on purpose: the bar's shown state, its text and percent, and the other
@@ -676,10 +657,9 @@ local function UpdateHealth(self)
 	local sf = self.statsFrame
 	local hb = sf.healthBar
 
-	-- Confirmed that even "player" itself can
-	-- return secret booleans from UnitIsAFK/UnitIsDead/UnitIsGhost on this
-	-- client; guard all of them, matching the sibling fix already
-	-- applied to FPerl.Target.UpdateHealth.
+	-- Even "player" can return secret booleans from UnitIsAFK, UnitIsDead
+	-- and UnitIsGhost on this client, so all of them go through SafeBool,
+	-- as in FPerl.Target.UpdateHealth.
 	self.afk = SafeBool(UnitIsAFK(partyid), false) and conf.showAFK == 1
 
 	FPerl.SetHealthBar(self)
@@ -730,7 +710,7 @@ end
 
 
 -- PlayerStatusOnUpdate
--- The lost-control flash. F-Perl's low-health flash is gone: health is secret on Forever, and Blizzard flashes its own.
+-- The lost-control flash. There is no low-health flash: health is secret on this client, and Blizzard's frames flash their own.
 function PlayerStatusOnUpdate(self)
 	if (pconf.fullScreen.enable and not UnitOnTaxi("player")) then
 		if (FPerl.Player.isOutOfControl and not FPerl_OutOfControlFrame.frameFlash) then
@@ -762,14 +742,13 @@ end
 -- UpdateBuffs: what the player frame does besides drawing the auras (the aura element,
 -- enabled by FPerl_PlayerBuffs, does that)
 local function UpdateBuffs(self)
-	-- TODO: create a highlight handler for the player too
 	if (conf.highlightDebuffs.enable) then
 		FPerl.CheckDebuffs(self, self.partyid)
 	end
 
 	-- Kept per aura event for a druid: UNIT_AURA is the only event here that refreshes the mana bar
 	-- text after a shapeshift aura (UPDATE_SHAPESHIFT_FORM reaches the druid bar only). Cost: two
-	-- bar writes and one stats layout, no table, no frame. Removal is not verified in game.
+	-- bar writes and one stats layout, no table, no frame.
 	if (FPerl.Player.playerClass == "DRUID") then
 		UpdateMana(self)
 	end

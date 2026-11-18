@@ -16,7 +16,7 @@ local function SortNameGroup(a, b)
 	return a.group..a.name < b.group..b.name
 end
 
--- doUpdate
+-- Update
 local function Update(self)
 	local myZone = GetRealZoneText()
 	local list = {}
@@ -45,9 +45,6 @@ local function Update(self)
 	self.text = text
 	self.textFrame.scroll.text:SetText(text)
 	self.textFrame.scroll.text:HighlightText()
-	--if (self.textFrame.scroll.text.SetCursorPosition) then
-	--	self.textFrame.scroll.text:SetCursorPosition(1)			-- WoW 2.3
-	--end
 	self.textFrame.scroll.text:SetFocus()
 
 	self.totals:SetFormattedText(FPERL_ROSTERTEXT_TOTAL, totals)

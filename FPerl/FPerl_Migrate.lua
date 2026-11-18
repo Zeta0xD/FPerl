@@ -2,7 +2,7 @@
 -- License: GNU GPL v3, 29 June 2007 (see LICENSE.txt)
 
 -- F-Perl 0.x saved-variable names, by the addon whose toc declares them: an upgrade from 0.x moves each to its new name.
--- Kept in 1.0.0: the tocs declare both names, so the client still loads a 0.x file (plan D1).
+-- The tocs declare both names, so the client still loads a 0.x file.
 local OLD = {
 	FPerl = {FPerlDB = "ZPerlConfigNew", FPerlPerCharacter = "ZPerlConfigSavePerCharacter", FPerlRoster = "ZPerl_Roster"},
 	FPerl_RaidAdmin = {FPerlRaidAdminDB = "ZPerl_Admin", FPerlRaidAdminItems = "ZPerl_CheckItems"},
@@ -227,8 +227,9 @@ function FPerl.MigrateLayouts()
 end
 
 -- FPerl.MigrateDeadKeys()
--- Schema 6, once, after FPerl.MigrateLayouts: deletes from every layout the keys nothing reads (the old
--- window's, and options whose readers are gone), and the old window's frame position. schema4 is left alone.
+-- Schema 6, once, after FPerl.MigrateLayouts: deletes from every layout the keys nothing reads (those of the
+-- options window F-Perl 0.x ported from Z-Perl's options addon, and options no code reads), and that window's frame
+-- position. schema4 is left alone.
 function FPerl.MigrateDeadKeys()
 	local s = FPerlDB
 	if (s.schema and s.schema >= 6) or type(s.layouts) ~= "table" then
@@ -322,8 +323,9 @@ function FPerl.MigrateEngineNames()
 end
 
 ------------------------------------------------------------------------------------------------ restore at load
--- A tool that snapshots FPerlDB (FPerlDB.devRestore: tag, time, digest, data) restores it when its run ends. A run cut
--- off leaves the snapshot in the file; FPerl.RestoreAtLoad puts the settings back at the next login, in every build.
+-- A development build snapshots FPerlDB in FPerlDB.devRestore (tag, time, digest, data)
+-- and restores it when its run ends. A run cut off leaves the snapshot in the file; FPerl.RestoreAtLoad puts the
+-- settings back at the next login, in every build.
 local RESTORE_MAX_AGE = 24 * 3600 -- an older snapshot is dropped, not restored
 local restoreNotice
 

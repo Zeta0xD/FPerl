@@ -1,4 +1,4 @@
--- FPerl.HitIndicator(self, action, descriptor, damage, damageType) - the hit text on a frame's portrait or name.
+-- FPerl.HitIndicator(self, action, descriptor, damage, damageType, conf) - the hit text on a frame's portrait or name.
 -- A readable amount goes to Blizzard's CombatFeedback_OnCombatEvent. A secret amount cannot (it compares
 -- the amount), so the text is set here from the readable action and flags; the amount is only passed to
 -- AbbreviateNumbers and SetText, which accept a secret. The damage-type colour needs a readable type and

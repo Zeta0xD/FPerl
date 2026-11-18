@@ -6,17 +6,12 @@
 ------------------------------------------------------------------------------
 -- restricted API support
 --
--- The Forever client is expected to use the Midnight style "secret values".
+-- The Forever client uses "secret values".
 -- A secret cannot be compared, used in maths, used as a table key or tested as
--- a boolean; it can only be handed to Blizzard widget methods. Everything in
--- this file that touches unit health, power, auras, names or cast times goes
--- through the helpers below, and the new Blizzard helper APIs are only used
--- when the running client actually provides them. On a Classic Era client all
--- of these switches are off and the original code paths run unchanged.
---
--- The whole block is scoped with do/end so the file's main chunk stays under
--- Lua's limit of 200 active local variables. Only the globals defined in here
--- are used by the rest of the file and by the other modules.
+-- a boolean; it can only be handed to Blizzard widget methods. Code that
+-- touches unit health, power, auras, names or cast times goes through the
+-- helpers below, and the Blizzard helper APIs are used only when the running
+-- client provides them.
 do
 local issecretvalue = issecretvalue
 local canaccessvalue = canaccessvalue
@@ -57,11 +52,10 @@ local HasPowerPercent = type(UnitPowerPercent) == "function" and CurveConstants 
 local HasColorCurves = C_CurveUtil ~= nil and type(C_CurveUtil.CreateColorCurve) == "function"
 local HasBooleanCurves = C_CurveUtil ~= nil and type(C_CurveUtil.EvaluateColorValueFromBoolean) == "function"
 local HasAuraAPI = C_UnitAuras ~= nil and type(C_UnitAuras.GetUnitAuras) == "function"
--- Detected the same way as the SecureAuraHeaderTemplate probe already used by
--- FPerl_PlayerBuffs.lua: ask the client whether it knows the template name at
--- all, rather than assuming from an interface/version number.
+-- Asks the client whether it knows the template name, rather than assuming
+-- from an interface or version number.
 local HasAuraContainer = C_XMLUtil ~= nil and type(C_XMLUtil.GetTemplateInfo) == "function" and C_XMLUtil.GetTemplateInfo("CustomAuraContainerTemplate") ~= nil
--- FPerl.IsMasterLoot(method) - C_PartyInfo.GetLootMethod returns Enum.LootMethod, the old API a string
+-- FPerl.IsMasterLoot(method) - C_PartyInfo.GetLootMethod returns Enum.LootMethod, the global GetLootMethod a string
 function FPerl.IsMasterLoot(method)
 	return method == "master" or (Enum.LootMethod ~= nil and method == Enum.LootMethod.Masterlooter)
 end
@@ -88,7 +82,6 @@ FPerl.ForeverAPI = {
 	healthEvent = "UNIT_HEALTH",
 }
 
--- Group visibility.
 for _, event in ipairs({"PLAYER_ENTERING_WORLD", "GROUP_ROSTER_UPDATE"}) do
 	FPerl.On(event, FPerl.GroupVisibilityUpdate)
 end
@@ -118,17 +111,12 @@ function FPerl.GetPowerPercent(unit, powerType)
 end
 
 -- Aura enumeration -----------------------------------------------------------
--- FPerl.UnitAuraByIndex(unit, index, filter)
--- Returns name, icon, applications, dispelName, duration, expirationTime, sourceUnit, isStealable,
--- nameplateShowPersonal, spellId, auraInstanceID, isFromPlayerOrPlayerPet.
--- Uses C_UnitAuras.GetUnitAuras when the client has it. The vector is cached for
--- the current frame so index loops do not re-query the client each step.
 local auraCacheUnit, auraCacheFilter, auraCacheTime, auraCacheList
 
 -- FPerl.AurasSecret()
--- True while the client hides aura data from addons (combat, encounters, M+, PvP).
--- Since 12.1 every by-index / by-instance aura query raises a Lua error for addon
--- code in that state, so callers must not even ask.
+-- True while the client hides aura data from addons (in combat).
+-- In that state every C_UnitAuras read raises a Lua error for addon code,
+-- so callers check this before asking.
 local ShouldAurasBeSecret = C_Secrets and C_Secrets.ShouldAurasBeSecret
 function FPerl.AurasSecret()
 	return ShouldAurasBeSecret ~= nil and ShouldAurasBeSecret() == true
@@ -140,6 +128,11 @@ if (HasAuraAPI) then
 		auraCacheList = nil
 	end)
 end
+-- FPerl.UnitAuraByIndex(unit, index, filter)
+-- Returns name, icon, applications, dispelName, duration, expirationTime, sourceUnit, isStealable,
+-- nameplateShowPersonal, spellId, auraInstanceID, isFromPlayerOrPlayerPet.
+-- Uses C_UnitAuras.GetUnitAuras when the client has it. The vector is cached for
+-- the current frame so index loops do not re-query the client each step.
 function FPerl.UnitAuraByIndex(unit, index, filter)
 	if (FPerl.AurasSecret()) then
 		auraCacheList = nil
@@ -168,10 +161,9 @@ end
 -- FPerl.SafeSetWidthFromText(frame, textObject, padding, fallbackWidth)
 -- GetStringWidth() can come back a secret number even for a FontString
 -- holding plain, non-secret text: taint follows the execution path of the
--- surrounding update, not just the value being measured (section 3) -- a
--- readable source string (e.g. checked via CanAccess) is not enough on
--- its own: UpdateType crashed with its typeReadable check
--- already passed. Guard the width itself.
+-- surrounding update, not just the value being measured, so a readable
+-- source string (e.g. checked via CanAccess) is not enough on its own.
+-- Guard the width itself.
 function FPerl.SafeSetWidthFromText(frame, textObject, padding, fallbackWidth)
 	local width = textObject:GetStringWidth()
 	if (IsSecret(width)) then
@@ -266,8 +258,8 @@ end
 
 -- FPerl.AuraContainerCreate(self, holderKey, name, groups, lineSize)
 -- Builds a holder + AuraContainer pair holding the groups of FPerl.AurasGroups; caller positions the
--- holder. Every frame goes through here so the five requirements that each silently break rendering
--- live in one place: keep all five when changing anything here.
+-- holder. Every frame goes through here so the setup steps that each silently break rendering when
+-- missing live in one place.
 function FPerl.AuraContainerCreate(self, holderKey, name, groups, lineSize)
 	local level = self:GetFrameLevel() + 10
 	local holder = self[holderKey]
@@ -281,7 +273,7 @@ function FPerl.AuraContainerCreate(self, holderKey, name, groups, lineSize)
 	-- cfg[key] is the group's current spec; its buttons' init reads it
 	local container = name and _G[name]
 	local cfg
-	-- the buttons of a frame whose classic buttons took right-click (Target's buffs) cancel the player's own buff
+	-- on a frame that sets auraCancel (Target, the player's buffs), right-click on a buff button cancels the player's own buff
 	local cancel = holderKey == "buffHalfFrame" and self.auraCancel or false
 	local function addGroup(g)
 		cfg[g.key] = g
@@ -297,7 +289,7 @@ function FPerl.AuraContainerCreate(self, holderKey, name, groups, lineSize)
 	end
 
 	-- Frames cannot be destroyed, so a rebuild reconfigures the existing container;
-	-- creating a new one each time leaked about 84 frames per container per reset.
+	-- creating a new one each time would leak its frames on every reset.
 	if (container and container.fperlAuraCfg) then
 		if (not FPerl.AuraContainerGate(self)) then
 			return container, holder
@@ -385,7 +377,6 @@ function FPerl.AuraContainerInitButtonCommon(button, g, cancel)
 	end
 	-- Blizzard fills both strings, secret values included: the buff bar's gold
 	-- duration text under the icon and its stack count.
-	-- (fperlDuration: wowless gives button.durationText Blizzard's own table)
 	if (not button.fperlDuration and button.SetDurationText) then
 		button.fperlDuration = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 		button.fperlDuration:SetPoint("TOP", button, "BOTTOM")

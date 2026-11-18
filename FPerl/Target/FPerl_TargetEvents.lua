@@ -33,7 +33,6 @@ end
 -- PLAYER_ENTERING_WORLD
 function FPerl.Elements.FocusOnly.events:PLAYER_ENTERING_WORLD()
 	if (UnitExists("focus")) then
-		--self.feigning = nil
 		self.PlayerFlash = 0
 		FPerl.CombatFlashSetFrames(self)
 		FPerl.Target.UpdateDisplay(self)

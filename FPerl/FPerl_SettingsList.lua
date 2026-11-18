@@ -28,7 +28,7 @@
 -- A map entry is {label, writes, reads}. Choosing the label stores `writes` ({key = value}). The stored profile
 -- reads as the entry when it matches `reads`: {key = accepted}, where accepted is a value or a list of values,
 -- and a key left out does not matter. Without `reads`, `writes` is also what is read. The first entry that
--- matches wins, so the state of a profile the old window could produce reads as an entry, not as nothing.
+-- matches wins, so the state of a profile the options window F-Perl 0.x ported from Z-Perl's options addon could produce reads as an entry, not as nothing.
 
 local list = {}
 local R = {list = list} -- shared with FPerl_SettingsListPages.lua: row helpers, constants and the page and section being added
@@ -121,7 +121,7 @@ local APPLY = {
 }
 for _, part in ipairs({"main", "name", "bars"}) do
 	for _, k in ipairs({"enable", "debuff"}) do APPLY["general.range." .. part .. "." .. k] = RANGE end
-	-- the range polls (0.2 s) read the sliders; running RANGE on every drag step lagged the game
+	-- the range polls (0.2 s) read the sliders, so a drag step runs no applier
 	APPLY["general.range." .. part .. ".fade"] = {}
 end
 for _, k in ipairs({"scale", "width"}) do APPLY["player.size." .. k] = {"player"} end
@@ -129,7 +129,7 @@ for _, k in ipairs({"portrait", "level", "classicon", "pvp", "hit", "healthtext"
 for _, k in ipairs({"xp", "xpdeficit", "rep", "partynumber", "withname", "extend", "nodruidbar"}) do APPLY["player.player." .. k] = {"player"} end
 for _, k in ipairs({"scale", "width"}) do APPLY["pet.size." .. k] = {"playerpet"} end
 -- the pet frame's own changer (Set_Bits) lays the frame out and redraws it; hit indicators and threat are read when
--- the next combat or threat event arrives, and the old controls refreshed nothing
+-- the next combat or threat event arrives
 for _, k in ipairs({"portrait", "level", "healthtext", "absorbs", "healprediction"}) do APPLY["pet.shown." .. k] = {"playerpet"} end
 APPLY["pet.shown.hit"] = {}
 APPLY["pet.shown.castbar"] = {"arcanebar"} -- the cast bar changer reads each registered frame's castBar.enable
@@ -174,7 +174,7 @@ APPLY["raid.raid.enable"] = RAID
 APPLY["raid.raid.titles"] = RAIDPETS
 APPLY["raid.raid.notinbg"] = RAID
 for i = 1, 8 do APPLY["raid.groups." .. i] = RAIDHEADERS end
-APPLY["raid.groups.sort"] = {"raidheaders", "bartextures", "raid"} -- Class shows headers 10-13, whose new buttons need the bar texture
+APPLY["raid.groups.sort"] = {"raidheaders", "bartextures", "raid"} -- Class shows the headers beyond 8, whose new buttons need the bar texture
 APPLY["raid.groups.alpha"] = RAIDHEADERS
 APPLY["raid.layout.anchor"] = join(RAIDHEADERS, {"raidpets"})
 APPLY["raid.layout.gap"] = {"raidgap"}
@@ -199,12 +199,12 @@ end
 local function add(kind, id, label, tip, e)
 	e.id, e.page, e.section, e.type, e.label, e.tip = id, R.page, R.section, kind, label, tip
 	e.apply = e.apply or APPLY[id] or {"full"}
-	-- a slider or colour whose appliers can take a frame (measured 12-16 ms): the party changer (5.6 ms) with
+	-- a slider or colour whose appliers can take longer than a frame: the party changer with
 	-- raid, raidpets or skin; the panel runs them at most every 0.1 s while the control moves
 	if (kind == "slider" or kind == "colour") and not e.throttle then e.throttle = throttleOf(e.apply) end
 	list[#list + 1] = e
 end
--- an unticked box was stored false, a ticked one 1
+-- an unticked box stores false, a ticked one 1
 local function check(id, label, tip, e)
 	e.on = e.on == nil and 1 or e.on
 	if e.off == nil then e.off = false end
@@ -226,9 +226,9 @@ local VIS_ONEGROUP = {
 	{"Party and raid frames (every raid)", {smallRaid = false, inRaid = 1}},
 }
 
--- Healer types (healerMode.type, set by the old window's radios; read by FPerl.HealthUpdate): 0 Deficit = the missing health
+-- Healer types (healerMode.type, read by FPerl.HealthUpdate): 0 Deficit = the missing health
 -- alone, 1 Deficit/Max = -missing/max, 2 Cur/Max/Deficit = current/max with the missing health in place of the percent.
--- The healer entries read on the switch and the type alone, so a profile the old window left with any Percent or Current
+-- The healer entries read on the switch and the type alone, so a profile with any Percent or Current
 -- tick reads as the entry of its type.
 local function healer(type) return {["healerMode.enable"] = 1, ["healerMode.type"] = type} end
 local function healerWrites(type) return {percent = 1, values = 1, ["healerMode.enable"] = 1, ["healerMode.type"] = type} end
@@ -456,15 +456,15 @@ R.section = "Range"
 check("general.range.enable", "Dim out-of-range units", "Fade any unit frame that is out of range.", {path = "rangeFinder.enabled", on = true})
 check("general.range.raidonly", "Raid frames only", "Only fade raid frames.", {path = "rangeFinder.raidOnly"})
 
-local function rangePart(sectionName, key, idPart, first)
+local function rangePart(sectionName, key, idPart)
 	R.section = sectionName
 	check("general.range." .. idPart .. ".enable", "Enable", "Fade this part of the frame when out of range.", {path = "rangeFinder." .. key .. ".enabled", on = true})
 	slider("general.range." .. idPart .. ".fade", "Fade amount", "How much to fade from the normal transparency when out of range.", {path = "rangeFinder." .. key .. ".FadeAmount", min = 0.1, max = 0.8, step = 0.1, percent = true})
-	check("general.range." .. idPart .. ".debuff", "Debuff check", "Only units that need curing and are in range are clear.", {path = "rangeFinder." .. key .. ".PlusDebuff", on = true})
+	check("general.range." .. idPart .. ".debuff", "Debuff check", "Only units that need curing and are in range are clear. In combat, while debuffs are hidden, every unit in range is clear.", {path = "rangeFinder." .. key .. ".PlusDebuff", on = true})
 end
-rangePart("Range: Whole frame", "Main", "main", true)
-rangePart("Range: Name", "NameFrame", "name", false)
-rangePart("Range: Bars", "StatsFrame", "bars", false)
+rangePart("Range: Whole frame", "Main", "main")
+rangePart("Range: Name", "NameFrame", "name")
+rangePart("Range: Bars", "StatsFrame", "bars")
 
 R.section = "Tooltips"
 check("general.tooltips.unit", "Unit tooltips", "Show tooltips for unit frames.", {path = "tooltip.enable"})

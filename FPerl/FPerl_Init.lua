@@ -31,7 +31,7 @@ local UnitInRaid = UnitInRaid
 
 local classOrder = {"WARRIOR", "ROGUE", "HUNTER", "DRUID", "SHAMAN", "PALADIN", "PRIEST", "MAGE", "WARLOCK"}
 
--- SetTexCreateColor
+-- SetTex
 local highlightPositions = {
 	{0, 0.25, 0, 0.5},
 	{0.25, 0.75, 0, 0.5},
@@ -63,7 +63,7 @@ local function SetTex(self, num)
 	end
 end
 
--- RegisterHighlight
+-- FPerl.RegisterHighlight(frame, ratio)
 local HighlightFrames = { }
 function FPerl.RegisterHighlight(frame, ratio)
 	HighlightFrames[frame] = ratio
@@ -79,7 +79,7 @@ function FPerl.SetHighlights()
 	end
 end
 
--- FPerl_MakeGradient(self)
+-- FPerl.DoGradient(self, force)
 function FPerl.DoGradient(self, force)
 	if ((force or (conf and conf.colour.gradient.enable)) and not self.tfade) then
 		if (gradient) then
@@ -147,7 +147,7 @@ local function SetupUnitFrameList(frame, subList, keepAlpha)
 	end
 end
 
--- FPerl_RegisterUnitFrame(frame)
+-- FPerl.RegisterPerlFrames(frame, subList)
 local UnitFrames = {}
 function FPerl.RegisterPerlFrames(frame, subList)
 	if (not subList) then
@@ -224,7 +224,6 @@ local function GetNamesWithoutBuff(spellName, with, filter)
 	local count = 0
 	local names
 
-	--local withList = FPerl.GetReusableTable()
 	local withList = { }
 	for unitid, unitName, unitClass, group, zone, online, dead in FPerl.NextMember do
 		local use
@@ -259,18 +258,15 @@ local function GetNamesWithoutBuff(spellName, with, filter)
 
 				if conf.buffHelper.sort == "group" then
 					if (not withList[group]) then
-						--withList[group] = FPerl.GetReusableTable()
 						withList[group] = { }
 					end
 					tinsert(withList[group], {class = unitClass, name = unitName})
 				elseif conf.buffHelper.sort == "class" then
 					if not withList[unitClass] then
-						--withList[unitClass] = FPerl.GetReusableTable()
 						withList[unitClass] = { }
 					end
 					tinsert(withList[unitClass], unitName)
 				else
-					--local n = FPerl.GetReusableTable()
 					local n = { }
 					tinsert(withList, n)
 					n.class = unitClass
@@ -294,7 +290,6 @@ local function GetNamesWithoutBuff(spellName, with, filter)
 				end
 				names = names.."|r\r"
 			end
-			--FPerl.FreeTable(list)
 		end
 	elseif conf.buffHelper.sort == "class" then
 		for j, class in ipairs(classOrder) do
@@ -311,19 +306,15 @@ local function GetNamesWithoutBuff(spellName, with, filter)
 
 				names = (names or "").."|r\r"
 			end
-			--FPerl.FreeTable(list)
 		end
 	else
 		sort(withList, function(a, b) return a.name < b.name end)
 		for i, item in ipairs(withList) do
 			names = (names or "")..FPerl.ColourTable[item.class]..item.name.." "
-			--FPerl.FreeTable(item)
 		end
 
 		names = (names or "").."\r"
 	end
-
-	--FPerl.FreeTable(withList)
 
 	lastNamesList = names
 	lastName = spellName
@@ -383,6 +374,7 @@ function FPerl.Init()
 		hooksecurefunc(GameTooltip, "SetUnitDebuff", GameTooltipSetUnitDebuff)
 	end
 
+	-- A 0x0 probe texture with the saved bar texture: when its size comes back 1x1, the default bar texture replaces it
 	local f = CreateFrame("Frame")
 	local tx = f:CreateTexture()
 	tx:SetPoint("CENTER", WorldFrame)
@@ -401,17 +393,13 @@ function FPerl.Init()
 
 	FPerl.Pcall(FPerl.OptionActions)
 
-	--PartyMemberFrame:UnregisterEvent("UNIT_NAME_UPDATE")
-
-	--FPerl.RegisterSMBarTextures()
-
 	FPerl.Pcall(FPerl.DebufHighlightInit)
 
 	FPerl.Init = nil
 end
 
--- FPerl.StatsFrameOnLoad
--- Power events call this; the list of other bars is one table reused per call (the function does not
+-- FPerl.StatsFrameSetup(self, others, offset)
+-- Every layout of a frame's bars calls this; the list of other bars is one table reused per call (the function does not
 -- re-enter and keeps no reference to it).
 local otherBars = {}
 function FPerl.StatsFrameSetup(self, others, offset)
@@ -587,7 +575,7 @@ end
 -- FPerl.RegisterOptionChanger(f, s, name)
 -- name makes the changer an applier (FPerl.Appliers) the settings panel can run on its own.
 local optionFuncs = {}
-FPerl.OptionChangers = optionFuncs -- exported for the test harness
+FPerl.OptionChangers = optionFuncs
 local appliers = {}
 FPerl.Appliers = appliers -- applier name -> function; the panel's `apply` names (FPerl_SettingsList.lua)
 function FPerl.RegisterOptionChanger(f, s, name)
@@ -604,8 +592,8 @@ function FPerl.RegisterOptionChanger(f, s, name)
 end
 
 -- FPerl.RegisterApplier(name, f)
--- An applier the settings panel can run that FPerl.OptionActions does not: work the old window did after a setting changed
--- but a full re-apply never did (the raid header attributes). Runs first: it can create the frames the others restyle.
+-- An applier the settings panel can run that FPerl.OptionActions does not: work a setting change needs that a full
+-- re-apply does not do (the raid header attributes). Runs first: it can create the frames the others restyle.
 local plain = {}
 function FPerl.RegisterApplier(name, f)
 	plain[name] = function() FPerl.Pcall(f) end
@@ -633,7 +621,7 @@ FPerl.RegisterOptionChanger(function()
 end, nil, "minimap")
 local headAppliers = {"barcolours", "bartextures", "skin", "framealpha", "highlighttex", "custom"}
 
--- FPerl.Apply(names): runs the named appliers, core pieces first, then the changers in registration order,
+-- FPerl.Apply(names): runs the named appliers, those from FPerl.RegisterApplier first, then the core pieces, then the changers in registration order,
 -- then the text transparency; "full" is FPerl.OptionActions. Deferred whole until combat ends, as
 -- FPerl.OptionActions is; names asked for during combat are merged into one run.
 local queued
@@ -677,7 +665,7 @@ function FPerl.Apply(names)
 	if want.texttransparency then appliers.texttransparency() end
 end
 
--- FPerl.OptionActions()
+-- FPerl.OptionActions(which)
 function FPerl.OptionActions(which)
 
 	if (InCombatLockdown()) then

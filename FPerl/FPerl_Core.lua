@@ -1,4 +1,4 @@
--- F-Perl core: the combat-deferral queue.
+-- F-Perl core: event checks, the combat-deferral queue, group visibility, the event bus and the scheduler.
 -- Loads before FPerl.lua; at load it uses client APIs only.
 
 -- FPerl.EventValid(event)
@@ -110,7 +110,7 @@ end)
 -- The one decision for the party header (the party pet frames hang off it), the raid group headers
 -- and the raid pet header, from IsInRaid, the group, party.inRaid and party.smallRaid.
 -- Runs out of combat, or after it through FPerl.AfterCombat.
--- Called on the events below and wherever an option, a raid roster change or setup can change the
+-- Called on the events registered in FPerl_Values.lua and wherever an option, a raid roster change or setup can change the
 -- answer. The modules it touches are optional: a frame that does not exist is skipped.
 local function applyGroupVisibility()
 	local conf = FPerl.layout
@@ -168,14 +168,14 @@ local function applyGroupVisibility()
 end
 
 -- Runs per roster event, not debounced, on purpose: no table is built and a SetShown to the current
--- state changes nothing (about 15 calls); visprobe.lua and the raid frames' first-update flag
--- (FPerl.Raid.Initialized) expect the decision to be made in the event itself, before the
+-- state changes nothing; the raid frames' first-update flag (FPerl.Raid.Initialized) expects the
+-- decision to be made in the event itself, before the
 -- C_Timer.After(0) roster work of the raid module. A debounce would move it a frame later.
 function FPerl.GroupVisibilityUpdate()
 	FPerl.AfterCombat(applyGroupVisibility)
 end
 
--- The events that run it are registered through FPerl.On in FPerl.lua.
+-- The events that run it are registered through FPerl.On in FPerl_Values.lua.
 C_Timer.After(0, FPerl.GroupVisibilityUpdate)
 
 -- FPerl.On(event, fn) / FPerl.Off(event, fn)

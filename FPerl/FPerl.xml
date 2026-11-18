@@ -45,10 +45,9 @@
 			<OnLoad>
 				self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 				self:RegisterForDrag("RightButton")
-				-- free-drag instead of the old minimap-circle
-				-- constraint (FPerl_MinimapButton_Dragging); matches every
-				-- other movable Z-Perl frame's own StartMoving idiom. The position
-				-- is ours (FPerl.PlaceFrame), not the client's layout cache.
+				-- The button drags freely with StartMoving, like the other
+				-- movable F-Perl frames. FPerl.PlaceFrame owns its position,
+				-- not the client's layout cache.
 				self:SetDontSavePosition(true)
 			</OnLoad>
 			<OnEnter>

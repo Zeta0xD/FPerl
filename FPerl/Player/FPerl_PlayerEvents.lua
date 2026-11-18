@@ -36,8 +36,6 @@ local UpdateLevel = FPerl.Player.UpdateLevel
 local UpdateBuffs = FPerl.Player.UpdateBuffs
 local PlayerStatusOnUpdate = FPerl.Player.PlayerStatusOnUpdate
 
--- EVENTS AND STUFF
-
 -------------------
 -- Event Handler --
 -------------------
@@ -74,8 +72,6 @@ function FPerl.Elements.PlayerWorld.events:PLAYER_ENTERING_WORLD()
 	end
 
 	FPerl.Player.UpdateDisplay(self)
-
-	--C_Timer.After(0.1, function() FPerl.Player.SetBits(self) end)
 end
 
 -- UNIT_COMBAT
@@ -263,7 +259,6 @@ function Events:UNIT_ENTERED_VEHICLE(unit, showVehicle)
 			FPerl.ArcaneBar.SetUnit(self.nameFrame, "vehicle")
 		end
 		FPerl.Player.UpdateDisplay(self)
-		--FPerl.SetUnitNameColor(self.nameFrame.text, self.partyid)
 	end
 end
 

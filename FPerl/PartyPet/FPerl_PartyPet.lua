@@ -17,8 +17,6 @@ FPerl.RequestConfig(function(New)
 	end
 end, "$Revision:  $")
 
---local new, del, copy = FPerl.GetReusableTable, FPerl.FreeTable, FPerl.CopyTable
-
 
 local UnitExists = UnitExists
 local UnitGUID = UnitGUID
@@ -26,7 +24,7 @@ local UnitIsDead = UnitIsDead
 local UnitIsPVP = UnitIsPVP
 local UnitName = UnitName
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local CanAccess = FPerl.CanAccess
 local SafeBool = FPerl.SafeBool
 
@@ -50,8 +48,6 @@ end
 local guids = { }
 -- UpdateGUIDs
 local function UpdateGUIDs()
-	--del(guids)
-	--guids = new()
 	wipe(guids)
 	-- never key the table with a nil or secret GUID
 	if pconf.showPlayer then
@@ -146,7 +142,6 @@ function FPerl.PartyPet.OnLoad(self)
 		if not self.conf then
 			self.conf = conf.partypet
 		end
-		--CheckVisiblity()
 		FPerl.PartyPet.UpdateDisplay(self)
 		if (self.perlOwner) then
 			FPerl.Party.PlaceAuras(self.perlOwner)
@@ -159,9 +154,6 @@ function FPerl.PartyPet.OnLoad(self)
 
 	FPerl.PartyPet.SetBits1(self)
 end
-
--- FPerl_Party_Pet_CheckPet
--- returns true if full update required (frame shown)
 
 -- UpdateName
 local function UpdateName(self)
@@ -239,7 +231,7 @@ local function UpdateHealth(self)
 				FPerl.SetDeficitText(text, missing, "full")
 			end
 		else
-			-- direct: one format for plain and secret; FormatPercent truncates a secret and adds a decimal below 10
+			-- UnitHealthPercent can return a secret number; SetFormattedText accepts it, so one format serves both
 			text:SetFormattedText("%.0f%%", UnitHealthPercent(partyid, true, CurveConstants.ScaleTo100))
 		end
 
@@ -293,10 +285,6 @@ function FPerl.PartyPet.UpdateDisplay(self)
 	self.guid = UnitGUID(partyid)
 end
 
---------------------
--- Click Handlers --
---------------------
-
 -- UpdateControl
 local function UpdateControl(self)
 	local partyid = self.partyid
@@ -330,7 +318,7 @@ local function CombatFlash(self, elapsed, argNew, argGreen)
 	end
 end
 
--- OnUpdate: the combat flash only; the polls are on the scheduler below.
+-- OnUpdate: the combat flash only; the range poll is on the scheduler below.
 local function OnUpdate(self, elapsed)
 	if not self:IsShown() or not self.partyid then
 		return
@@ -364,7 +352,7 @@ FPerl.Every(0.2, PollFrames)
 -------------------
 
 -- EnableEvents: called by OnLoad. The unit events follow the frame's unit (FPerl.UnitFrameSetUnit,
--- from FPerl.PartyPet.SetFrame / _ClearFrame, which the Party frames call).
+-- from FPerl.PartyPet.SetFrame / FPerl.PartyPet.ClearFrame, which the Party frames call).
 EnableEvents = function(self)
 	self.updateHealth = UpdateHealth
 	self.updatePower = UpdateMana
@@ -421,10 +409,10 @@ function Bus.PLAYER_ENTERING_WORLD()
 end
 -- Full refresh of every shown frame on purpose: a roster change moves members, and so their pets,
 -- between unit tokens, UNIT_PET puts a different pet (or none) on a token, a secret GUID cannot be compared, and UpdateDisplay is the only path that
--- re-applies name, class colour, auras and debuff highlight together. At most 5 frames per burst.
+-- re-applies name, health, power, auras and debuff highlight together. At most 5 frames per event.
 Bus.GROUP_ROSTER_UPDATE = Bus.PLAYER_ENTERING_WORLD
 Bus.UNIT_PET = Bus.PLAYER_ENTERING_WORLD
--- a vehicle swap changed the GUID the 0.2 s poll used to catch: not checked in game
+-- a vehicle swap puts a different unit on the pet token
 Bus.UNIT_ENTERED_VEHICLE = Bus.PLAYER_ENTERING_WORLD
 Bus.UNIT_EXITED_VEHICLE = Bus.PLAYER_ENTERING_WORLD
 
@@ -484,7 +472,7 @@ local function EnableDisable(self)
 	end
 end
 
--- ApplyLayout: the protected part of Set_Bits1; reads the config when it runs
+-- ApplyLayout: the protected part of SetBits1; reads the config when it runs
 local function ApplyLayout(self)
 	if (not self:GetParent()) then
 		self:SetParent(_G["FPerl_party"..self:GetID()])

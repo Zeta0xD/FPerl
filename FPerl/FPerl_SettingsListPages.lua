@@ -1,5 +1,5 @@
--- The settings list: one entry per option of the panel's pages (General, Player, Pet, Target, Focus, Party, Raid), in page
--- and section order. Data only (the Player to Raid pages are in FPerl_SettingsListPages.lua): loads under plain lua5.1, calls no API, makes no frame. Format: the header of
+-- The Player, Pet, Target, Focus, Party and Raid pages of the settings list, after the General page of
+-- FPerl_SettingsList.lua. Data only: loads under plain lua5.1, calls no API, makes no frame. Format: the header of
 -- FPerl_SettingsList.lua.
 
 local R = FPerl.SettingsRow
@@ -146,9 +146,8 @@ dropdown("pet.pettarget.healthtext", "Health text", "How health is written on th
 	base = "pettarget", map = HEALTHTEXT,
 })
 ------------------------------------------------------------------------------------------------ Target and Focus
--- One layout for both pages (the old UnitPage): `unitPage` adds a page, `unitFrame` the section of a target-of-target
--- style frame. Every frame has its own aura settings; the old Target page wrote its aura values into the
--- target-of-target tables as well (bug O1).
+-- One layout for both pages: `unitPage` adds a page, `unitFrame` the section of a target-of-target
+-- style frame. Every frame has its own aura settings.
 local TOT = {"targettarget"} -- the changer for target of target, target of target of target, focus target and pet target
 -- The aura settings of profile table k. Target and Focus (main) have Big stealable
 -- buffs, the target-of-target style frames Big debuffs.
@@ -465,7 +464,7 @@ dropdown("raid.layout.anchor", "Anchor", "The direction the raid groups grow fro
 	options = {{"TOP", "Top"}, {"LEFT", "Left"}, {"BOTTOM", "Bottom"}, {"RIGHT", "Right"}},
 })
 slider("raid.layout.gap", "Gap", "The gap in pixels between neighbouring raid groups in a row, or in a column for the Left and Right anchors. Moves the groups.", {path = "raid.gap", min = 0, max = 100, step = 1})
-slider("raid.layout.spacing", "Spacing", "The spacing between the raid frames of a group.", {path = "raid.spacing", min = -5, max = 20, step = 1, throttle = true}) -- the header attributes take 25 ms (applyeq)
+slider("raid.layout.spacing", "Spacing", "The spacing between the raid frames of a group.", {path = "raid.spacing", min = -5, max = 20, step = 1, throttle = true}) -- setting the raid header attributes takes longer than a frame
 
 R.section = "Raid pets"
 check("raid.pets.enable", "Show raid pets", "Show the pets of the raid members.", {path = "raidpet.enable"})
@@ -647,7 +646,7 @@ do
 end
 
 -- Canonical order: rows that several frame sections share come first, in this order, in every section of the frame pages
--- (the enable row leads); a section's own rows follow in the order they were added. Listed by label. docs/fperl/README.md.
+-- (the enable row leads); a section's own rows follow in the order they were added. Listed by label.
 do
 	local ORDER = {
 		"Scale", "Extra width", "Portrait", "Level", "Class icon", "PvP flag", "Hit indicators", "Hit text position", "Health text",

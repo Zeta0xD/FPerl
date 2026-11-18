@@ -52,7 +52,7 @@ local ArcaneExclusions = FPerl.ArcaneExclusions
 local playerClass = select(2, UnitClass("player"))
 
 -- FPerl.HealthColourCurve
--- the same gradient as FPerl.SetSmoothBarColor, built as a
+-- the health bar gradient (red, yellow, green with colour.classic, else healthEmpty to healthFull), built as a
 -- Blizzard ColorCurve so UnitHealthPercent can evaluate it on a secret percent.
 function FPerl.HealthColourCurve()
 	if (colourCurves.health or not ForeverAPI.colorCurves) then
@@ -148,7 +148,6 @@ function FPerl.ColourHealthBar(self, partyid)
 
 	FPerl.SetSmoothBarColor(bar, partyid)
 end
---local FPerl.ColourHealthBar = FPerl.ColourHealthBar
 
 -- FPerl.SetValuedText
 function FPerl.SetValuedText(self, unitHealth, unitHealthMax, suffix)
@@ -156,8 +155,7 @@ function FPerl.SetValuedText(self, unitHealth, unitHealthMax, suffix)
 	self:SetFormattedText("%s/%s%s", hpText, maxText, suffix or "")
 end
 
--- FPerl.SetHealthBar(self): the health element reads the unit's values itself; the extra
--- arguments old callers still pass are ignored
+-- FPerl.SetHealthBar(self): the health element reads the unit's values itself
 function FPerl.SetHealthBar(self)
 	FPerl.HealthUpdate(self)
 end
@@ -165,28 +163,13 @@ end
 ---------------------------------
 --Class Icon Location Functions--
 ---------------------------------
---local ClassPos = {
---	WARRIOR	= {0,    0.25,    0,	0.25},
---	MAGE	= {0.25, 0.5,     0,	0.25},
---	ROGUE	= {0.5,  0.75,    0,	0.25},
---	DRUID	= {0.75, 1,       0,	0.25},
---	HUNTER	= {0,    0.25,    0.25,	0.5},
---	SHAMAN	= {0.25, 0.5,     0.25,	0.5},
---	PRIEST	= {0.5,  0.75,    0.25,	0.5},
---	WARLOCK	= {0.75, 1,       0.25,	0.5},
---	PALADIN	= {0,    0.25,    0.5,	0.75},
---	none	= {0.25, 0.5, 0.5, 0.75},
---}
---function FPerl.ClassPos(class)
---	return unpack(ClassPos[class] or ClassPos.none)
---end
 
 local CLASS_ICON_TCOORDS = CLASS_ICON_TCOORDS
 function FPerl.ClassPos(unitClass)
 	if (not CanAccess(unitClass)) then
 		return 0.25, 0.5, 0.5, 0.75
 	end
-	local b = CLASS_ICON_TCOORDS[unitClass]		-- Now using the Blizzard supplied from FrameXML/WorldStateFrame.lua
+	local b = CLASS_ICON_TCOORDS[unitClass]		-- Blizzard's class icon coordinates
 	if (b) then
 		return unpack(b)
 	end
@@ -206,9 +189,9 @@ local ManaColours = {
 	[Enum.PowerType.Alternate] = "energy", -- used by some bosses, show it as energy bar
 }
 
--- Forever may expose a usable power token while its numeric power type is
--- restricted or differs from the retail Enum table. Keep the classic X-Perl
--- colours available independently of saved-profile migration.
+-- The power token picks the colour when the numeric power type is secret or
+-- not in ManaColours. DefaultPowerColours covers a profile whose colour.bar
+-- lacks the key.
 local PowerTokenColours = {
 	MANA = "mana",
 	RAGE = "rage",
@@ -226,7 +209,7 @@ local DefaultPowerColours = {
 function FPerl.SetManaBarType(self)
 	local m = self.statsFrame.manaBar
 	if (m and not self.statsFrame.greyMana) then
-		local unit = self.partyid -- SecureButton_GetUnit(self)
+		local unit = self.partyid
 		if not unit then
 			self.targetmanatype = 0
 			return
@@ -417,8 +400,7 @@ end
 -- FPerl.SetUnitNameColor
 function FPerl.SetUnitNameColor(self, unit)
 	local color
-	if (FPerl.SafeBool(UnitIsPlayer(unit), false) or not FPerl.SafeBool(UnitIsVisible(unit), true)) then -- Changed UnitPlayerControlled to UnitIsPlayer for 2.3.5
-		-- 1.8.3 - Changed to override pvp name colours
+	if (FPerl.SafeBool(UnitIsPlayer(unit), false) or not FPerl.SafeBool(UnitIsVisible(unit), true)) then
 		if (conf.colour.class) then
 			local _, class = UnitClass(unit)
 			color = FPerl.GetClassColour(class)
@@ -445,7 +427,7 @@ function FPerl.CombatFlashSet(self, elapsed, argNew, argGreen)
 
 	if (self) then
 		if (argNew) then
-			self.PlayerFlash = 1.2 -- Old value: 1.5
+			self.PlayerFlash = 1.2
 			self.PlayerFlashGreen = argGreen
 		else
 			if (elapsed and self.PlayerFlash) then
@@ -522,7 +504,7 @@ end
 
 local getShow
 function FPerl.DebufHighlightInit()
-	-- We also re-set the colours here so that we highlight best colour per class
+	-- getShow picks, per player class, which debuff type the highlight shows first
 	if (playerClass == "MAGE") then
 		getShow = function(Curses)
 			local show
@@ -626,7 +608,6 @@ local function setFlashBackdrop(f)
 end
 
 -- FPerl.CheckDebuffs
---local Curses = setmetatable({ }, {__mode = "k"})	-- 2.2.6 - Now re-using static table to save garbage memory creation
 local Curses = { }
 function FPerl.CheckDebuffs(self, unit, resetBorders)
 	if not self.FlashFrames then
@@ -644,7 +625,6 @@ function FPerl.CheckDebuffs(self, unit, resetBorders)
 		bgDef.insets.top = self.edgeInsets or 3
 		bgDef.insets.right = self.edgeInsets or 3
 		bgDef.insets.bottom = self.edgeInsets or 3
-		--for i, f in pairs(self.FlashFrames) do
 		for i = 1, #self.FlashFrames do
 			local f = self.FlashFrames[i]
 			setFlashBackdrop(f)
@@ -689,7 +669,7 @@ function FPerl.CheckDebuffs(self, unit, resetBorders)
 	end
 
 	if debuffCount > 0 then
-		-- 2.2.6 - Very (very very) slight speed optimazation by having a function per class which is set at startup
+		-- getShow is the player class's function, set once by FPerl.DebufHighlightInit
 		show = getShow(Curses)
 	end
 
@@ -713,8 +693,6 @@ function FPerl.CheckDebuffs(self, unit, resetBorders)
 		bgDef.edgeFile = curseEdge
 	else
 		self.forcedColour = nil
-		--bgDef.edgeFile = normalEdge
-
 		bgDef.edgeFile = self.edgeFile or normalEdge
 		bgDef.edgeSize = self.edgeSize or 16
 		bgDef.insets.left = self.edgeInsets or 3
@@ -723,7 +701,6 @@ function FPerl.CheckDebuffs(self, unit, resetBorders)
 		bgDef.insets.bottom = self.edgeInsets or 3
 	end
 
-	--for i, f in pairs(self.FlashFrames) do
 	for i = 1, #self.FlashFrames do
 		local f = self.FlashFrames[i]
 		if not conf.highlightDebuffs.frame then

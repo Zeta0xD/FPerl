@@ -27,8 +27,7 @@ FPerl.On("PLAYER_ENTERING_WORLD", function() CustomHighlight:PLAYER_ENTERING_WOR
 
 CustomHighlight.RaidFrameArray = FPerl.Raid.GetFrameArray()
 
--- Pull zone names from encounter journal so they don't need to be localized.
--- Cataclysm Raids
+-- Zone names from localization.lua; GetRealZoneText is matched against them.
 local FPERL_LOC_ZONE_ANTORUS = FPERL_LOC_ZONE_ANTORUS
 local FPERL_LOC_ZONE_BARADIN_HOLD = FPERL_LOC_ZONE_BARADIN_HOLD
 local FPERL_LOC_ZONE_BASTION_OF_TWILIGHT = FPERL_LOC_ZONE_BASTION_OF_TWILIGHT
@@ -208,10 +207,6 @@ function CustomHighlight:DefaultZoneData()
 			},
 		[FPERL_LOC_ZONE_ICECROWN_CITADEL] =
 			{
---				[70451] = true,								-- Blood Mirror (Trash)
---				[70432] = true,								-- Blood Sap (Trash)
---				[71154] = true,								-- Rend Flesh (Trash)
-
 				[69065] = true,								-- Impaled (Lord Marrowgars)
 
 				[71289] = true,								-- Dominate Mind (Lady Deathwhisper)
@@ -392,9 +387,8 @@ function CustomHighlight:PLAYER_ENTERING_WORLD()
 end
 
 CustomHighlight.ZONE_CHANGED_NEW_AREA = CustomHighlight.PLAYER_ENTERING_WORLD
---CustomHighlight:.MINIMAP_ZONE_CHANGED = CustomHighlight:.PLAYER_ENTERING_WORLD
 
--- CustomHighlight:UpdateRoster
+-- CustomHighlight:UpdateUnits
 function CustomHighlight:UpdateUnits()
 	if not conf or not conf.enable or not rconf.enable then
 		return
@@ -492,7 +486,7 @@ function CustomHighlight:Clear(frame)
 	end
 end
 
--- CustomHighlight:Clear
+-- CustomHighlight:ClearAll
 function CustomHighlight:ClearAll()
 	if not self.usedIcons then
 		return

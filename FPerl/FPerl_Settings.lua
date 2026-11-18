@@ -211,8 +211,7 @@ local function store(e, v)
 		local o = e.options[v]
 		if o then write(e.path, o[1]) end
 	end
-	-- Blizzard's Defaults button sets every setting to its default in no fixed order: the side effect would undo one
-	-- refresh only on a change: a colour drag stores every step, and refreshing the whole panel each step lags the game
+	-- e.also: further paths written with the value. Refresh only on a change: a colour drag stores every step, and refreshing the whole panel each step lags the game
 	if e.also then
 		local changed
 		for path, v in pairs(e.also) do
@@ -290,8 +289,7 @@ function sharedValue(e, root)
 	return v
 end
 
--- Write v through the entry of each ticked frame (overwriting its value), then run the appliers they want once. The Defaults
--- button would push one frame's default into all of them: it leaves shared controls alone.
+-- Write v through the entry of each ticked frame (overwriting its value), then run the appliers they want once.
 function sharedStore(e, v)
 	local mask = maskOf(e.section)
 	collect = {}
@@ -361,7 +359,7 @@ local function confirm(text, fn)
 end
 
 ------------------------------------------------------------------------------------------------ core functions
--- Reset to defaults and the layout rows change the whole profile; the old window disabled them in combat.
+-- Reset to defaults and the layout rows change the whole profile, so they refuse in combat.
 local function refuseInCombat()
 	if InCombatLockdown() then
 		FPerl.Notice("Not available in combat.")
@@ -438,14 +436,14 @@ function FPerl.SettingsResetAuraPos(key)
 	end
 end
 
--- Raid page. While the switch is on Blizzard's raid frames are hidden (read when the raid frames load, so it takes effect after
--- a reload). Each group box is a numeric key of raid.group, which a dotted path cannot name.
 -- Unlock frames: session state (FPerl.Locked), not a profile key.
 function FPerl.SettingsGetUnlock() return FPerl.Locked == 0 end
 function FPerl.SettingsSetUnlock(v)
 	if refuseInCombat() then refresh() return end
 	if v then FPerl.UnlockFrames() else FPerl.LockFrames() end
 end
+-- Raid page. While the switch is on Blizzard's raid frames are hidden (read when the raid frames load, so it takes effect after
+-- a reload).
 function FPerl.SettingsGetRaid() return FPerl.layout.raid.enable and true or false end
 function FPerl.SettingsSetRaid(v)
 	FPerl.layout.raid.enable = v and 1 or false
@@ -455,29 +453,18 @@ function FPerl.SettingsGetAggroWarning() return FPerlRaidHelperDB ~= nil and FPe
 function FPerl.SettingsSetAggroWarning(v)
 	if FPerlRaidHelperDB then FPerlRaidHelperDB.AggroWarning = v and 1 or 0 end
 end
+-- Each group box is a numeric key of raid.group, which a dotted path cannot name.
 local function groupGet(i) return function() return FPerl.layout.raid.group[i] and true or false end end
 local function groupSet(i) return function(v) FPerl.layout.raid.group[i] = v and 1 or false end end
-FPerl.SettingsGetRaidGroup1 = groupGet(1)
-FPerl.SettingsSetRaidGroup1 = groupSet(1)
-FPerl.SettingsGetRaidGroup2 = groupGet(2)
-FPerl.SettingsSetRaidGroup2 = groupSet(2)
-FPerl.SettingsGetRaidGroup3 = groupGet(3)
-FPerl.SettingsSetRaidGroup3 = groupSet(3)
-FPerl.SettingsGetRaidGroup4 = groupGet(4)
-FPerl.SettingsSetRaidGroup4 = groupSet(4)
-FPerl.SettingsGetRaidGroup5 = groupGet(5)
-FPerl.SettingsSetRaidGroup5 = groupSet(5)
-FPerl.SettingsGetRaidGroup6 = groupGet(6)
-FPerl.SettingsSetRaidGroup6 = groupSet(6)
-FPerl.SettingsGetRaidGroup7 = groupGet(7)
-FPerl.SettingsSetRaidGroup7 = groupSet(7)
-FPerl.SettingsGetRaidGroup8 = groupGet(8)
-FPerl.SettingsSetRaidGroup8 = groupSet(8)
--- All and None set every group and class box, as the old window's buttons did (a class box shows a class column of Sort by Class).
+for i = 1, 8 do
+	FPerl["SettingsGetRaidGroup" .. i] = groupGet(i)
+	FPerl["SettingsSetRaidGroup" .. i] = groupSet(i)
+end
+-- All and None set every group and class box (a class box shows a class column of Sort by Class).
 local function raidGroupsAll(on)
 	local r = FPerl.layout.raid
 	for i = 1, #r.group do r.group[i] = on and 1 or false end
-	for _, c in ipairs(r.class) do c.enable = on and 1 or nil end
+	for _, c in ipairs(r.class) do c.enable = on and 1 or false end
 	FPerl.Apply({"raidheaders", "raid"})
 end
 function FPerl.SettingsRaidGroupsAll() raidGroupsAll(true) end

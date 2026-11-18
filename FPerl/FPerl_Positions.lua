@@ -315,7 +315,6 @@ end
 -- frames have no XML anchors. Entries are {point, relativeTo, relativePoint, x, y}; relativeTo is
 -- a frame name.
 local function TopLeft(x, y) return {{"TOPLEFT", "UIParent", "TOPLEFT", x, y}} end
-local function TopRight(x, y) return {{"TOPRIGHT", "UIParent", "TOPRIGHT", x, y}} end
 local function Center(x, y) return {{"CENTER", "UIParent", "CENTER", x or 0, y or 0}} end
 FPerl.DefaultPoints = {
 	FPerl_Player = TopLeft(35, -16),
@@ -376,7 +375,7 @@ function FPerl.SavePosition(self)
 end
 
 -- FPerl.RestoreAllPositions
--- Places every default frame and every frame with a saved position (FPerl_Positions.lua).
+-- Places every default frame and every frame with a saved position.
 function FPerl.RestoreAllPositions()
 	if (InCombatLockdown()) then
 		FPerl.AfterCombat(FPerl.RestoreAllPositions)
@@ -390,10 +389,9 @@ function FPerl.RestoreAllPositions()
 	if table then
 		for k in pairs(table) do
 			if k == "FPerl_Runes" or k == "FPerl_RaidHelper_Frame" or k == "FPerl_RaidMonitor_Frame" or k == "FPerl_Check" or k == "FPerl_AdminFrame" or k == "FPerl_Assists_Frame" then
-				-- Fix for a wrong name with versions 2.3.2 and 2.3.2a
-				-- It was using FPerl_Frame instead of FPerl_MTList_Anchor
-				-- and FPerl_RaidMonitor_Frame instead of FPerl_RaidMonitor_Anchor
-				-- And now a change to FPerl_Check to FPerl_CheckAnchor and FPerl_AdminFrame to FPerl_AdminFrameAnchor
+				-- An entry under one of these names is stale: these frames are placed through their
+				-- anchors (FPerl_MTList_Anchor, FPerl_RaidMonitor_Anchor, FPerl_CheckAnchor,
+				-- FPerl_AdminFrameAnchor, FPerl_Assists_FrameAnchor), and F-Perl has no FPerl_Runes frame.
 				table[k] = nil
 			else
 				names[k] = true

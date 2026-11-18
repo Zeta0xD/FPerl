@@ -39,7 +39,7 @@ local UnregisterUnitWatch = UnregisterUnitWatch
 local CombatFeedback_Initialize = CombatFeedback_Initialize
 local CombatFeedback_OnUpdate = CombatFeedback_OnUpdate
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local CanAccess = FPerl.CanAccess
 local IsSecret = FPerl.IsSecret
 local SafeBool = FPerl.SafeBool
@@ -55,9 +55,6 @@ function FPerl.PlayerPet.OnLoad(self)
 	CombatFeedback_Initialize(self, self.hitIndicator.text, 30)
 	self.portraitW = 50
 
-	--FPerl.SecureUnitButtonOnLoad(self, "pet", nil, PetFrameDropDown, FPerl_ShowGenericMenu)			--PetFrame.menu)
-	--FPerl.SecureUnitButtonOnLoad(self.nameFrame, "pet", nil, PetFrameDropDown, FPerl_ShowGenericMenu)	--PetFrame.menu)
-
 	self.nameFrame:SetAttribute("*type1", "target")
 	self.nameFrame:SetAttribute("type2", "togglemenu")
 	self.nameFrame:SetAttribute("unit", self.partyid)
@@ -65,13 +62,11 @@ function FPerl.PlayerPet.OnLoad(self)
 	self:SetAttribute("type2", "togglemenu")
 	self:SetAttribute("unit", self.partyid)
 
-	--RegisterAttributeDriver(self.nameFrame, "unit", "[vehicleui] player; pet")
 	RegisterAttributeDriver(self, "unit", "[vehicleui] player; pet")
 
 	FPerl.RegisterClickCastFrame(self.nameFrame)
 	FPerl.RegisterClickCastFrame(self)
 
-	--RegisterUnitWatch(self)
 	EnableEvents(self)
 
 	self.time = 0
@@ -213,11 +208,9 @@ end
 ---------------
 -- Happiness --
 ---------------
--- GetPetHappiness is gone, but happiness itself still exists --
--- it is now a power type, Enum.PowerType.Happiness (27). Confirmed on a live
--- hunter pet: 975 of a 1000 maximum while the pet showed as happy. The 1/2/3
--- level comes from three equal bands, the classic model; adjust HAPPY_BANDS
--- alone if a reading at content or unhappy ever contradicts it. damagePercentage
+-- This client has no GetPetHappiness; happiness is a power type,
+-- Enum.PowerType.Happiness (27), with a maximum of 1000. The 1/2/3
+-- level assumes three equal bands (HAPPY_BANDS), as on classic clients. damagePercentage
 -- and loyaltyRate have no power-type equivalent, so those two tooltip lines are
 -- dropped on this path.
 local HAPPY_BANDS = 3
@@ -227,14 +220,14 @@ local function HappinessFromPower(unit)
 		return
 	end
 	local cur, max = UnitPower(unit, powerType), UnitPowerMax(unit, powerType)
-	-- A pet's power can be secret in combat, and this drives comparisons and
-	-- maths below; bail rather than crash.
+	-- A pet's power can be secret in combat, and the comparisons and maths
+	-- below error on a secret value; return without a reading instead.
 	if (not cur or not max or IsSecret(cur) or IsSecret(max) or max <= 0) then
 		return
 	end
 	-- Zero is a real reading here (a pet about to run away), not "no happiness":
-	-- this only ever runs for hunters, since VARIABLES_LOADED nils the whole
-	-- function for every other class. The clamp below turns it into band 1.
+	-- this only ever runs for hunters, since VARIABLES_LOADED nils SetHappiness,
+	-- its only caller, for every other class. The clamp below turns it into band 1.
 	local band = math.ceil((cur / max) * HAPPY_BANDS)
 	if (band < 1) then
 		band = 1
@@ -252,7 +245,7 @@ local function SetHappiness(self)
 		happiness = HappinessFromPower(self.partyid)
 	end
 	if (not happiness) then
-		-- No happiness for this pet (or unreadable): leave the icon alone.
+		-- No happiness for this pet (or unreadable): hide the icon.
 		FPerl.FrameFlashStop(self.happyFrame)
 		self.happyFrame:Hide()
 		return
@@ -265,8 +258,7 @@ local function SetHappiness(self)
 		self.happyFrame:Show()
 
 		icon.tooltip = _G[("PET_HAPPINESS"..happiness)]
-		-- Both of these are nil whenever GetPetHappiness is unavailable, and
-		-- the old code compared loyaltyRate without checking it existed.
+		-- Both of these are nil whenever GetPetHappiness is unavailable.
 		icon.tooltipDamage = damagePercentage and format(PET_DAMAGE_PERCENTAGE, damagePercentage) or nil
 		if (not loyaltyRate or loyaltyRate == 0) then
 			icon.tooltipLoyalty = nil
@@ -394,8 +386,7 @@ end
 
 -- UNIT_PET
 function Events:UNIT_PET()
-	if conf then		-- DK can issue very early UNIT_PET, long before PEW. We refresh on entering world regardless
-		--self.partyid = UnitHasVehicleUI("player") and "player" or "pet"
+	if conf then		-- DK can issue very early UNIT_PET, long before PEW; SetBits updates the frame once the config loads
 		FPerl.PlayerPet.UpdateDisplay(self)
 	end
 end
@@ -414,7 +405,7 @@ function Events:UNIT_POWER_FREQUENT()
 	UpdateMana(self)
 	UpdateCombat(self)
 	-- Without GetPetHappiness there is no UNIT_HAPPINESS to ride, and happiness
-	-- is itself a power now, so this is where it changes.
+	-- is a power type, so this is where it changes.
 	if (not GetPetHappiness and SetHappiness) then
 		SetHappiness(self)
 	end
@@ -519,7 +510,7 @@ Events.UNIT_TARGET = Events.PLAYER_TARGET_CHANGED
 -- PLAYER_REGEN_DISABLED
 local virtual
 function FPerl.Elements.PetPreview.events:PLAYER_REGEN_DISABLED()
-	-- Whether lockdown is already on at this event is unmeasured; if it is, leave preview mode after combat
+	-- Lockdown can already be on at this event; if it is, leave preview mode after combat
 	if virtual and InCombatLockdown() then
 		FPerl.AfterCombat(FPerl.Elements.PetPreview.events.PLAYER_REGEN_DISABLED, self)
 		return
@@ -627,7 +618,7 @@ function FPerl.PlayerPet.Virtual(show)
 	end
 end
 
--- ApplyLayout: the protected part of Set_Bits; reads the config when it runs
+-- ApplyLayout: the protected part of FPerl.PlayerPet.SetBits; reads the config when it runs
 local function ApplyLayout(self)
 	if not virtual then
 		RegisterUnitWatch(self)

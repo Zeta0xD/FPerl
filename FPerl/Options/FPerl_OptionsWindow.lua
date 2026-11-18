@@ -5,7 +5,7 @@
 -- Window state (position, tab, "Show advanced options") is account-wide: FPerlDB.options = {x, y, tab, advanced}; it is
 -- not part of a layout. Which sections are open is session state.
 --
--- API (also what tools/wowless/optionswindow.lua drives): FPerl.Options.Open(tab), SelectTab(name), SetAdvanced(bool),
+-- API: FPerl.Options.Open(tab), SelectTab(name), SetAdvanced(bool),
 -- SetSearch(text), ExpandAll(), Lines(), Refresh().
 
 local C = FPerl.OptionsControls
@@ -20,7 +20,7 @@ local win, scroll, content, box, advanced, tabs, reloadBtn, reloadNote
 local state = {tab = "General", advanced = false, search = "", open = {}}
 local lines, built = {}, {}
 local heads, subs = {}, {}
-local needReload, loadedState = false, false
+local needReload = false
 local tabList = {}
 
 local function saved()
@@ -53,7 +53,7 @@ local function sectionOpen(sec)
 	return o
 end
 
--- The sections to show, each {key, page, name, rows, hasBasic, lines = {rows...}}.
+-- The sections to show, each {key, page, name, lines = {rows...}, tags, hasBasic}.
 local function collect()
 	local secs, byKey = {}, {}
 	local q = state.search ~= "" and state.search:lower() or nil

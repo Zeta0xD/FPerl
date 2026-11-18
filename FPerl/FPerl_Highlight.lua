@@ -35,7 +35,7 @@ local new = FPerl.GetReusableTable
 local hotSpells  = FPERL_HIGHLIGHT_SPELLS.hotSpells
 local shieldSpells = FPERL_HIGHLIGHT_SPELLS.shieldSpells
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local CanAccess = FPerl.CanAccess
 local UnitAuraByIndex = FPerl.UnitAuraByIndex
 local colours = {
@@ -66,7 +66,7 @@ local function rotate(angle)
 	return ULx + 0.5, ULy + 0.5, LLx + 0.5, LLy + 0.5, URx + 0.5, URy + 0.5, LRx + 0.5, LRy + 0.5
 end
 
--- FPerl_Highlight:Add
+-- xpHigh:Add
 function xpHigh:Add(guid, highlightType, duration, source)
 	if (not guid or not CanAccess(guid)) then
 		return
@@ -89,7 +89,7 @@ function xpHigh:Add(guid, highlightType, duration, source)
 			a[highlightType] = 0
 			self:Send(guid)
 		else
-			-- one Send per aura event, only while the HOTCOUNT option has registered UNIT_AURA; the callbacks redraw one frame
+			-- HOTCOUNT holds a count, not an end time: every call sends, once per UNIT_AURA while the HOTCOUNT option is on
 			if (highlightType == "HOTCOUNT") then
 				a[highlightType] = duration
 				self:Send(guid)
@@ -161,7 +161,7 @@ function xpHigh:HasEffect(guid, effect)
 	end
 end
 
--- xpHigh:OnUpdate
+-- xpHigh:RosterUpdate
 -- The roster refresh, one video frame after the last GROUP_ROSTER_UPDATE
 function xpHigh:RosterUpdate()
 	if (self.rosterUpdate) then
@@ -174,8 +174,7 @@ local function expireTick() xpHigh:Expire() end
 
 -- The expiry check, every 0.2 s on the scheduler while HOT / SHIELD highlights are on
 function xpHigh:Expire()
-	-- We expire things 1 second early so people can cast in time for buff to expire
-	local now = GetTime() --  + 1
+	local now = GetTime()
 
 	for guid, list in pairs(self.list) do
 		local any
@@ -204,7 +203,7 @@ function xpHigh:Expire()
 	end
 end
 
--- xpHigh:Query
+-- xpHigh:SetHighlight
 function xpHigh:SetHighlight(frame, guid)
 	if (not frame.highlight) then
 		FPerl.Notice("No .highlight region for "..frame:GetName())
@@ -577,7 +576,7 @@ function xpHigh:Send(guid)
 	end
 end
 
--- FPerl_RegisterFrameHighlighter
+-- xpHigh:Register
 function xpHigh:Register(callback, slf)
 	tinsert(self.callbacks, {callback, slf})
 end
@@ -607,7 +606,7 @@ end
 local function setHealBar(bar)
 	local unit = SecureButton_GetUnit(bar.owner)
 	if (unit and not UnitIsDeadOrGhost(unit)) then
-		-- no truth test on the secret (`x or 0`): whether the client allows one is unverified
+		-- a secret amount goes to SetValue untested: no truth test (`x or 0`) runs on a secret
 		local amount = UnitGetIncomingHeals(unit)
 		if (FPerl.IsSecret(amount)) then
 			bar:SetValue(amount)
@@ -716,8 +715,8 @@ function xpHigh:UNIT_AURA(unit)
 		end
 	end
 
-	-- Check for pre-mature end of shield buff (Power Word: Shield, Earth Shield)
-	if playerClass == "SHAMAN" then	-- or playerClass == "PRIEST") then
+	-- Check for pre-mature end of shield buff (Earth Shield)
+	if playerClass == "SHAMAN" then
 		if self:HasEffect(guid, "SHIELD") then
 			if not self:HasMyShield(unit) then
 				self:Remove(guid, "SHIELD")

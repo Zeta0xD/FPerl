@@ -33,7 +33,7 @@ local GetRealZoneText = GetRealZoneText
 local IsInRaid = IsInRaid
 local SetPortraitTexture = SetPortraitTexture
 local SetPortraitToTexture = SetPortraitToTexture or function(texture, asset)
-	-- Removed from newer clients; plain texture swap is equivalent here
+	-- Some clients do not have SetPortraitToTexture; a plain texture swap stands in
 	texture:SetTexture(asset)
 	texture:SetTexCoord(0, 1, 0, 1)
 end
@@ -109,8 +109,6 @@ local function CheckOnUpdate()
 end
 
 -- FPerl.BarUpdate
---local speakerTimer = 0
---local speakerCycle = 0
 function FPerl.BarUpdate(self, arg1)
 	local did
 	for k, v in pairs(fadeBars) do
@@ -187,7 +185,7 @@ function FPerl.StatusBarSetValue(self, val)
 		local min, max = self:GetMinMaxValues()
 		local current = self:GetValue()
 
-		-- secret values (health always, power always) cannot be compared, so every update fades
+		-- secret values cannot be compared, so every update fades
 		-- from the old value; after a gain the fader lies inside the bar's own fill and does not show
 		local readable = CanAccess(val) and CanAccess(current) and CanAccess(max)
 		if not readable or (val < current and val <= max and val >= min) then
@@ -329,7 +327,6 @@ function FPerl.FrameFlashStop(self, method)
 		self:Hide()
 	end
 
-	--FPerl.FreeTable(self.frameFlash)
 	self.frameFlash = nil
 
 	self:SetAlpha(1)
@@ -348,7 +345,7 @@ function FPerl.ProtectedCall(func, self)
 	end
 end
 
--- nextMember(last)
+-- FPerl.NextMember(_, last)
 function FPerl.NextMember(_, last)
 	if (last) then
 		local raidCount = GetNumGroupMembers()
@@ -415,9 +412,8 @@ function FPerl.UnitUpdatePortrait(self, force)
 			self.portraitFrame.portrait:Hide()
 			local guid = UnitGUID(self.partyid)
 			-- A secret GUID cannot be compared, and that includes the *stored*
-			-- one from a previous secret-identity target -- this crashed on a
-			-- perfectly readable new guid because the stored one was secret.
-			-- Guard both sides; always refresh if either is unreadable.
+			-- one from a previous secret-identity target, even when the new guid
+			-- is readable. Guard both sides; always refresh if either is unreadable.
 			if force or not CanAccess(guid) or not CanAccess(self.portraitFrame.portrait3D.guid) or guid ~= self.portraitFrame.portrait3D.guid or not self.portraitFrame.portrait3D:IsShown() then
 				self.portraitFrame.portrait3D:Show()
 				self.portraitFrame.portrait3D:ClearModel()
@@ -523,8 +519,6 @@ end
 
 -- FPerl.SwitchAnchor(self, new)
 -- Changes anchored corner without actually moving the frame
-
--- FPerl.SwitchAnchor
 function FPerl.SwitchAnchor(self, New)
 	local left, top, ratio = FPerl.FramePointUI(self)
 	if (left and not self:GetPoint(2)) then
@@ -689,8 +683,7 @@ function FPerl.SetExpectedHealth(self)
 		end
 
 		if (IsSecret(amount)) then
-			-- Secret heal amount: UnitHealth(unit, true) is health plus incoming
-			-- heals as computed by Blizzard, which is exactly this bar's value.
+			-- Secret heal amount: the bar is set to UnitHealth(unit, true) against UnitHealthMax.
 			bar:SetStatusBarColor(conf.colour.bar.healprediction.r, conf.colour.bar.healprediction.g, conf.colour.bar.healprediction.b, conf.colour.bar.healprediction.a)
 			bar:SetMinMaxValues(0, UnitHealthMax(unit))
 			bar:SetValue(UnitHealth(unit, true))

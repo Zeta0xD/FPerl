@@ -6,12 +6,11 @@ local Bus = { } -- events no frame owns (FPerl.On)
 FPerl.Elements.Raid = {events = Events}
 local allFrames = { } -- every raid frame, in creation order
 local RaidGroupCounts = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-local FrameArray = { }		-- List of raid frames indexed by raid ID
-local RaidPositions = { }	-- Back-matching of unit names to raid ID
+local FrameArray = { }		-- raid frames indexed by unit token
+local RaidPositions = { }	-- unit token of each roster name
 -- State and functions shared with FPerl_RaidEvents.lua and FPerl_RaidLayout.lua, loaded after this file
 local Shared = {Events = Events, Bus = Bus, allFrames = allFrames, RaidGroupCounts = RaidGroupCounts, FrameArray = FrameArray, RaidPositions = RaidPositions, ResArray = { }, CLASS_COUNT = 0}
 FPerl.Raid.Shared = Shared
---local buffUpdates = { }		-- Queue for buff updates after a roster change
 local percD = "%d"..PERCENT_SYMBOL
 local perc1F = "%.1f"..PERCENT_SYMBOL
 
@@ -23,14 +22,6 @@ FPerl.RequestConfig(function(newConf)
 		f.conf = rconf
 	end
 end, "$Revision:  $")
-
---[===[@debug@
-local function d(...)
-	ChatFrame1:AddMessage(format(...))
-end
---@end-debug@]===]
-
---local new, del, copy = FPerl.GetReusableTable, FPerl.FreeTable, FPerl.CopyTable
 
 local _G = _G
 local pairs = pairs
@@ -50,7 +41,7 @@ local UnitName = UnitName
 local ColourFriendlyUnit = FPerl.ColourFriendlyUnit
 local ColourHealthBar = FPerl.ColourHealthBar
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local CanAccess = FPerl.CanAccess
 
 -- RaidUnitName(unit) - "Name-Realm" for a raid unit, nil while the name is secret
@@ -67,9 +58,6 @@ end
 local GetPowerPercent = FPerl.GetPowerPercent
 local SafeBool = FPerl.SafeBool
 
---local feignDeath = (C_Spell and C_Spell.GetSpellInfo(5384)) and C_Spell.GetSpellInfo(5384).name or GetSpellInfo(5384)
---local spiritOfRedemption = (C_Spell and C_Spell.GetSpellInfo(27827)) and C_Spell.GetSpellInfo(27827).name or GetSpellInfo(27827)
-
 
 -- TODO - Watch for:	 ERR_FRIEND_OFFLINE_S = "%s has gone offline."
 
@@ -79,10 +67,6 @@ FPERL_RAIDGRP_PREFIX = "FPerl_Raid_Grp"
 -- Is also stored between sessions to maintain timers and flags
 FPerlRoster = { }
 
--- Uses some variables from FrameXML\RaidFrame.lua:
--- MAX_RAID_MEMBERS = 40
--- NUM_RAID_GROUPS = 8
--- MEMBERS_PER_RAID_GROUP = 5
 
 local LOCALIZED_CLASS_NAMES_MALE = LOCALIZED_CLASS_NAMES_MALE
 for k, v in pairs(LOCALIZED_CLASS_NAMES_MALE) do
@@ -107,7 +91,6 @@ function FPerl.Raid.OnLoad(self)
 	end
 
 	for i = 1, Shared.CLASS_COUNT do
-		--_G["FPerl_Raid_Grp"..i]:UnregisterEvent("UNIT_NAME_UPDATE")
 		tinsert(raidHeaders, _G[FPERL_RAIDGRP_PREFIX..i])
 	end
 
@@ -117,7 +100,7 @@ function FPerl.Raid.OnLoad(self)
 	-- not by FPerl.OptionActions: an applier of the settings panel only
 	FPerl.RegisterApplier("raidheaders", FPerl.Raid.ChangeAttributes)
 	FPerl.RegisterApplier("raidgap", function() FPerl.Raid.SetGap(rconf.gap) end)
-	-- the gap spaces groups by their width, so a width change re-runs it (as the old window did)
+	-- the gap spaces groups by their width, so a width change re-runs it
 	FPerl.RegisterApplier("raidwidth", function() FPerl.Raid.SetWidth() FPerl.Raid.SetGap(rconf.gap or 0) end)
 
 	FPerl.RegisterOptionChanger(function()
@@ -209,8 +192,7 @@ local function UpdateName(self)
 	self.lastGUID, self.lastID = guid, partyid -- These stored, so we can at least make a small effort in reducing workload on attribute changes.
 
 	if (name) then
-		-- full "First Last" (or "First-Realm") display name;
-		-- lastGUID/lastID above are what onAttrChanged-style comparisons use
+		-- full "First Last" display name (FPerl.UnitFullName)
 		self.nameFrame.text:SetText(FPerl.UnitFullName(partyid))
 
 		if (self.pet) then
@@ -223,7 +205,7 @@ local function UpdateName(self)
 end
 
 -- CheckFlags
--- Returns one reused table: the callers (ShowFlags) read it at once and keep nothing, and this runs on
+-- Returns one reused table: the callers pass it to ShowFlags at once and keep nothing, and this runs on
 -- every UNIT_HEALTH of a raid member, so a table per call is avoided.
 local flagBlue, flagGreen = {r = 0, g = 0.5, b = 1}, {r = 0, g = 1, b = 0.5}
 local flagOut = {}
@@ -268,8 +250,7 @@ local function CheckFlags(partyid)
 		end
 	elseif (unitInfo and unitInfo.afk) then
 		-- AFK status can be secret for any unit, not just
-		-- indirect ones (confirmed: Player/
-		-- Target/Party's own UnitIsAFK calls).
+		-- indirect ones.
 		if (SafeBool(UnitIsAFK(partyid), false)) then
 			if (conf.showAFK) then
 				return setFlag(FPERL_RAID_AFK)
@@ -336,7 +317,6 @@ local function ShowFlags(self, flags)
 	self.statsFrame.healthBar.text:SetText(flag)
 	self.statsFrame.healthBar.text:SetTextColor(r, g, b)
 	self.statsFrame.healthBar.text:Show()
-	--del(flags)
 end
 
 -- UpdateAbsorbPrediction
@@ -401,7 +381,6 @@ local function UpdateHealth(self)
 	local name = RaidUnitName(partyid)
 	local myRoster = name and FPerlRoster[name]
 	if (UnitExists(partyid) and UnitIsConnected(partyid)) then
-		--self.disco = nil
 		local flags = CheckFlags(partyid)
 		if (flags) then
 			ShowFlags(self, flags)
@@ -438,7 +417,6 @@ local function UpdateHealth(self)
 			end
 		end
 	else
-		--self.disco = true
 		self.dead = nil
 		ShowFlags(self, FPERL_LOC_OFFLINE)
 
@@ -480,7 +458,7 @@ local function UpdateMana(self)
 	end
 end
 
--- onAttrChanged
+-- rebuildAuras
 -- Rebuild hides the containers it reconfigures; Update shows them, without waiting for a UNIT_AURA
 local function rebuildAuras(frame)
 	FPerl.AurasRebuild(frame)
@@ -499,7 +477,6 @@ local function onAttrChanged(self, name, value)
 				FPerl.Raid.UpdateDisplay(self)
 			end
 		else
-			--buffUpdates[self] = nil
 			SetFrameArray(self)
 			-- an option change while unitless skips this frame: rebuild when it gets a unit again
 			self.auraContainerPending = self.buffContainer and true or nil

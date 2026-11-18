@@ -30,13 +30,11 @@ local UnregisterUnitWatch = UnregisterUnitWatch
 
 local UIParent = UIParent
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local CanAccess = FPerl.CanAccess
 local IsSecret = FPerl.IsSecret
 local SafeBool = FPerl.SafeBool
 local SetAlphaFromBoolean = FPerl.SetAlphaFromBoolean
-
---local feignDeath = GetSpellInfo and GetSpellInfo(5384) or (C_Spell.GetSpellInfo(5384) and C_Spell.GetSpellInfo(5384).name)
 
 local conf
 FPerl.RequestConfig(function(new)
@@ -99,11 +97,8 @@ function FPerl.TargetTarget.OnLoad(self)
 	FPerl.SecureUnitButtonOnLoad(self, self.partyid, FPerl_ShowGenericMenu)
 	FPerl.SecureUnitButtonOnLoad(self.nameFrame, self.partyid, FPerl_ShowGenericMenu)
 
-	--RegisterUnitWatch(self)
-
 	self.targetname = ""
 
-	--FPerl_InitFadeFrame(self)
 	FPerl.RegisterHighlight(self.highlight, 2)
 	FPerl.RegisterPerlFrames(self, {self.nameFrame, self.statsFrame, self.levelFrame})
 
@@ -190,20 +185,14 @@ function FPerl.TargetTarget.UpdateDisplay(self)
 		return
 	end
 	if self.conf.enable and UnitExists(self.parentid) and SafeBool(UnitIsConnected(partyid), true) then
-		-- full "First Last" (or "First-Realm") display name
+		-- full "First Surname" display name (FPerl.UnitFullName)
 		self.targetname = FPerl.UnitFullName(partyid)
 		if self.targetname then
 			FPerl_Highlight:RemoveHighlight(self)
 
 			UpdatePVP(self)
 
-			-- Save these, so we know whether to update the frame later
-			--self.targethp = UnitIsGhost(partyid) and 1 or (UnitIsDead(partyid) and 0 or UnitHealth(partyid))
-			--self.targethpmax = UnitHealthMax(partyid)
-			--self.targetmanatype = UnitPowerType(partyid)
-			--self.targetmana = UnitPower(partyid)
-			--self.targetmanamax = UnitPowerMax(partyid)
-			--self.afk = UnitIsAFK(partyid) and conf.showAFK
+			-- GuidChanged compares the poll's GUID with this one
 			self.guid = UnitGUID(partyid)
 
 			FPerl.SetUnitNameColor(self.nameFrame.text, partyid)
@@ -239,7 +228,7 @@ function FPerl.TargetTarget.UpdateDisplay(self)
 
 					if TargetTargetLevel == "Boss" then
 						-- GetStringWidth() can be secret even
-						-- for plain text (section 3 taint-propagation nuance)
+						-- for plain text
 						FPerl.SafeSetWidthFromText(self.levelFrame, self.levelFrame.text, 6, 33)
 						color = {r = 1, g = 0, b = 0}
 					end
@@ -248,14 +237,11 @@ function FPerl.TargetTarget.UpdateDisplay(self)
 				end
 			end
 
-			-- Set name - Must do after level as the NameFrame can change size just above here.
 			local TargetTargetname = self.targetname
 			self.nameFrame.text:SetText(TargetTargetname)
 
-			-- Set health
 			FPerl.Target.UpdateHealth(self)
 
-			-- Set mana
 			if not self.statsFrame.greyMana then
 				FPerl.Target.SetManaType(self)
 			end
@@ -391,7 +377,7 @@ function FPerl.TargetTarget.TargetTargetTargetOnUpdate(self)
 	end
 end
 
--- The polls of the frames whose own unit has no unit events, on the scheduler (they ran every frame).
+-- The polls of the frames whose own unit has no unit events, on the scheduler.
 local function poll(frame, func)
 	if (frame and frame.partyid and frame:IsVisible()) then
 		func(frame)

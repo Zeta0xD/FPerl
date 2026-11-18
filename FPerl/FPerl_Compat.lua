@@ -1,11 +1,9 @@
 -- F-Perl - API compatibility shims
 --
--- The Forever client is Classic based, but Blizzard has said it will carry the
--- retail (Midnight) addon restrictions. Retail also removed a number of old
--- globals that the Z-Perl code base uses as table keys at load time
--- (GetSpellInfo, UnitAura, GetItemInfo ...). If Forever ever does the same, the
--- shims below keep the addon loading. Each one is only defined when the client
--- has removed the original and provides the modern replacement.
+-- The client ships the retail addon API, which lacks some globals the Z-Perl code
+-- base calls (GetItemInfo is nil; C_Item.GetItemInfo has the same returns). Each
+-- shim below defines a missing global from its C_* replacement, only when the
+-- global is missing and the replacement exists.
 
 -- The addon table. Every function and shared table is a field of FPerl, or of the sub-table of its module or raid
 -- tool (FPerl.Party.OnLoad). Frames and templates keep the FPerl_ prefix because the engine owns their global names.
@@ -15,10 +13,9 @@ for _, module in ipairs({"ArcaneBar", "AuraBlacklist", "CustomHighlight", "Party
 	FPerl[module] = {}
 end
 
--- Frames can invoke their highlight handlers even when Forever has prevented
--- the optional full highlight module from completing. Create the manager early
--- and give it harmless fallbacks; FPerl_Highlight.lua replaces these methods
--- with the complete implementation when it loads successfully.
+-- The highlight manager, created here with no-op methods so a frame that calls
+-- one finds it even when FPerl_Highlight.lua errors before defining its own.
+-- FPerl_Highlight.lua reuses this frame and replaces the methods.
 if (not FPerl_Highlight) then
 	FPerl_Highlight = CreateFrame("Frame", "FPerl_Highlight")
 	local function NoOp() end
@@ -32,11 +29,10 @@ if (not FPerl_Highlight) then
 end
 
 -- FPerl.SpellName(spellID)
--- Spell name for use as a table key. Several Classic spell IDs are missing from
--- the retail spell database; the lookup then returns nil and "[nil] = true" in a
--- table constructor aborts the whole file (which is how FPerl.lua died on retail,
--- taking every later FPerl_ function with it). A unique placeholder that can never
--- match a real aura name is returned instead.
+-- Spell name for use as a table key. The lookup returns nil for a spell ID the
+-- client does not have, and "[nil] = true" in a table constructor errors and
+-- aborts the rest of the file. A unique placeholder that can never match a real
+-- aura name is returned instead.
 function FPerl.SpellName(spellID)
 	local name
 	if (C_Spell and C_Spell.GetSpellInfo) then

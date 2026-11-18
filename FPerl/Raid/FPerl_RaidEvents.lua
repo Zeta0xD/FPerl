@@ -88,7 +88,7 @@ local function UpdateUnitByName(name, flagsOnly)
 	end
 end
 
--- HighlightCallback(updateName)
+-- HighlightCallback(self, guid)
 local function HighlightCallback(self, guid)
 	if not guid then
 		return
@@ -113,9 +113,6 @@ local function UpdateDebuffHighlight(self)
 	ColourFriendlyUnit(self.nameFrame.text, partyid)
 end
 
-------------------
--- Buffs stuffs --
-------------------
 
 -- UpdateCombat
 local function UpdateCombat(self)
@@ -136,7 +133,7 @@ local function UpdateCombat(self)
 	end
 end
 
--- UpdatePlayerFlags(self)
+-- UpdatePlayerFlags(self, partyid)
 local function UpdatePlayerFlags(self, partyid, ...)
 	if (not partyid) then
 		partyid = self:GetAttribute("unit")
@@ -151,7 +148,7 @@ local function UpdatePlayerFlags(self, partyid, ...)
 			local unitInfo = FPerlRoster[unitName]
 			if (unitInfo) then
 				local change
-				-- same AFK/DND secrecy risk as above.
+				-- AFK and DND status can be secret; SafeBool reads a secret as false
 				if (SafeBool(UnitIsAFK(partyid), false)) then
 					if (not unitInfo.afk) then
 						change = true
@@ -198,7 +195,6 @@ function FPerl.Raid.RosterWork()
 	if (not IsInRaid() or (not IsInGroup() and rconf.inParty)) then
 		wipe(Shared.ResArray)
 		wipe(FPerlRoster)
-		--buffUpdates = { }
 	end
 end
 
@@ -209,36 +205,27 @@ end
 
 -- FPerl.Raid.OnUpdate: the combat flash
 function FPerl.Raid.OnUpdate(self, elapsed)
-
-	--local updateHighlights, someUpdate
-	--local enemyUnitList
-	-- Throttling this will fuck up the animations, and create FPS decreases over time
-	--self.time = self.time + elapsed
-	--if (self.time >= 0.2) then
-		--self.time = 0
-		--someUpdate = true
-		local flashing
-		for i, frame in pairs(FrameArray) do
-			if (frame:IsShown()) then
-				if (conf.combatFlash and frame.PlayerFlash) then
-					CombatFlash(frame, elapsed, false)
-				end
-				if (frame.PlayerFlash) then
-					flashing = true
-				end
-			elseif (frame.PlayerFlash) then
-				-- hidden mid-flash: end the flash now, so the frame shows again in its own colour
-				CombatFlash(frame, 1000, false)
+	local flashing
+	for i, frame in pairs(FrameArray) do
+		if (frame:IsShown()) then
+			if (conf.combatFlash and frame.PlayerFlash) then
+				CombatFlash(frame, elapsed, false)
 			end
+			if (frame.PlayerFlash) then
+				flashing = true
+			end
+		elseif (frame.PlayerFlash) then
+			-- hidden mid-flash: end the flash now, so the frame shows again in its own colour
+			CombatFlash(frame, 1000, false)
 		end
+	end
 	-- set by a flash start (UNIT_COMBAT); idle otherwise
 	if (not flashing) then
 		self:SetScript("OnUpdate", nil)
 	end
 end
 
--- The range checks, every 0.2 s on the scheduler (no event reports a unit's distance). The OnUpdate version added every frame's elapsed
--- to one timer, so each pass updated a single frame; this updates every shown frame.
+-- The range checks, every 0.2 s on the scheduler (no event reports a unit's distance). Each pass updates every shown frame.
 FPerl.Every(0.2, function()
 	if (conf and conf.rangeFinder.enabled) then
 		for i, frame in pairs(FrameArray) do
@@ -340,7 +327,7 @@ end
 
 -- FPerl.Raid.UpdateDisplay
 function FPerl.Raid.UpdateDisplay(self)
-	-- Health must be updated after mana, since ctra flag checks are done here.
+	-- Health updates after mana: UpdateHealth shows the flags (ressing, AFK, dead) and greys the bars over the mana colors.
 	if (rconf.mana) then
 		FPerl.Raid.UpdateManaType(self)
 		UpdateMana(self)
@@ -354,8 +341,6 @@ function FPerl.Raid.UpdateDisplay(self)
 	UpdateCombat(self)
 	FPerl.UnitUpdateReadyState(self)
 	RaidTargetUpdate(self)
-
-	--buffUpdates[self] = true -- UpdateBuffs(self)
 
 	if (not Shared.SkipHighlightUpdate) then
 		FPerl_Highlight:SetHighlight(self)
@@ -404,11 +389,6 @@ end
 
 -- PLAYER_ENTERING_WORLD
 function Bus.PLAYER_ENTERING_WORLD()
-	--self:UnregisterEvent("PLAYER_ENTERING_WORLD")
-
-	--FPerl.Raid.ChangeAttributes()
-	--FPerl.Raid.RaidTitles()
-
 	FPerl.Raid.ChangeAttributes()
 	FPerl.Raid.Position()
 	FPerl.Raid.SetBits(FPerl_Raid_Frame)
@@ -421,9 +401,6 @@ function Bus.PLAYER_ENTERING_WORLD()
 	end
 
 	FPerl.Raid.UpdateDisplayAll()
-
-	--Events.PLAYER_ENTERING_WORLD = Events.PLAYER_ENTERING_WORLDsmall
-	--Events.PLAYER_ENTERING_WORLDsmall = nil
 end
 
 local rosterGuids = { }
@@ -521,7 +498,7 @@ end
 -- UNIT_NAME_UPDATE
 function Events:UNIT_NAME_UPDATE()
 	UpdateName(self)
-	UpdateHealth(self) -- Added 16th May 2007 - Seems they now fire name update to indicate some change in state.
+	UpdateHealth(self) -- the client also fires UNIT_NAME_UPDATE on some changes of state
 end
 
 -- UNIT_AURA
@@ -577,7 +554,7 @@ function Bus.ROLE_CHANGED_INFORM(event, targetUnit, sourceUnit, oldRole, newRole
 	end
 end
 
--- SetRes
+-- SetResStatus
 local function SetResStatus(resserName, resTargetName, ignoreCounter)
 	if (not resserName) then
 		return
@@ -737,11 +714,10 @@ local function SetRaidRoster()
 			if (r) then
 				NewRoster[name] = r
 				FPerlRoster[name] = nil
-				-- same AFK/DND secrecy risk as above.
+				-- AFK and DND status can be secret; SafeBool reads a secret as false
 				r.afk = SafeBool(UnitIsAFK(unit), false) and GetTime() or nil
 				r.dnd = SafeBool(UnitIsDND(unit), false) and GetTime() or nil
 			else
-				--NewRoster = new()
 				NewRoster[name] = { }
 			end
 		end

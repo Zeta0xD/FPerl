@@ -191,7 +191,6 @@ function FPerl.Target.UpdateHealth(self)
 			self.statsFrame.manaBar.percent:Hide()
 			self.statsFrame.healthBar.percent:SetText(FPERL_LOC_GHOST)
 		elseif (dead) then
-			--self.statsFrame.manaBar.percent:Hide()
 			self.statsFrame.healthBar.percent:SetText(FPERL_LOC_DEAD)
 		elseif (offline) then
 			self.statsFrame.manaBar.percent:Hide()
@@ -261,10 +260,7 @@ function FPerl.Target.UpdateRange(self)
 		SetAlphaFromBoolean(icon, range, 0, icon:GetAlpha())
 		return
 	end
-	local inRange = false
-	if not checkedRange then
-		inRange = true
-	end
+	local inRange = not checkedRange or range
 	if not UnitIsConnected(self.partyid) or inRange then
 		self.nameFrame.rangeIcon:Hide()
 	else
@@ -278,7 +274,7 @@ local function UpdateLeader(self)
 	local partyid = self.partyid
 
 	-- UnitIsGroupLeader/UnitIsGroupAssistant can be secret booleans for a
-	-- secret-identity target; crashed on plain click-to-target.
+	-- secret-identity target.
 	if (SafeBool(UnitIsGroupLeader(partyid), false)) then
 		self.nameFrame.leaderIcon:Show()
 		self.nameFrame.assistIcon:Hide()
@@ -391,10 +387,9 @@ function FPerl.Target.UpdateDisplay(self)
 
 	FPerl.NoFadeBars()
 
-	-- a fresh target is the most common moment the AuraContainer
-	-- fallback's friend/enemy half-assignment needs to change; rebuild here (a
-	-- no-op on clients without it, deferred while secret) rather than on every
-	-- UNIT_AURA.
+	-- a fresh target can change the containers' order (auraOrder "reaction" follows
+	-- hostility); rebuild here (a no-op on clients without the AuraContainer, deferred
+	-- while secret) rather than on every UNIT_AURA.
 	FPerl.AurasRebuild(self)
 	FPerl.AurasUpdate(self)
 	if (self.conf.highlightDebuffs.enable) then
@@ -424,15 +419,13 @@ end
 
 -- Range checks every 0.2 s: no event reports a unit's distance
 local function PollRangeOne(self)
-	do
-		local partyid = self and self.partyid
-		if (partyid and self:IsVisible()) then
-			if tconf.range30yard then
-				FPerl.Target.UpdateRange(self)
-			end
-			if conf.rangeFinder.enabled then
-				FPerl.UpdateSpellRange(self, partyid)
-			end
+	local partyid = self and self.partyid
+	if (partyid and self:IsVisible()) then
+		if tconf.range30yard then
+			FPerl.Target.UpdateRange(self)
+		end
+		if conf.rangeFinder.enabled then
+			FPerl.UpdateSpellRange(self, partyid)
 		end
 	end
 end

@@ -24,7 +24,7 @@ local UpdateAddOnMemoryUsage = UpdateAddOnMemoryUsage
 local GameTooltip = GameTooltip
 local UIParent = UIParent
 
--- Minimap Icon
+-- FPerl.MinimapButtonOnClick
 function FPerl.MinimapButtonOnClick(self, button)
 	GameTooltip:Hide()
 	if (button == "LeftButton") then
@@ -130,7 +130,6 @@ local xpStartupMemory = {}
 
 -- FPerl.MinimapButtonInit
 function FPerl.MinimapButtonInit(self)
-	--self.time = 0
 	collectgarbage()
 	UpdateAddOnMemoryUsage()
 	for k, v in pairs(xpModList) do
@@ -148,19 +147,17 @@ function FPerl.MinimapButtonInit(self)
 		self:Hide()
 	end
 
-	--self.UpdateTooltip = FPerl.MinimapButtonOnEnter
-
 	FPerl.MinimapButtonInit = nil
 end
 
 -- FPerl.MinimapButtonUpdatePosition
--- Free dragging (FPerl.xml OnDragStart/OnDragStop) replaced the old radius/angle
--- circle, which was sized for Era's minimap and misaligned on Forever.
+-- Free dragging (FPerl.xml OnDragStart/OnDragStop), not Z-Perl's radius/angle
+-- circle, which is sized for Era's minimap and misaligned on Forever.
 function FPerl.MinimapButtonUpdatePosition(self)
 	FPerl.PlaceFrame(self)
 end
 
--- DiffColour(diff, val)
+-- DiffColour(val)
 local function DiffColour(val)
 	local r, g, b, offset
 	offset = max(0, min(0.5, 0.5 * min(1, val)))
@@ -208,7 +205,7 @@ function FPerl.MinimapButtonDetails(tt, ldb)
 			allAddonsCPU = allAddonsCPU + GetAddOnCPUUsage(i)
 		end
 
-		-- Show X-Perl memory usage
+		-- memory and CPU usage of the F-Perl addons
 		UpdateAddOnMemoryUsage()
 		UpdateAddOnCPUUsage()
 		local totalKB, totalCPU, diffKB, diff = 0, 0, 0
@@ -248,5 +245,4 @@ function FPerl.MinimapButtonDetails(tt, ldb)
 	end
 
 	tt:Show()
-	--tt.updateTooltip = 1
 end

@@ -16,8 +16,7 @@ local perc1F = "%.1f%%"
 -- FPerl.ShortNumber(v, compact, cap)
 -- A readable v becomes an X-Perl ladder string on abs(v), sign kept. The default ladder is the one
 -- of the value and deficit texts; compact is the healer-mode deficit in the percent slot. cap, the
--- max printed beside v, limits the bracket (a v above its max prints in the max's bracket, as the
--- old nested ladder did). A secret v goes to AbbreviateNumbers, which accepts one.
+-- max printed beside v, limits the bracket (a v above its max prints in the max's bracket). A secret v goes to AbbreviateNumbers, which accepts one.
 function FPerl.ShortNumber(v, compact, cap)
 	if (FPerl.IsSecret(v)) then
 		return AbbreviateNumbers(v)
@@ -100,7 +99,7 @@ end
 -- FPerl.SetDeficitText(fs, missing, style)
 -- Writes -missing to fs. A secret cannot be concatenated, so the FontString is written here, as
 -- "-%d". Readable: the X-Perl ladder, its compact form (style true) or the whole number (style
--- "full", for the frames that never abbreviated).
+-- "full").
 function FPerl.SetDeficitText(fs, missing, style)
 	if (FPerl.IsSecret(missing)) then
 		fs:SetFormattedText("-%d", missing)
@@ -112,11 +111,11 @@ function FPerl.SetDeficitText(fs, missing, style)
 end
 
 -- FPerl.HealthSetBar(bar, unit, ignoreInverse): fills a health bar from the unit (the "inverse" bar
--- option applies unless ignoreInverse, for the frames that never honoured it); returns hp, hpMax and missing
+-- option applies unless ignoreInverse); returns hp, hpMax and missing
 -- for the text. The readable arithmetic only picks the deficit when both values can be read: it
--- keeps the ladder text of the plain path; a secret deficit comes from UnitHealthMissing. Every
--- health call passes usePredicted = true (the API's default, what the old code showed), so the bar,
--- the texts and the colour read the same health.
+-- keeps the ladder text of the plain path; a secret deficit comes from UnitHealthMissing. UnitHealth,
+-- UnitHealthMissing and UnitHealthPercent (the percent text, FPerl_Colours.lua's colour) are all
+-- called with true as the second argument, so the bar, the texts and the colour make the same request.
 function FPerl.HealthSetBar(bar, u, ignoreInverse)
 	local hp, hpMax = UnitHealth(u, true), UnitHealthMax(u)
 	local missing
@@ -530,7 +529,7 @@ local function refitHandle(frame, h)
 	end
 end
 
--- the ticker's handler; the harness's clock never fires timers in a probe run, so probes call it
+-- the ticker's handler
 function FPerl.AurasSyncHandles()
 	local on = FPerl.Locked == 0 and not inCombat
 	if (on == handlesOn) then
@@ -756,7 +755,6 @@ function FPerl.AurasGroups(c, kind, exclude, lineSize, half)
 	return list
 end
 
--- the container's line width for kind "buffs" or "debuffs"
 local function lineSizeOf(frame, kind)
 	return frame.auraLineSize(frame, kind)
 end

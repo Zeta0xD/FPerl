@@ -72,7 +72,7 @@ function FPerl.Party.OnUpdate(self, elapsed)
 	FPerl.OnUpdateIdle(self, feedback)
 end
 
--- The poll of the party frames on the scheduler (it ran in OnUpdate). OnUpdate keeps the hit indicator and
+-- The poll of the party frames on the scheduler. OnUpdate keeps the hit indicator and
 -- the combat flash.
 -- Every 0.2 s: the range checks (no event reports a unit's distance) and the target frame. The target frame redraws whole each tick on
 -- purpose: partyN-target has no unit events for health, combat or name colour (UNIT_TARGET and
@@ -172,19 +172,6 @@ FPerl.Party.EnableEvents = function(self)
 	self.auraInset = auraInset
 	FPerl.UnitFrameInit(self, {self.partyid}, {"Health", "Power", "Party", "Auras"})
 end
-
--- PARTY_LEADER_CHANGED
--- fix by Sontix this portion of code was never called becuse the even PARTY_LEDAER_CHANGED is not registered
--- because Xperl rearrange the party members order to keep always on top the leader, UpdateDisplay() was need
--- to not mess-up party frame
--- (in that function the Leader Icon is updated, so there's no need to listen to this event)
--- function Events:PARTY_LEADER_CHANGED()
---	for i,frame in pairs(PartyFrames) do
---		if (frame.partyid) then
--- 			UpdateLeader(frame)
--- 		end
--- 	end
--- end
 
 function Bus.PARTY_LOOT_METHOD_CHANGED()
 	local lootMethod, pindex,rindex = GetLootMethod()
@@ -291,7 +278,6 @@ function Bus.PLAYER_TARGET_CHANGED()
 	if partyHeader:GetAttribute("showPlayer") then
 		local f = PartyFrames["player"]
 		if f then
-			--FPerl.Party.UpdateDisplay(f)
 			UpdateTarget(f)
 			FPerl.UpdateSpellRange(f.targetFrame, "target")
 		end
@@ -325,7 +311,6 @@ end
 -- Lua interns the strings, so a repeat allocates nothing new.
 local function BuildGuidMap()
 	if (GetNumSubgroupMembers() > 0) then
-		--rosterGuids = FPerl.GetReusableTable()
 		wipe(rosterGuids)
 		if partyHeader:GetAttribute("showPlayer") then
 			local guid = UnitGUID("player")
@@ -355,9 +340,7 @@ function Bus.GROUP_ROSTER_UPDATE()
 	-- do not store the GUID they last showed. At most 5 frames, on every roster event.
 	FPerl.Party.UpdateDisplayAll()
 	
-	-- Hide Blizzard party frames when roster changes: kept per roster event because Blizzard's party
-	-- code may re-enable PartyFrame or the compact-party CVar on a roster change (not verified); once
-	-- per burst, out of combat only
+	-- Blizzard's party code may re-enable PartyFrame or the compact-party CVar on a roster change, so the hide runs on every roster event; in combat it runs once when combat ends.
 	if FPerl.Party.HideBlizzardPartyFrames then
 		FPerl.Party.HideBlizzardPartyFrames()
 	end
@@ -437,8 +420,6 @@ end
 
 -- CalcWidth
 local function CalcWidth(self)
-	--return FPerl_party1Highlight:GetWidth()
-
 	local w = self.statsFrame:GetWidth() or 0
 
 	if (pconf and pconf.portrait) then
@@ -452,8 +433,6 @@ end
 
 -- CalcHeight
 local function CalcHeight(self)
-	--return FPerl_party1Highlight:GetHeight()
-
 	if (pconf and pconf.portrait) then
 		return self.portraitFrame:GetHeight() + 1
 	end
@@ -485,7 +464,7 @@ function FPerl.Party.SetWidth(self)
 	FPerl.StatsFrameSetup(self)
 end
 
--- FPerl.Party.SetBits
+-- FPerl.Party.SetBits1
 function FPerl.Party.SetBits1(self)
 	if (InCombatLockdown()) then
 		FPerl.AfterCombatFor(FPerl.Party.SetBits1, self)
@@ -575,7 +554,6 @@ function FPerl.Party.SetBits1(self)
 
 	if (pconf.classIcon) then
 		self.classFrame:Show()
-		--self.levelFrame:Show()
 
 		if (pconf.portrait) then
 			self.levelFrame:SetWidth(27)
@@ -587,7 +565,6 @@ function FPerl.Party.SetBits1(self)
 
 		if (not pconf.level) then
 			self.levelFrame:SetWidth(2)
-			--self.levelFrame:Hide()
 		end
 	end
 
@@ -647,8 +624,6 @@ function FPerl.Party.SetBits1(self)
 	if (self:IsShown()) then
 		FPerl.Party.UpdateDisplay(self)
 	end
-
-	--FPerl_SetTextTransparencyFrame(self)
 
 	self.petFrame = _G["FPerl_partypet"..self:GetID()]
 	if (self.petFrame) then

@@ -44,9 +44,6 @@ FPerl.RequestConfig(function(newConf)
 	rconf = conf.raid
 end, "$Revision:  $")
 
---------------------
--- Click Handlers --
---------------------
 
 -- FPerl.Raid.ScaleRaid
 function FPerl.Raid.ScaleRaid()
@@ -214,9 +211,9 @@ function FPerl.Raid.RaidTitles()
 		end
 	end
 
-	-- A profile saved before this client's newer classes existed (or before
-	-- DefaultRaidClasses() listed all of them) can still have fewer entries
-	-- than CLASS_COUNT; repair it the same way GroupFilter() does, or the
+	-- A saved profile can have fewer class entries than CLASS_COUNT (one
+	-- saved before this client's newer classes existed, for example);
+	-- repair it the same way GroupFilter() does, or the
 	-- index below is nil and this errors out before finishing raid setup.
 	for i = 1, Shared.CLASS_COUNT do
 		if (not rconf.class[i]) then
@@ -395,7 +392,7 @@ local function GetCombatRezzerList()
 		end
 	end
 
-	-- We only need to know about battle rezzers if any normal rezzers are in combat
+	-- The list matters only when a normal rezzer is in combat or fewer than three are alive
 	if (anyCombat > 0 or anyAlive < 3) then
 		local ret = { }
 
@@ -437,10 +434,8 @@ local function GetCombatRezzerList()
 					list = list..", "..name
 				end
 			end
-			--del(ret)
 			return list
 		else
-			--del(ret)
 			return "|c00FF0000"..NONE.."|r"
 		end
 	end
@@ -595,7 +590,7 @@ local function GroupFilter(n)
 	end
 end
 
--- FPerl_Raid_SetAttributes
+-- FPerl.Raid.ChangeAttributes
 function FPerl.Raid.ChangeAttributes()
 	if (InCombatLockdown()) then
 		FPerl.AfterCombat(FPerl.Raid.ChangeAttributes)
@@ -608,7 +603,6 @@ function FPerl.Raid.ChangeAttributes()
 	for i = 1, rconf.sortByClass and Shared.CLASS_COUNT or 9 do
 		local groupHeader = raidHeaders[i]
 
-		-- Guard against nil raidHeaders entry
 		if not groupHeader then
 			break
 		end
@@ -630,11 +624,6 @@ function FPerl.Raid.ChangeAttributes()
 			groupHeader:SetAttribute("unitsPerColumn", 5)
 			groupHeader:SetAttribute("strictFiltering", nil)
 			groupHeader:SetAttribute("groupFilter", nil)
-			--groupHeader:SetAttribute("useparent-toggleForVehicle", true)
-			--groupHeader:SetAttribute("useparent-allowVehicleTarget", true)
-			--groupHeader:SetAttribute("useparent-unitsuffix", true)
-			--groupHeader:SetAttribute("toggleForVehicle", true)
-			--groupHeader:SetAttribute("allowVehicleTarget", true)
 		else
 			groupHeader:SetAttribute("strictFiltering", not rconf.sortByClass)
 			groupHeader:SetAttribute("groupFilter", GroupFilter(i))
@@ -642,11 +631,6 @@ function FPerl.Raid.ChangeAttributes()
 			groupHeader:SetAttribute("groupingOrder", nil)
 			groupHeader:SetAttribute("startingIndex", 1)
 			groupHeader:SetAttribute("unitsPerColumn", nil)
-			--groupHeader:SetAttribute("useparent-toggleForVehicle", true)
-			--groupHeader:SetAttribute("useparent-allowVehicleTarget", true)
-			--groupHeader:SetAttribute("useparent-unitsuffix", true)
-			--groupHeader:SetAttribute("toggleForVehicle", true)
-			--groupHeader:SetAttribute("allowVehicleTarget", true)
 		end
 
 		-- Fix Secure Header taint in combat
@@ -663,7 +647,7 @@ function FPerl.Raid.ChangeAttributes()
 		end
 	end
 
-	-- A shown header makes buttons for every unit its attributes allow, so the decider sees the
+	-- A shown header makes buttons for every unit its attributes allow, so FPerl.GroupVisibilityUpdate sees the
 	-- headers only once they have their attributes.
 	FPerl.Raid.Headers = raidHeaders
 	FPerl.GroupVisibilityUpdate()

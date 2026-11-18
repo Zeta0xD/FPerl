@@ -6,15 +6,6 @@ FPerl.RequestConfig(function(new)
 	pconf = new.player
 end, "$Revision:  $")
 
---local playerClass
-
---[===[@debug@
-local function d(fmt, ...)
-	fmt = fmt:gsub("(%%[sdqxf])", "|cFF60FF60%1|r")
-	ChatFrame1:AddMessage("|cFFFF8080PlayerBuffs:|r "..format(fmt, ...), 0.8, 0.8, 0.8)
-end
---@end-debug@]===]
-
 -- The aura element (FPerl_Unit.lua) draws the auras; these are its settings for the player frame.
 -- the extra rows under the frame (druid / priest mana bar, reputation, experience) that BOTTOM blocks clear
 local function Inset(self, side)
@@ -74,9 +65,6 @@ local function SetBits(self)
 		FPerl.AfterCombat(SetBits, self)
 		return
 	end
-
-	--local _, class = UnitClass("player")
-	--playerClass = class
 
 	FPerl.PlayerBuffs.PlayerBuffSetup(self)
 

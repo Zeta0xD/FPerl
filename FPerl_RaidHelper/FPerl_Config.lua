@@ -17,30 +17,12 @@ function FPerl.RaidHelper.SetupFrames()
 		return alpha
 	end
 
-	local function ValidScale(scale)
-		scale = tonumber(scale)
-		if (scale < 0.5) then
-			scale = 0.5
-		elseif (scale > (FPerl.layout.maximumScale or 1.5)) then
-			scale = (FPerl.layout.maximumScale or 1.5)
-		end
-		return scale
-	end
-
 	if (FPerlRaidHelperDB) then
 		FPerlRaidHelperDB.AssistsFrame_Transparency = ValidAlpha(FPerlRaidHelperDB.AssistsFrame_Transparency)
 		FPerl_Assists_Frame:SetAlpha(FPerlRaidHelperDB.AssistsFrame_Transparency)
 
 		FPerlRaidHelperDB.Targets_Transparency = ValidAlpha(FPerlRaidHelperDB.Targets_Transparency)
 		FPerl_RaidHelper_Frame:SetAlpha(FPerlRaidHelperDB.Targets_Transparency)
-
-		--FPerlRaidHelperDB.Scale_AssistsFrame = ValidScale(FPerlRaidHelperDB.Scale_AssistsFrame)
-		--FPerl_Assists_Frame:SetScale(FPerlRaidHelperDB.Scale_AssistsFrame)
-
-		--FPerlRaidHelperDB.Targets_Scale = ValidScale(FPerlRaidHelperDB.Targets_Scale)
-		--FPerl_RaidHelper_Frame:SetScale(FPerlRaidHelperDB.Targets_Scale)
-
-		-- Assist Counters
 
 		FPerl.RaidHelper.SetupFrameSimple(FPerl_RaidHelper_Frame, FPerlRaidHelperDB.Background_Transparency)
 		FPerl.RaidHelper.SetupFrameSimple(FPerl_MTTargets)
@@ -95,7 +77,6 @@ function FPerl.RaidHelper.Slash(msg)
 	local foundFunc
 	local foundDesc
 	if (commands[1]) then
-		local smallest = 100
 		local len = strlen(commands[1])
 		if (len) then
 			for i,entry in pairs(options) do
@@ -143,21 +124,21 @@ local function Defaults()
 	DefaultVar("Targets_Transparency",	0.8)
 	DefaultVar("Background_Transparency",	1)
 	DefaultVar("Tooltips",			0)
-	DefaultVar("TooltipsWhich",		2)		-- 1.9.4
+	DefaultVar("TooltipsWhich",		2)
 	DefaultVar("MaxMainTanks",		10)
-	DefaultVar("MTListUpward",		0)		-- 2.0.6
-	DefaultVar("HealerMode",		0)		-- 2.1.0
-	DefaultVar("HealerModeType",		1)		-- 2.1.0
+	DefaultVar("MTListUpward",		0)
+	DefaultVar("HealerMode",		0)
+	DefaultVar("HealerModeType",		1)
 
 	DefaultVar("TargetCounters",		1)
 	DefaultVar("TargetCountersSelf",	1)
 	DefaultVar("TargetCountersEnemy",	1)
-	DefaultVar("ShowTargetCounters",	1)		-- 2.2.4
+	DefaultVar("ShowTargetCounters",	1)
 	DefaultVar("AssistsFrame",		1)
 	DefaultVar("TargettingFrame",		1)
 	DefaultVar("AssistsFrame_Transparency",	0.8)
 	DefaultVar("Assists_BackTransparency",	1)
-	DefaultVar("AggroWarning",		1)		-- 1.9.6
+	DefaultVar("AggroWarning",		1)
 
 	DefaultVar("BorderColour",		{r = 0.5, g = 0.5, b = 0.5, a = 1})
 end
@@ -181,77 +162,5 @@ function FPerl.RaidHelper.Startup()
 
 	if (FPerl.RegisterOptionChanger) then
 		FPerl.RegisterOptionChanger(FPerl.RaidHelper.SetupFrames, nil, "raidhelper")
-	end
-end
-
-if (not FPerl.SetUnitNameColor) then
-	FPerl.SetUnitNameColor = function(self, unit)
-		local r, g, b = 0.5, 0.5, 1
-
-		if (UnitPlayerControlled(unit) or not UnitIsVisible(unit)) then
-			local _, class = UnitClass(unit)
-			r, g, b = FPerl.GetClassColour(class)
-		else
-			if (UnitIsTapped(unit) and not UnitIsTappedByPlayer(unit)) then
-				r, g, b = 0.5, 0.5, 0.5
-			else
-				local reaction = UnitReaction(unit, "player")
-
-				if (reaction) then
-					if (reaction >= 5) then
-						r, g, b = 0, 1, 0
-					elseif (reaction <= 2) then
-						r, g, b = 1, 0, 0
-					elseif (reaction == 3) then
-						r, g, b = 1, 0.5, 0
-					else
-						r, g, b = 1, 1, 0
-					end
-				else
-					if (UnitFactionGroup("player") == UnitFactionGroup(unit)) then
-						r, g, b = 0, 1, 0
-					elseif (UnitIsEnemy("player", unit)) then
-						r, g, b = 1, 0, 0
-					else
-						r, g, b = 1, 1, 0
-					end
-				end
-			end
-		end
-
-		self:SetTextColor(r, g, b)
-	end
-end
-
--- Perl UnitFrame function copies:
-if (not FPerl.ColourFriendlyUnit) then
-	FPerl.ColourFriendlyUnit = function(frame, partyid)
-		if (UnitCanAttack("player", partyid) and UnitIsEnemy("player", partyid)) then -- For dueling
-			frame:SetTextColor(1, 0, 0)
-		else
-			if (not FPerl.layout or FPerl.layout.colour.class) then
-				local _, class = UnitClass(partyid)
-				local color = FPerl.GetClassColour(class)
-				frame:SetTextColor(color.r, color.g, color.b)
-			else
-				if (UnitIsPVP(partyid)) then
-					frame:SetTextColor(0, 1, 0)
-				else
-					frame:SetTextColor(0.5, 0.5, 1)
-				end
-			end
-		end
-	end
-end
-
-if (not FPerl.GetClassColour) then
-	FPerl.GetClassColour = function(class)
-		if (class) then
-			local color = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class] -- Now using the WoW class color table
-			if (color) then
-				return color
-			end
-		end
-		return {r = 0.5, g = 0.5, b = 1}
 	end
 end

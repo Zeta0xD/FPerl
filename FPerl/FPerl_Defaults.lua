@@ -34,7 +34,7 @@ function FPerl.SetUntickedKeys(profile)
 	end
 end
 
--- FPerl.OptionsDefaults()
+-- FPerl.OptionsDefaults(new)
 function FPerl.OptionsDefaults(new)
 	MakeDefaultConfig(new)
 	FPerl.SetUntickedKeys(new)
@@ -54,7 +54,6 @@ end
 
 -- GlobalConfigDefault
 local function GlobalConfigDefault(default)
-	-- Defaults for global options
 
 	if (not default) then
 		error("Usage: GlobalConfigDefault(<table>)")
@@ -71,7 +70,7 @@ local function GlobalConfigDefault(default)
 	default.alignmentSnapToGrid	= false
 	default.combatFlash	= 1
 	default.maximumScale	= 1.5
-	default.showAFK		= 1				-- 2.2.4
+	default.showAFK		= 1
 	default.oldRoleIcons = 1
 
 	default.minimap = {
@@ -87,24 +86,23 @@ local function GlobalConfigDefault(default)
 
 	default.buffHelper = {
 		enable		= 1,
-		sort		= "group",		-- 2.2.5
-		visible		= 1,			-- 2.2.9
+		sort		= "group",
+		visible		= 1,
 	}
 
 	default.buffs = {
-		cooldown	= 1,			-- 2.2.3
+		cooldown	= 1,
 		cooldownAny	= 1,			-- swipe on all auras, not only the player's
-		countdown	= 1,			-- 2.2.2
+		countdown	= 1,
 		countdownAny	= 1,			-- duration text on all auras
 	}
 
 	default.rangeFinder = FPerl.DefaultRangeFinder()
 
 	default.tooltip = {
-		enable		= 1,			-- 2.0.5
-		enableBuffs	= 1,			-- 2.3.4a
---		fading		= nil,			-- 1.8.3
-		modifier	= "all",		-- 2.0.6
+		enable		= 1,
+		enableBuffs	= 1,
+		modifier	= "all",
 	}
 
 	default.colour = {
@@ -120,10 +118,8 @@ local function GlobalConfigDefault(default)
 	default.bar = {
 		texture		= {"Perl v2", "Interface\\AddOns\\FPerl\\Images\\FPerl_StatusBar"},
 		background	= 1,
---		fading		= nil,		-- 1.8.9
-		fadeTime	= 0.5,		-- 1.9.1
+		fadeTime	= 0.5,
 		fat		= 1,
---		inverse		= nil,		-- 1.8.6
 	}
 
 	default.highlight = {
@@ -158,22 +154,20 @@ local function TargetConfigDefault(default, section)
 		castBar = {
 			enable		= 1,
 		},
-		hitIndicator	= 1,			-- 2.1.7
+		hitIndicator	= 1,
 		hitIndicatorPos	= "PORTRAIT",
 		threat			= 1,
 		threatMode		= "portraitFrame",
 		classIcon		= 1,
---		classText		= nil,			-- 2.0.6
 		mobType			= 1,
 		level			= 1,
 		healprediction	= 1,
 		absorbs			= 1,
 		elite			= 1,
---		eliteGfx		= nil,
 		mana			= 1,
 		percent			= 1,
 		values			= 1,
-		pvpIcon			= 1,			-- 1.8.3
+		pvpIcon			= 1,
 		scale			= 1,
 		raidIconAlternate	= 1,
 		buffs = {
@@ -188,19 +182,17 @@ local function TargetConfigDefault(default, section)
 			size		= 25,
 			curable		= 0,
 		},
---		reactionHighlight	= nil,		-- 1.8.6
 		healerMode = {
---			enable		= nil,			-- 1.9.1
-			type		= 1,			-- 1.9.1
+			type		= 1,
 		},
 		highlightDebuffs = {
 			enable		= defaultHD,
-			who			= defaultHDwho		-- 2.2.0
+			who			= defaultHDwho
 		},
 		size = {
 			width		= 0,
 		},
-		sound			= 1,			-- 2.2.6
+		sound			= 1,
 	}
 	if (section == "target") then
 		default.target.combo = {
@@ -208,7 +200,7 @@ local function TargetConfigDefault(default, section)
 			blizzard	= 1,
 		}
 		default.target.comboindicator = {
-			enable		= 1,			-- 5.0.4
+			enable		= 1,
 		}
 	end
 	AuraLayoutDefaults(default[section], (section == "focus") and "TOP" or "BOTTOM", "reaction")
@@ -222,17 +214,17 @@ local function PartyConfigDefault(default)
 		},
 		spacing			= 75,			-- clears a buff row and a debuff row, each with duration text
 		anchor			= "TOP",
-		enable			= 1,			-- 4.0.0
+		enable			= 1,
 		portrait		= 1,
 		portrait3D		= 1,
-		hitIndicator	= 1,			-- 2.1.7
+		hitIndicator	= 1,
 		hitIndicatorPos	= "PORTRAIT",
 		threat			= 1,
 		threatMode		= "portraitFrame",
 		target = {
 			enable		= 1,
 			large		= 1,
-			size		= 120,			-- 2.0.9
+			size		= 120,
 		},
 		level			= 1,
 		healprediction	= 1,
@@ -241,12 +233,12 @@ local function PartyConfigDefault(default)
 		values			= 1,
 		percent			= 1,
 		classIcon		= 1,
-		pvpIcon			= 1,			-- 1.8.3
+		pvpIcon			= 1,
 		showPlayer		= nil,
 		inRaid			= 1,
 		buffs = {
 			enable		= 1,
-			wrap		= 1,			-- 2.3.5
+			wrap		= 1,
 			size		= 25,
 			castable	= 0,
 			rows		= 2,
@@ -258,13 +250,11 @@ local function PartyConfigDefault(default)
 		},
 		scale			= 1,
 		healerMode = {
---			enable		= nil,			-- 1.9.1
-			type		= 1,			-- 1.9.1
+			type		= 1,
 		},
 		size = {
 			width		= 0,
 		},
---		flip			= nil,			-- 2.2.7
 	}
 	AuraLayoutDefaults(default.party, "BOTTOM", "buffs")
 end
@@ -283,14 +273,12 @@ local function PartyPetConfigDefault(default)
 		debuffs = {
 			enable		= 1,
 			curable		= 0,
-			size		= 12,			-- read by FPerl_PartyPet.lua; ValidateSettings used to copy buffs.size
+			size		= 12,
 		},
 		healerMode = {
-			--enable		= nil,
 			type		= 1,
 		},
 		mana			= 1,
-		--level			= nil,
 	}
 	AuraLayoutDefaults(default.partypet, "BOTTOM", "buffs")
 end
@@ -301,8 +289,6 @@ local function PlayerConfigDefault(default)
 		enable			= 1,			-- the frame; takes effect after a reload
 		castBar = {
 			enable		= 1,
---			original	= nil,
---			castTime	= nil,
 		},
 		portrait		= 1,
 		portrait3D		= 1,
@@ -312,29 +298,25 @@ local function PlayerConfigDefault(default)
 		healprediction	= 1,
 		absorbs			= 1,
 		classIcon		= 1,
---		xpBar			= nil,
---		repBar			= nil,
 		pvpIcon			= 1,
 		values			= 1,
 		percent			= 1,
 		scale			= 1,
 		partyNumber		= 1,
---		withName		= nil,
 
 		fullScreen = {
 			enable		= 1,
 		},
 
 		healerMode = {
---			enable		= nil,
 			type		= 1,
 		},
 
 		buffs = {
 			enable		= 1,
 			size		= 25,
-			wrap		= 1,			-- 2.3.5
-			rows		= 2,			-- 2.3.5
+			wrap		= 1,
+			rows		= 2,
 			hideBlizzard	= 1,
 		},
 		debuffs = {
@@ -409,7 +391,7 @@ local function TargetTargetConfigDefault(default, section)
 			size		= 25,
 			rows		= 3,
 			castable	= 0,
-			wrap		= 1,			-- 2.3.5
+			wrap		= 1,
 		},
 		debuffs = {
 			size		= 25,
@@ -420,7 +402,6 @@ local function TargetTargetConfigDefault(default, section)
 		pvpIcon			= 1,
 		percent			= 1,
 		values			= 1,
---		level			= nil,
 		healprediction	= 1,
 		absorbs			= 1,
 		mana			= 1,
@@ -428,8 +409,7 @@ local function TargetTargetConfigDefault(default, section)
 			width		= 0,
 		},
 		healerMode = {
---			enable		= nil,			-- 1.9.1
-			type		= 1,			-- 1.9.1
+			type		= 1,
 		},
 	}
 	if (section == "pettarget") then
@@ -442,9 +422,7 @@ end
 local function RaidConfigDefault(default)
 	default.raid = {
 		enable			= 1,
---		sortByClass		= nil,
 		sortByRole 		= nil,
---		sortAlpha		= nil,
 		group = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 		class = {
 			{enable = 1, name = "WARRIOR"},
@@ -471,7 +449,6 @@ local function RaidConfigDefault(default)
 		inParty			= nil,
 		auraText		= false,			-- no duration text: it does not fit the raid frame
 		buffs = {
---			enable		= nil,
 			castable	= 0,
 			size		= 10,
 			wrap		= 1,
@@ -482,9 +459,7 @@ local function RaidConfigDefault(default)
 			curable		= 0,
 			size		= 10,
 		},
---		mana			= nil,
 		healerMode = {
---			enable		= nil,
 		},
 		anchor			= "TOP",
 		gap				= 0,
@@ -502,7 +477,7 @@ end
 -- RaidPetConfigDefault
 local function RaidPetConfigDefault(default, section)
 	default.raidpet = {
-		enable			= 1,			-- 2.1.3
+		enable			= 1,
 	}
 end
 
@@ -525,7 +500,6 @@ RegisterConfigDefault(RaidPetConfigDefault)
 function FPerl.DefaultGradientColours()
 	return {
 		enable = 1,
-		--horizontal = nil,
 		s = {r = 0.25, g = 0.25, b = 0.25, a = 1},
 		e = {r = 0.1, g = 0.1, b = 0.1, a = 0}
 	}
@@ -567,8 +541,7 @@ end
 
 -- FPerl.DefaultRangeFinder
 function FPerl.DefaultRangeFinder()
-	return {						-- 2.1.7
---		enabled		= e,	-- 2.3.4a Defaulting to OFF now, because of so many confused users complaining about faded frames. RTFM... (TODO: Write a manual)
+	return {
 		Main		= {enabled = true, FadeAmount = 0.5},
 		NameFrame	= {FadeAmount = 0.5},
 		StatsFrame	= {FadeAmount = 0.5},

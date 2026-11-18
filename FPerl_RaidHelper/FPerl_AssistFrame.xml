@@ -191,7 +191,7 @@
 		</Scripts>
 	</Frame>
 
-	<!-- These two frames add to X-Perl UnitFrames. If X-Perl not loaded, then WoW will just ignore these without error -->
+	<!-- These two frames attach to the F-Perl player and target frames when those exist; otherwise they stay unattached -->
 	<Button name="FPerl_Player_TargettingFrame" inherits="FPerl_BackdropTemplate" enableMouse="true" text="0" hidden="true">
 		<KeyValues>
 			<KeyValue key="backdropInfo" value="FPerl_Frame_Backdrop_32_16_3333" type="global"/>
@@ -204,13 +204,6 @@
 		<HighlightTexture file="Interface\Addons\FPerl\Images\FPerl_Highlight" alphaMode="ADD">
 			<TexCoords left="0" right="0.25" top="0" bottom="0.5"/>
 		</HighlightTexture>
-		<!--<Anchors>
-			<Anchor point="TOPRIGHT" relativePoint="TOPLEFT" relativeTo="FPerl_PlayerportraitFrame">
-				<Offset>
-					<AbsDimension x="2" y="-19"/>
-				</Offset>
-			</Anchor>
-		</Anchors>-->
 		<Scripts>
 			<OnLoad>
 				self:OnBackdropLoaded()

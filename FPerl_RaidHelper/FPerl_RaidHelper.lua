@@ -11,13 +11,10 @@ local Events = {}
 local XUnits = {}
 local UpdateTime = 0
 local XGaps = 0
-local XTitle
 local pendingTankListChange -- If in combat when tank list changes, then we'll defer it till next time we're out of combat
 local conf
 
 local GetNumGroupMembers = GetNumGroupMembers
-
---local new, del = FPerl.GetReusableTable, FPerl.FreeTable
 
 -- Dup colours used to show which tanks have the same target
 local MTdupColours = {
@@ -34,22 +31,13 @@ FPERL_UNIT_HEIGHT_MAX = 30
 FPERL_UNIT_WIDTH_MIN = 50
 FPERL_UNIT_WIDTH_MAX = 125
 
-if (not FPerl.ColourTable) then
-	FPerl.ColourTable = setmetatable({},{
-		__index = function(self, class)
-			local c = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class] or {r = 0, g = 0, b = 0}
-			return format("|c00%02X%02X%02X", 255 * c.r, 255 * c.g, 255 * c.b)
-		end
-	})
-end
-
 -- Although your own "target" is updated immediately, any reference to ourself via our raid id is updated via the server
 -- So, to cure the slow response times, we check if anything is 'me'. Only direct targets are updated immedately,
 -- so we don't bother with target's target onwards.
 local function SpecialCaseUnit(self)
 	local id
 	if (self.type == "MTT") then
-		id = self:GetParent():GetAttribute("unit") -- SecureButton_GetUnit(self:GetParent())
+		id = self:GetParent():GetAttribute("unit")
 		if (id) then
 			if (FPerl.SafeBool(UnitIsUnit("player", id), false)) then
 				return "target"
@@ -58,7 +46,7 @@ local function SpecialCaseUnit(self)
 		end
 
 	elseif (self.type == "MT") then
-		id = self:GetAttribute("unit") -- SecureButton_GetUnit(self)
+		id = self:GetAttribute("unit")
 		if (id and FPerl.SafeBool(UnitIsUnit("player", id), false)) then
 			return "player"
 		end
@@ -124,7 +112,7 @@ local function UpdateUnit(self,forcedUpdate)
 		end
 
 		-- Health
-		local health, healthMax, missing = FPerl.HealthSetBar(self.healthBar, xunit, true)
+		local _, healthMax, missing = FPerl.HealthSetBar(self.healthBar, xunit, true)
 		if (FPerl.CanAccess(healthMax) and healthMax == 0) then
 			grey = true
 		end
@@ -236,7 +224,7 @@ end
 -- FPerl.RaidHelper.RaidHelpShow
 function FPerl.RaidHelper.RaidHelpShow()
 	conf.RaidHelper = 1
-	FPerl_RaidHelperCheck:Show() -- FPerl.RaidHelper.EnableDisable()
+	FPerl_RaidHelperCheck:Show() -- its OnUpdate calls FPerl.RaidHelper.EnableDisable()
 	return true
 end
 
@@ -350,12 +338,10 @@ end
 function FPerl.RaidHelper.MTRosterChanged()
 	ValidateTankList()
 
-	--del(MainTanks, true)
 	MainTanks = {}
 
 	blizzMTanks, ctraTanks = 0, 0
 
-	-- If conf is nothing, just return.
 	if (conf == nil) then
 		return
 	else
@@ -410,7 +396,6 @@ function FPerl.RaidHelper.MTRosterChanged()
 				end
 			end
 		end
-		oldBlizzardNames = { }
 
 		for i,name in ipairs(BlizzardMainTanks) do
 			local found
@@ -521,14 +506,10 @@ local function ScanForMTDups()
 			end
 		end
 	end
-
-	--del(dups)
 end
 
  -- updates when roles are assigned
-	--added aug 30, 2012
 function Events:PLAYER_ROLES_ASSIGNED()
-	--check for tanks for efficiency if possible
 	FPerl.RaidHelper.MTRosterChanged()
 	FPerl.RaidHelper.EnableDisable()
 end
@@ -587,7 +568,7 @@ function Events:VARIABLES_LOADED()
 
 	FPerl.RaidHelper.Startup()
 	conf = FPerlRaidHelperDB
-	FPerl_RaidHelperCheck:Show()		-- FPerl.RaidHelper.EnableDisable()
+	FPerl_RaidHelperCheck:Show()		-- its OnUpdate calls FPerl.RaidHelper.EnableDisable()
 
 	FPerl.RegisterOptionChanger(FPerl.RaidHelper.SetFrameSizes, nil, "raidsizes")
 	FPerl.RaidHelper.SetFrameSizes()
@@ -607,7 +588,6 @@ local function Registration()
 		"PLAYER_REGEN_ENABLED",
 		"PLAYER_REGEN_DISABLED",
 		"PLAYER_ROLES_ASSIGNED",
-		--"CHAT_MSG_ADDON",
 	}
 
 	for i, a in pairs(list) do
@@ -669,12 +649,9 @@ end
 -- GROUP_ROSTER_UPDATE
 function Events:GROUP_ROSTER_UPDATE()
 	if (not IsInRaid()) then
-		--del(MainTanks, 1)
 		MainTanks = { }
-		--del(BlizzardMainTanks)
 		BlizzardMainTanks = { }
 	end
-	--FPerl_RaidHelperCheck:show()
 end
 
 -- UNIT_HEALTH
@@ -726,7 +703,7 @@ function Events:UNIT_FACTION(unit)
 						frame.combatIcon:Hide()
 					end
 
-					-- indirect units can return secret flags; no icon in that case
+					-- a secret flag shows no icon
 					if (FPerl.SafeBool(UnitIsCharmed(partyid), false)) then
 						frame.warningIcon:Show()
 					else
@@ -866,7 +843,7 @@ function Events:PLAYER_REGEN_ENABLED()
 		FPerl.RaidHelper.MTRosterChanged()
 	end
 	DoButtons()
-	FPerl_RaidHelperCheck:Show() -- FPerl.RaidHelper.EnableDisable()
+	FPerl_RaidHelperCheck:Show() -- its OnUpdate calls FPerl.RaidHelper.EnableDisable()
 end
 Events.PLAYER_ENTERING_WORLD = Events.PLAYER_REGEN_ENABLED
 
@@ -876,7 +853,7 @@ function Events:PLAYER_REGEN_DISABLED()
 
 end
 
--- The number of 'Other' colums that can be shown
+-- Number of columns shown: MT targets, plus MTs and MT target's targets when enabled
 local function DisplayableColumns()
 	return 1 + conf.ShowMT + conf.MTTargetTargets
 end
@@ -901,10 +878,6 @@ end
 local bEdge = {	bgFile = "Interface\\AddOns\\FPerl_RaidHelper\\Images\\FPerl_FrameBack",
 		edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
 		tile = true, tileSize = 16, edgeSize = 9,
-		insets = { left = 3, right = 3, top = 3, bottom = 3 }
-	}
-local bNoEdge = {bgFile = "Interface\\AddOns\\FPerl_RaidHelper\\Images\\FPerl_FrameBack",
-		edgeFile = "", tile = true, tileSize = 16, edgeSize = 9,
 		insets = { left = 3, right = 3, top = 3, bottom = 3 }
 	}
 
@@ -1034,8 +1007,6 @@ function FPerl.RaidHelper.MakeTankList()
 
 	FPerl_MTTargets:SetAttribute("nameList", table.concat(tanks, ","))
 	FPerl_MTTargets:Show()
-
-	--del(tanks)
 
 	if (FPerl.NoFadeBars) then FPerl.NoFadeBars() end
 
@@ -1188,8 +1159,7 @@ function FPerl.RaidHelper.ToggleUseCTRATargets()
 		conf.UseCTRATargets = 1
 	end
 
-	--FPerl.RaidHelper.MTRosterChanged()
-	FPerl_RaidHelperCheck:Show() -- FPerl.RaidHelper.EnableDisable()
+	FPerl_RaidHelperCheck:Show() -- its OnUpdate calls FPerl.RaidHelper.EnableDisable()
 	return true
 end
 
@@ -1235,24 +1205,4 @@ function FPerl.RaidHelper.ToggleShowMT()
 	FPerl_RaidHelper_Frame_TitleBar_ToggleShowMT:SetButtonTex()
 
 	return true
-end
-
--- SmoothBarColor
-local function SmoothBarColor(bar, barBG)
-	local barmin, barmax = bar:GetMinMaxValues()
-	local percentage = (bar:GetValue() / (barmax - barmin))
-
-	local r, g
-	if (percentage < 0.5) then
-		r = 2 * percentage
-		g = 1
-	else
-		r = 1
-		g = 2 * (1 - percentage)
-	end
-
-	if ((r >= 0) and (g >= 0) and (r <= 1) and (g <= 1)) then
-		bar:SetStatusBarColor(r, g, 0)
-		barBG:SetVertexColor(r, g, 0, 0.25)
-	end
 end

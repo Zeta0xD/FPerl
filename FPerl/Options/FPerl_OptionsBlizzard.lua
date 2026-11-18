@@ -1,5 +1,5 @@
 -- F-Perl's entry in Blizzard's Settings panel: one canvas category with a line and a button that opens the options window.
--- No setting, vertical list or shown predicate is registered there (bug O33: they tainted the panel's list).
+-- No setting, vertical list or shown predicate is registered there (they taint the panel's list).
 
 local function build()
 	local frame = CreateFrame("Frame")

@@ -240,8 +240,7 @@ function FPerl.ResetDefaults()
 end
 
 -- FPerl.ResetFramePositions
--- Forget this character's saved positions and move every frame to its default anchor now.
--- Also the "Default" entry in the layout list.
+-- Forgets the active layout's saved positions and moves every frame to its default anchor now.
 function FPerl.ResetFramePositions()
 	if (InCombatLockdown()) then
 		FPerl.AfterCombat(FPerl.ResetFramePositions)
@@ -259,13 +258,12 @@ function FPerl.ResetFramePositions()
 	end
 end
 
--- CopyTable
+-- FPerl.CopyTable(old)
 function FPerl.CopyTable(old)
 	if (not old) then
 		return
 	end
 
-	--local new = FPerl.GetReusableTable()
 	local new = { }
 
 	for k, v in pairs(old) do
@@ -279,7 +277,7 @@ function FPerl.CopyTable(old)
 	return new
 end
 
--- FPerl.RegisterLDB
+-- RegisterLDB
 local function RegisterLDB()
 	local LDB = LibStub and LibStub("LibDataBroker-1.1", true)
 	if (LDB) then
@@ -674,7 +672,7 @@ end
 -- run before it, an unticked option stored as nil would come back ticked). A stored value is never
 -- replaced. A list (a table with an array part: raid.class, raid.group) is a leaf: a stored list is not
 -- merged with the default one. Where one side is a table and the other is not, the stored value stays.
--- Returns the paths of those mismatches. Keys the defaults lack (savedPositions) are not touched.
+-- Returns the paths of those mismatches. Keys the defaults lack (positions) are not touched.
 function FPerl.Backfill(profile, defaults, report, path)
 	report = report or {}
 	for k, d in pairs(defaults) do
@@ -694,7 +692,7 @@ end
 -- FPerl.Prune(profile, defaults)
 -- The inverse of FPerl.Backfill, run at PLAYER_LOGOUT: deletes every key whose stored value equals the
 -- default, so a default changed later reaches a key the profile never changed (the backfill at the next
--- login restores the pruned keys). Walks the defaults only: keys they lack (savedPositions, extra keys)
+-- login restores the pruned keys). Walks the defaults only: keys they lack (positions, extra keys)
 -- stay. A list is a leaf, compared element by element. A table left empty is deleted because the defaults
 -- hold it, and the backfill recreates it.
 function FPerl.Prune(profile, defaults)
@@ -731,7 +729,7 @@ end
 -- FPerl.PruneConfig()
 -- Prunes the active profile (FPerl.layout, set by every GiveConfig: login, profile switch, Reset Defaults,
 -- Copy Settings) against freshly built defaults. Only that profile: the defaults hold the logged-in
--- character's class (target.hitIndicator), so another character's profile is not pruned with them.
+-- character's class (target.highlightDebuffs), so another character's profile is not pruned with them.
 -- A ConfigDefault function that raises leaves partial defaults, which delete fewer keys, never more.
 function FPerl.PruneConfig()
 	if (type(FPerl.layout) == "table") then
@@ -748,15 +746,16 @@ end
 FPerl.On("PLAYER_LOGOUT", FPerl.PruneConfig)
 
 
--- FPerl.Defaults()
+-- FPerl.Defaults(new)
 function FPerl.Defaults(new)
 	FPerl.OptionsDefaults(new)
 end
 
 -- DefaultRaidClasses
 -- Must have one entry per class the client knows about (FPerl_Raid.lua's
--- CLASS_COUNT counts LOCALIZED_CLASS_NAMES_MALE), or its repair path rebuilds
--- this, still comes up short for the newer classes, and crashes again on the
+-- CLASS_COUNT counts LOCALIZED_CLASS_NAMES_MALE), or the repair path in
+-- FPerl_RaidLayout.lua rebuilds
+-- this, still comes up short for the newer classes, and errors on the
 -- very next lookup -- which aborts raid frame setup entirely.
 function DefaultRaidClasses()
 	return {

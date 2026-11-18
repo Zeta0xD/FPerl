@@ -30,7 +30,7 @@ FPerl.RequestConfig(function(new)
 	end
 end, "$Revision:  $")
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local CanAccess = FPerl.CanAccess
 local SafeBool = FPerl.SafeBool
 
@@ -130,15 +130,11 @@ function FPerl.Target.OnLoad(self, partyid)
 		FPerl.BlizzFrameDisable(FocusFrame)
 
 		FPerl.UnitFrameEnable(self, "FocusOnly")
-		--self:SetScript("OnShow", FPerl.Target.UpdateDisplay)
 		self.combatMask = 0x00020000
 	end
 
 	self.auraCancel = true
 
-	--FPerl.SecureUnitButtonOnLoad(self.nameFrame, partyid, nil, TargetFrameDropDown, FPerl_ShowGenericMenu)		--TargetFrame.menu)
-	--FPerl.SecureUnitButtonOnLoad(self, partyid, nil, TargetFrameDropDown, FPerl_ShowGenericMenu)				--TargetFrame.menu)
-	--self.nameFrame:SetAttribute("useparent-unit", true)
 	self.nameFrame:SetAttribute("*type1", "target")
 	self.nameFrame:SetAttribute("type2", "togglemenu")
 	self.nameFrame:SetAttribute("unit", partyid)
@@ -150,12 +146,7 @@ function FPerl.Target.OnLoad(self, partyid)
 	FPerl.RegisterClickCastFrame(self.nameFrame)
 	FPerl.RegisterClickCastFrame(self)
 
-	--RegisterUnitWatch(self)
-
-	--self.PlayerFlash = 0
 	self.time = 0
-
-	--FPerl_InitFadeFrame(self)
 
 	FPerl.RegisterHighlight(self.highlight, 3)
 	FPerl.RegisterPerlFrames(self, {self.nameFrame, self.statsFrame, self.levelFrame, self.portraitFrame, self.typeFramePlayer, self.creatureTypeFrame, self.bossFrame, self.cpFrame})
@@ -168,7 +159,7 @@ function FPerl.Target.OnLoad(self, partyid)
 
 	if (FPerl.layout) then
 		self.conf = FPerl.layout[partyid]
-		-- New-profile defaults are applied by TargetConfigDefault.
+		-- New-profile defaults are applied by TargetConfigDefault (FPerl_Defaults.lua).
 		-- Keep target debuffs a uniform size.  Enlarging player-applied debuffs
 		-- during combat consumes two columns per icon and collapses the intended
 		-- long left-to-right rows into three-icon rows.
@@ -269,9 +260,7 @@ end
 
 -- UpdateName
 local function UpdateName(self)
-	-- UnitName's second value used to be a rare cross-realm
-	-- suffix; on Forever it's a mandatory surname that's sent for every player
-	-- who has chosen to show it, so it can no longer be silently dropped here
+	-- UnitName's second value is the surname every Forever character has, so the full name is shown here
 	self.nameFrame.text:SetText(FPerl.UnitFullName(self.partyid))
 	UpdatePVP(self)
 end
@@ -327,7 +316,6 @@ local function UpdateClassification(self)
 		end
 
 	elseif (self.conf.level or targetclassification == "rareelite" or targetclassification == "rare" or targetclassification == "elite" or targetclassification == "worldboss") then
-	--elseif ((self.conf.level and self.conf.elite) or targetclassification == "Rare+" or targetclassification == "Rare") then
 		if (self.conf.eliteGfx) then
 			eliteGfx = true
 			if (targetclassification == "worldboss" or targetclassification == "elite") then
@@ -365,7 +353,6 @@ local function UpdateClassification(self)
 		self.bossFrame:Show()
 		self.bossFrame.text:SetText(bossType)
 		-- GetStringWidth() can be secret even for plain text
-		-- (section 3 taint-propagation nuance)
 		FPerl.SafeSetWidthFromText(self.bossFrame, self.bossFrame.text, 10, 70)
 	else
 		self.bossFrame:Hide()
@@ -385,12 +372,6 @@ local function UpdateClassification(self)
 			self.levelFrame:SetFrameLevel(self.portraitFrame:GetFrameLevel() + 2)
 			self.levelFrame.outOfPlace = true
 		end
-		-- this is hidden if the mob is elite regardless of graphics (wihout gfx it says "Elite" for example)
-		--if (self.conf.classIcon) then
-		--	self.typeFramePlayer:ClearAllPoints()
-		--	self.typeFramePlayer:SetPoint("BOTTOMRIGHT", self.portraitFrame, "BOTTOMRIGHT", 0, 0)
-		--	self.typeFramePlayer.outOfPlace = true
-		--end
 	else
 		self.eliteFrame:Hide()
 		if (partyid == "target" and self.eliteFrame.assistOutOfPlace) then
@@ -405,11 +386,6 @@ local function UpdateClassification(self)
 			self.levelFrame:SetPoint("TOPLEFT", self.portraitFrame, "TOPRIGHT", -2, 0)
 			self.levelFrame:SetFrameLevel(self.portraitFrame:GetFrameLevel())
 		end
-		--if (self.typeFramePlayer.outOfPlace) then
-		--	self.typeFramePlayer.outOfPlace = nil
-		--	self.typeFramePlayer:ClearAllPoints()
-		--	self.typeFramePlayer:SetPoint("BOTTOMLEFT", self.portraitFrame, "BOTTOMRIGHT", 2, 2)
-		--end
 	end
 end
 
@@ -446,7 +422,6 @@ local function UpdateType(self)
 
 	self.creatureTypeFrame.text:SetText(targettype)
 
-	--if (UnitIsPlayer(partyid)) then
 		local classification = UnitClassification(partyid)
 		if (self.conf.classIcon and (UnitIsPlayer(partyid) or (CanAccess(classification) and classification == "normal"))) then
 			local LocalClass = UnitClassBase(partyid)
@@ -456,7 +431,7 @@ local function UpdateType(self)
 				self.bossFrame.text:SetTextColor(1, 1, 1)
 				self.bossFrame:Show()
 				-- GetStringWidth() can be secret even for
-				-- plain text (section 3 taint-propagation nuance)
+				-- plain text
 				FPerl.SafeSetWidthFromText(self.bossFrame, self.bossFrame.text, 10, 70)
 			else
 				if (UnitIsPlayer(partyid) or not UnitPlayerControlled(partyid)) then
@@ -469,19 +444,16 @@ local function UpdateType(self)
 		if (UnitIsPlayer(partyid)) then
 			self.creatureTypeFrame:Hide()
 		end
-	--else
 		if (targettype) then
 			self.creatureTypeFrame.text:SetTextColor(1, 1, 1)
-			-- typeReadable alone is not enough -- confirmed
-			-- live crashing here even with targettype readable, because
-			-- GetStringWidth() picks up taint from any secret value read
-			-- earlier in this same update (section 3 taint-propagation
-			-- nuance). Guard the width itself instead.
+			-- typeReadable alone is not enough: GetStringWidth() can be
+			-- secret even with targettype readable, because it picks up
+			-- taint from any secret value read earlier in this same update.
+			-- Guard the width itself instead.
 			FPerl.SafeSetWidthFromText(self.creatureTypeFrame, self.creatureTypeFrame.text, 10, 70)
 		else
 			self.creatureTypeFrame:Hide()
 		end
-	--end
 
 	AdjustCreatureTypeFrame(self)
 end
@@ -565,8 +537,6 @@ function FPerl.Target.SetBits(self)
 	else
 		self.typeFramePlayer.classTexture:Hide()
 	end
-
-	--self.highlight:SetPoint("BOTTOMRIGHT", self.portraitFrame, "BOTTOMRIGHT", 26, -1)
 
 	self.conf.buffs.size = tonumber(self.conf.buffs.size) or 20
 

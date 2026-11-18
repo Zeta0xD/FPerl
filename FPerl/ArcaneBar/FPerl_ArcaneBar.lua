@@ -3,12 +3,6 @@
 
 local ArcaneBars = {}
 
---[===[@debug@
-local function d(...)
-	ChatFrame1:AddMessage("F-Perl: "..format(...))
-end
---@end-debug@]===]
-
 local conf
 FPerl.RequestConfig(function(new)
 	conf = new
@@ -30,7 +24,7 @@ local CreateFrame = CreateFrame
 
 -- cast times of other units can be secret in restricted content.
 -- When the client offers duration objects the bar is driven by Blizzard
--- (SetTimerDuration); otherwise a simple sweep animation is shown.
+-- (SetTimerDuration); otherwise the bar fills and drains until the cast ends.
 local CanAccess = FPerl.CanAccess
 local IsSecret = FPerl.IsSecret
 local UnitCastingDuration = UnitCastingDuration
@@ -128,7 +122,6 @@ local CASTING_BAR_HOLD_TIME = CASTING_BAR_HOLD_TIME
 local FAILED = FAILED
 local SPELL_FAILED_INTERRUPTED = SPELL_FAILED_INTERRUPTED
 
--- Registers frame to spellcast events.
 local barColours = {
 	main = {r = 1.0, g = 0.7, b = 0.0},
 	channel = {r = 0.0, g = 1.0, b = 0.0},
@@ -140,7 +133,7 @@ local events = {
 	"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_FAILED", "UNIT_SPELLCAST_INTERRUPTED", "UNIT_SPELLCAST_INTERRUPTIBLE", "UNIT_SPELLCAST_NOT_INTERRUPTIBLE", "UNIT_SPELLCAST_DELAYED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_CHANNEL_STOP", "PLAYER_ENTERING_WORLD"
 }
 
--- enableToggle
+-- listen(self, event)
 -- Each enabled bar listens on the bus (FPerl.On) for the cast events and its target/focus/party event.
 local function listen(self, event)
 	local fn = self.busFn
@@ -194,7 +187,7 @@ local function overrideToggle(value)
 end
 
 -- ActiveCasting
--- See if we're probably still casting a spell, even though some other spell END event occured
+-- True while the unit still casts or channels with more than 0.5 s left, so an end event for another spell does not end the bar
 local function ActiveCasting(self)
 	local t = GetTime() * 1000
 	local name, _, _, _, endTime = UnitCastingInfo(self.unit)
@@ -535,7 +528,7 @@ function FPerl.ArcaneBar.OnUpdate(self, elapsed)
 	elseif (getTime < self.holdTime) then
 		return
 	elseif (self.flash) then
-		-- A brief, restrained highlight, followed by the existing smooth fade.
+		-- A brief flash up to alpha 0.22, followed by the fade-out below.
 		-- Clamp the final frame too: a long frame must not skip the peak.
 		-- Alphas are kept in fields: inside a range-faded party frame GetAlpha returns a secret.
 		local alpha = min(0.22, (self.flashAlpha or 0) + elapsed * 1.5)

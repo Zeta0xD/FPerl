@@ -29,15 +29,10 @@ local CreateFrame = CreateFrame
 local SecureButton_GetUnit = SecureButton_GetUnit
 local UnitCanAssist = UnitCanAssist
 local UnitCanAttack = UnitCanAttack
-local UnitHealth = UnitHealth
-local UnitHealthMax = UnitHealthMax
 local UnitInParty = UnitInParty
 local UnitInRaid = UnitInRaid
 local UnitInRange = UnitInRange
 local UnitIsConnected = UnitIsConnected
-local UnitIsDead = UnitIsDead
-local UnitIsDeadOrGhost = UnitIsDeadOrGhost
-local UnitIsGhost = UnitIsGhost
 local UnitIsVisible = UnitIsVisible
 local UnregisterUnitWatch = UnregisterUnitWatch
 local UIParent = UIParent
@@ -45,13 +40,6 @@ local UIParent = UIParent
 local ArcaneExclusions = FPerl.ArcaneExclusions
 
 
---[==[@debug@
-local function d(...)
-	ChatFrame1:AddMessage(format(...))
-end
---@end-debug@]==]
-
--- Compact Raid frame manager
 local c = _G.CompactRaidFrameManager
 if c then
 	c:SetFrameStrata("Medium")
@@ -88,12 +76,8 @@ function FPerl.FreeTable(t, deep)
 			end
 			t[k] = nil
 		end
-		--t[''] = 0
-		--t[''] = nil
 	end
 end
-
---local new, del = FPerl.GetReusableTable, FPerl.FreeTable
 
 -- meta table for string based colours. Allows for other mods changing class colours and things all working
 FPerl.ColourTable = setmetatable({ }, {
@@ -112,33 +96,19 @@ FPerl.ColourTable = setmetatable({ }, {
 	end
 })
 
---FPerl_Percent = setmetatable({},
---	{__mode = "kv",
---	__index = function(self, i)
---		if (type(i) == "number" and i >= 0) then
---			self[i] = format(percD, i)
---			return self[i]
---		end
---		return ""
---	end
---	})
---local xpPercent = FPerl_Percent
 
-
--- We have a dummy do-nothing function here for classes that don't have range checking
--- The do-something function is setup after variables_loaded and we work out spell to use just once
+-- A do-nothing placeholder until FPerl.StartupSpellRange puts FPerl.UpdateSpellRange2 in its place.
+-- The range spells are picked then and again on every SPELLS_CHANGED.
 function FPerl.UpdateSpellRange()
 	return
 end
 
---local SpiritRealm = (C_Spell and C_Spell.GetSpellInfo(235621)) and C_Spell.GetSpellInfo(235621).name or GetSpellInfo(235621)
-
 -- DoRangeCheck
 local function DoRangeCheck(unit, opt)
 	local range
-	-- UnitAuraByIndex fetches the aura list once per unit, filter and frame time (FPerl_Values.lua) and returns
-	-- at once while auras are secret; this runs per frame per range tick only with the PlusDebuff option on
-	if opt.PlusDebuff then
+	-- UnitAuraByIndex fetches the aura list once per unit, filter and frame time (FPerl_Values.lua); this runs per
+	-- frame per range tick only with the PlusDebuff option on. While auras are secret the debuff test is skipped.
+	if opt.PlusDebuff and not FPerl.AurasSecret() then
 		local name = FPerl.UnitAuraByIndex(unit, 1, "HARMFUL|RAID")
 		if not name then
 			range = 0
@@ -212,9 +182,9 @@ function FPerl.RangeAlpha(result, secret, inAlpha, outAlpha)
 end
 
 -- FPerl.UpdateSpellRangeSecure(self, unit, isRaidFrame)
--- Restricted-client version of the range fader. Every alpha is produced by
--- FPerl.RangeAlpha and handed straight to SetAlpha, so nothing here branches
--- on a unit value.
+-- Restricted-client version of the range fader. Every range alpha is produced by
+-- FPerl.RangeAlpha and handed straight to SetAlpha, so no Lua comparison touches
+-- a secret range result. A readable UnitIsConnected false fades the main frame.
 function FPerl.UpdateSpellRangeSecure(self, unit, isRaidFrame)
 	local rf = conf.rangeFinder
 	local base = conf.transparency.frame
@@ -251,7 +221,7 @@ function FPerl.UpdateSpellRangeSecure(self, unit, isRaidFrame)
 	end
 end
 
--- FPerl.UpdateSpellRange(self)
+-- FPerl.UpdateSpellRange2(self, overrideUnit, isRaidFrame)
 function FPerl.UpdateSpellRange2(self, overrideUnit, isRaidFrame)
 	local unit
 	if (overrideUnit) then
@@ -437,9 +407,6 @@ function FPerl.SetChildMembers(self)
 				if (t) then
 					local found = strmatch(t, match)
 					if (found) then
-						--if (self[found] == v) then
-						--	break		-- Already done
-						--end
 						self[found] = v
 					end
 				end

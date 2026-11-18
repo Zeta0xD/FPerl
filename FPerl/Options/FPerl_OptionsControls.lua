@@ -1,7 +1,7 @@
 -- The options window's controls: one "line" per row of FPerl.SettingsList (several rows for an `inline` tag), built on
 -- first use and kept. A line is {ids, page, label, ctl, tip, box, h, full, Refresh(line, combat)}; `ctl` is the control
 -- frame (CheckButton, Slider, Button, DropdownButton, or the group frame of an inline line). Values read and write
--- through FPerl.SettingsCore (FPerl_Settings.lua), so appliers, `with`, `also` and `each` act as they always did.
+-- through FPerl.SettingsCore (FPerl_Settings.lua), which handles each row's `with`, `also`, `each` and applier.
 
 local format, floor = string.format, math.floor
 local C = {}
@@ -16,8 +16,6 @@ local function core()
 	K = K or FPerl.SettingsCore
 	return K
 end
-
-local WHITE = "Interface\\Buttons\\WHITE8X8"
 
 ------------------------------------------------------------------------------------------------ needs and tips
 local keyLabel
@@ -78,7 +76,7 @@ local function hookTip(frame, line)
 	if frame.SetMotionScriptsWhileDisabled then frame:SetMotionScriptsWhileDisabled(true) end
 end
 
--- The state is also kept on the control: a Slider answers IsEnabled from it (wowless does not implement the Slider's own).
+-- The state is also kept on the control: a Slider answers IsEnabled from it.
 local function setEnabled(ctl, on)
 	ctl.fpOn = on
 	if ctl.SetEnabled then
@@ -134,7 +132,7 @@ local function rgb2hex(r, g, b)
 end
 
 ------------------------------------------------------------------------------------------------ builders
--- Each builder fills line.ctl and line.update(): re-read the row's value into the control.
+-- Each builder returns the control, its label (or nil), and an update function that re-reads the row's value into the control.
 local B = {}
 
 function B.check(line, e, parent, x, labelText)

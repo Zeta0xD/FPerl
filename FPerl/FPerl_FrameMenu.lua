@@ -1,5 +1,5 @@
 -- Edit on the frame: while the frames are unlocked and out of combat, an insecure overlay covers each listed frame.
--- Dragging it runs the frame's own drag scripts; a click (left or right, cursor moved under 5 px since mouse down) opens
+-- Dragging it runs the frame's own drag scripts; a click (left or right, cursor moved under 5 px sideways since mouse down) opens
 -- FPerl_FramePopup beside the frame: that frame's basic settings rows, built with the options window's controls
 -- (FPerl.OptionsControls.Make), so every value goes through FPerl.SettingsCore.
 --
