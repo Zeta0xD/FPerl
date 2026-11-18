@@ -421,7 +421,12 @@ end
 -- FPerl.CombatFlashSet
 function FPerl.CombatFlashSet(self, elapsed, argNew, argGreen)
 	if (not conf.combatFlash) then
-		self.PlayerFlash = nil
+		-- turned off mid-flash: end the flash, so CombatFlashSetFrames puts the base colour back
+		if (self.PlayerFlash) then
+			self.PlayerFlash = 0
+			self.PlayerFlashGreen = nil
+			return true
+		end
 		return
 	end
 

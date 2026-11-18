@@ -76,7 +76,6 @@ Subcommands can be shortened: `/fphelper as` is `/fphelper assists`. Raid Monito
 
 - The raid tools have not yet been reviewed for Forever.
 - Raid Helper: healer mode cannot be turned on.
-- Raid Helper: the `/fphelper` usage line lists `find` and `scale`, which do nothing.
 - In a vehicle, a click on the Player frame's name or portrait targets you, not the vehicle.
 
 ## Reporting bugs

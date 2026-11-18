@@ -103,7 +103,7 @@ function FPerl.RaidHelper.Slash(msg)
 		end
 	end
 
-	FPerl.Message("Options: /fphelper [|c00FFFF00find|r] [|c00FFFF00assists|r] [|c00FFFF00raid|r] [|c00FFFF00alpha|r raid|assists] [|c00FFFF00scale|r raid|assists] [|c00FFFF00ctra|r]")
+	FPerl.Message("Options: /fphelper [|c00FFFF00assists|r] [|c00FFFF00raid|r] [|c00FFFF00alpha|r raid|assists] [|c00FFFF00ctra|r]")
 end
 
 local function DefaultVar(name, value)

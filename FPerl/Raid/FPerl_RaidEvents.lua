@@ -208,7 +208,7 @@ function FPerl.Raid.OnUpdate(self, elapsed)
 	local flashing
 	for i, frame in pairs(FrameArray) do
 		if (frame:IsShown()) then
-			if (conf.combatFlash and frame.PlayerFlash) then
+			if (frame.PlayerFlash) then
 				CombatFlash(frame, elapsed, false)
 			end
 			if (frame.PlayerFlash) then

@@ -324,7 +324,7 @@ local function OnUpdate(self, elapsed)
 		return
 	end
 
-	if (conf.combatFlash and self.PlayerFlash) then
+	if (self.PlayerFlash) then
 		CombatFlash(self, elapsed, false)
 	end
 	FPerl.OnUpdateIdle(self)
