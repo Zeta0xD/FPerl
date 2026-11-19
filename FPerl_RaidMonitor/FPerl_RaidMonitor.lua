@@ -1,6 +1,17 @@
 -- Author: Resike
 -- License: GNU GPL v3, 29 June 2007 (see LICENSE.txt)
 
+FPerl.DefaultPoints.FPerl_RaidMonitor_Anchor = {{"CENTER", "UIParent", "CENTER", 0, 0}}
+
+tinsert(FPerl.MinimapEntries, {
+	text = FPERL_MINIMENU_CASTMON,
+	shown = function() return FPerl_RaidMonitor_Frame and not FPerl_RaidMonitor_Frame:IsShown() end,
+	func = function()
+		FPerlRaidMonitorDB.enabled = 1
+		FPerl_RaidMonitor_Frame:SetFrameSizes()
+	end,
+})
+
 local cast
 local MonUnits = {}			-- Fixed list of all monitor units
 local TableUnits = {}			-- Dynamic list of units indexed by raid id, changed on attr change
@@ -9,11 +20,6 @@ local config = FPerlRaidMonitorDB
 
 local GetNumGroupMembers = GetNumGroupMembers
 local GetNumSubgroupMembers = GetNumSubgroupMembers
-local UnitCastingInfo = UnitCastingInfo
-local UnitChannelInfo = UnitChannelInfo
-
-
-FPerl.SetModuleRevision("$Revision:  $")
 
 FPERL_RAIDMON_UNIT_WIDTH_MIN = 50
 FPERL_RAIDMON_UNIT_WIDTH_MAX = 150
@@ -34,7 +40,6 @@ function FPerl.RaidMonitor.OnLoad(self)
 	cast = self
 	FPerl.RaidMonitor.Init(self)
 
-	--self:RegisterEvent("VARIABLES_LOADED")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD")
 	self:RegisterEvent("GROUP_ROSTER_UPDATE")
 	self:SetScript("OnEvent", FPerl.RaidMonitor.OnEvent)
@@ -187,7 +192,7 @@ end
 local function UpdateUnit(self)
 	local id = SecureButton_GetUnit(self)
 	if (id) then
-		-- full "First Last" (or "First-Realm") display name
+		-- full "First Last" display name (FPerl.UnitFullName)
 		self.bar.name:SetText(FPerl.UnitFullName(id))
 
 		self.powerType = UnitPowerType(id)
@@ -253,7 +258,7 @@ local function onAttrChanged(self, name, value)
 	end
 end
 
--- FPerl.RaidHelper.MTListChildUnits
+-- FPerl.RaidMonitor.CastMonChildUnits
 function FPerl.RaidMonitor.CastMonChildUnits(self)
 	self.mana, self.manaMax = 1, 1
 
@@ -279,7 +284,7 @@ function FPerl.RaidMonitor.CastMonChildUnits(self)
 	tinsert(MonUnits, self)
 end
 
--- cast:OnEvent
+-- FPerl.RaidMonitor.OnEvent
 function FPerl.RaidMonitor.OnEvent(self, event, ...)
 	local e = self[event]
 	if (e) then
@@ -329,11 +334,11 @@ function FPerl.RaidMonitor.Init(self)
 	function cast:GROUP_ROSTER_UPDATE()
 		self:SetFrameSizes()
 
-		if self:IsShown() then
+		if (self:IsShown()) then
 			UpdateAllUnits()
 		end
 
-		if self:IsShown() and config.Totals then
+		if (self:IsShown() and config.Totals) then
 			if (not self.doneHealth) then
 				self:HealthTotals()
 			end
@@ -411,43 +416,39 @@ function FPerl.RaidMonitor.Init(self)
 
 		local totalHealth = 0
 		local total = 0
-		if IsInRaid() then--actually check if we are in a raid
+		if (IsInRaid()) then--actually check if we are in a raid
 			for i = 1, GetNumGroupMembers() do
 				local id = "raid"..i
 				-- units with secret health are left out of the total
 				if (UnitIsConnected(id) and FPerl.CanAccess(UnitHealth(id)) and FPerl.CanAccess(UnitHealthMax(id))) then
 					local hp, hpMax = UnitIsGhost(id) and 1 or (UnitIsDead(id) and 0 or UnitHealth(id)), UnitHealthMax(id)
-					--Begin 4.3 anti /0 fix.
+					-- a maximum of 0 would divide by zero
 					local percent
-					if UnitIsDeadOrGhost(id) or (hp == 0 and hpMax == 0) then--They are dead
+					if (UnitIsDeadOrGhost(id) or (hp == 0 and hpMax == 0)) then--They are dead
 						percent = 0
-					elseif hp > 0 and hpMax == 0 then --They have more then 1 HP so they have to be alive, so we need to fix hpmax being wrong.
-						hpMax = hp --Make max hp equal to current HP
+					elseif (hp > 0 and hpMax == 0) then --They have more than 0 HP, so they are alive and the 0 maximum is wrong: show full.
 						percent = 1
 					else
 						percent = hp / hpMax
 					end
-					--end /0 fix.
 					totalHealth = totalHealth + (100 * percent)
 					total = total + 1
 				end
 			end
-		elseif GetNumSubgroupMembers() > 0 then--if not a raid see if it's a party
+		elseif (GetNumSubgroupMembers() > 0) then--if not a raid see if it's a party
 			for i = 1, GetNumSubgroupMembers() do
 				local id = "party"..i
 				if (UnitIsConnected(id) and FPerl.CanAccess(UnitHealth(id)) and FPerl.CanAccess(UnitHealthMax(id))) then
 					local hp, hpMax = UnitIsGhost(id) and 1 or (UnitIsDead(id) and 0 or UnitHealth(id)), UnitHealthMax(id)
-					--Begin 4.3 anti /0 fix.
+					-- a maximum of 0 would divide by zero
 					local percent
-					if UnitIsDeadOrGhost(id) or (hp == 0 and hpMax == 0) then--They are dead
+					if (UnitIsDeadOrGhost(id) or (hp == 0 and hpMax == 0)) then--They are dead
 						percent = 0
-					elseif hp > 0 and hpMax == 0 then --They have more then 1 HP so they have to be alive, so we need to fix hpmax being wrong.
-						hpMax = hp --Make max hp equal to current HP
+					elseif (hp > 0 and hpMax == 0) then --They have more than 0 HP, so they are alive and the 0 maximum is wrong: show full.
 						percent = 1
 					else
 						percent = hp / hpMax
 					end
-					--end /0 fix.
 					totalHealth = totalHealth + (100 * percent)
 					total = total + 1
 				end
@@ -456,28 +457,26 @@ function FPerl.RaidMonitor.Init(self)
 			local hp, hpMax = UnitHealth("player"), UnitHealthMax("player")
 			if (FPerl.CanAccess(hp) and FPerl.CanAccess(hpMax)) then
 				hp = UnitIsGhost("player") and 1 or (UnitIsDead("player") and 0 or hp)
-				--Begin 4.3 anti /0 fix.
+				-- a maximum of 0 would divide by zero
 				local percent
-				if UnitIsDeadOrGhost("player") or (hp == 0 and hpMax == 0) then--They are dead
+				if (UnitIsDeadOrGhost("player") or (hp == 0 and hpMax == 0)) then--They are dead
 					percent = 0
-				elseif hp > 0 and hpMax == 0 then --They have more then 1 HP so they have to be alive, so we need to fix hpmax being wrong.
-					hpMax = hp --Make max hp equal to current HP
+				elseif (hp > 0 and hpMax == 0) then --They have more than 0 HP, so they are alive and the 0 maximum is wrong: show full.
 					percent = 1
 				else
 					percent = hp / hpMax
 				end
-				--end /0 fix.
 				totalHealth = totalHealth + (100 * percent)
 				total = total + 1
 			end
 		end
-		if totalHealth ~= 0 and total ~= 0 then--Make sure neither is 0, if they are don't bother division, no one is alive.
+		if (totalHealth ~= 0 and total ~= 0) then--Make sure neither is 0, if they are don't bother division, no one is alive.
 			totalHealth = totalHealth / total
 		end
 
 		self.totals.RaidHealth:SetValue(totalHealth)
 		self.totals.RaidHealth.name:SetFormattedText("%d%%", totalHealth)
-		if totalHealth ~= 0 then
+		if (totalHealth ~= 0) then
 			ScaleBarColour(self.totals.RaidHealth, totalHealth / 100)
 		else--don't divide 0 by 100, if total health is 0 then that's all we need to put in.
 			ScaleBarColour(self.totals.RaidHealth, 0)
@@ -486,7 +485,7 @@ function FPerl.RaidMonitor.Init(self)
 
 	-- cast:UNIT_MANA
 	function cast:UNIT_MANA(unit)
-		if not unit or not strfind(unit, "^raid%d+$") then
+		if (not unit or not strfind(unit, "^raid%d+$")) then
 			return
 		end
 		local u = TableUnits[unit]
@@ -502,11 +501,11 @@ function FPerl.RaidMonitor.Init(self)
 				end
 				self.doneMana = false
 
-				if (self.lastManaUpdate or 0) >= GetTime() then
+				if ((self.lastManaUpdate or 0) >= GetTime()) then
 					return
 				end
 
-				if config.Totals and self:IsShown() then
+				if (config.Totals and self:IsShown()) then
 					self:ManaTotals()
 					self.lastManaUpdate = GetTime()
 				end
@@ -516,7 +515,7 @@ function FPerl.RaidMonitor.Init(self)
 
 	-- cast:UNIT_POWER_FREQUENT
 	function cast:UNIT_POWER_FREQUENT(unit)
-		if not unit or not strfind(unit, "^raid%d+$") then
+		if (not unit or not strfind(unit, "^raid%d+$")) then
 			return
 		end
 		local u = TableUnits[unit]
@@ -532,11 +531,11 @@ function FPerl.RaidMonitor.Init(self)
 				end
 				self.doneMana = false
 
-				if (self.lastManaUpdate or 0) >= GetTime() then
+				if ((self.lastManaUpdate or 0) >= GetTime()) then
 					return
 				end
 
-				if config.Totals and self:IsShown() then
+				if (config.Totals and self:IsShown()) then
 					self:ManaTotals()
 					self.lastManaUpdate = GetTime()
 				end
@@ -546,7 +545,7 @@ function FPerl.RaidMonitor.Init(self)
 
 	-- cast:UNIT_MAXPOWER
 	function cast:UNIT_MAXPOWER(unit)
-		if not unit or not strfind(unit, "^raid%d+$") then
+		if (not unit or not strfind(unit, "^raid%d+$")) then
 			return
 		end
 		local u = TableUnits[unit]
@@ -562,11 +561,11 @@ function FPerl.RaidMonitor.Init(self)
 				end
 				self.doneMana = false
 
-				if (self.lastManaUpdate or 0) >= GetTime() then
+				if ((self.lastManaUpdate or 0) >= GetTime()) then
 					return
 				end
 
-				if config.Totals and self:IsShown() then
+				if (config.Totals and self:IsShown()) then
 					self:ManaTotals()
 					self.lastManaUpdate = GetTime()
 				end
@@ -593,7 +592,7 @@ function FPerl.RaidMonitor.Init(self)
 		self:DoButtons()
 		self:SetupAlpha()
 
-		self.area:UnregisterEvent("UNIT_NAME_UPDATE")	-- Fix for WoW 2.1 UNIT_NAME_UPDATE issue
+		self.area:UnregisterEvent("UNIT_NAME_UPDATE")
 
 		self.area = _G[self:GetName().."Area"]
 
@@ -631,7 +630,8 @@ function FPerl.RaidMonitor.Init(self)
 			self:Hide()
 		end
 
-		-- Fix Secure Header taint in combat
+		-- Fix Secure Header taint in combat: startingIndex at -maxUnits + 1 and back makes the header
+		-- create all maxUnits buttons now, out of combat
 		local maxColumns = self.area:GetAttribute("maxColumns") or 1
 		local unitsPerColumn = self.area:GetAttribute("unitsPerColumn") or 40
 		local startingIndex = self.area:GetAttribute("startingIndex") or 1
@@ -646,191 +646,7 @@ function FPerl.RaidMonitor.Init(self)
 		self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 	end
 
-	-- cast:UNIT_SPELLCAST_START
-	function cast:UNIT_SPELLCAST_START(unit)
-		if not unit or not strfind(unit, "^raid%d+$") then
-			return
-		end
-		local bar = TableUnits[unit]
-		if (bar and bar:IsShown()) then
-			local name, text, texture, startTime, endTime, isTradeSkill = UnitCastingInfo(unit)
-			if name == nil or not FPerl.CanAccess(startTime) or not FPerl.CanAccess(endTime) or startTime >= endTime then
-				return
-			end
-			bar.castBar.name:SetText(name)
-			bar.castBar.icon:SetTexture(texture)
-			bar.castBar.spark:Show()
-			bar.bar.name:Hide()
-			bar.startTime = startTime / 1000
-			bar.maxValue = endTime / 1000
-			bar.castBar:SetStatusBarColor(castColours.main.r, castColours.main.g, castColours.main.b)
-			bar.castBar:SetMinMaxValues(bar.startTime, bar.maxValue)
-			bar.castBar:SetValue(bar.startTime)
-			bar.castBar:Show()
-			bar.castBar:SetAlpha(1)
-			bar.holdTime = 0
-			bar.casting = true
-			bar.channeling = nil
-			bar.fadeOut = nil
-		end
-	end
-
-	-- cast:UNIT_SPELLCAST_STOP
-	function cast:UNIT_SPELLCAST_STOP(unit)
-		if not unit or not strfind(unit, "^raid%d+$") then
-			return
-		end
-		local bar = TableUnits[unit]
-		if (bar and bar.casting and bar:IsShown()) then
-			--bar.bar:SetValue(bar.maxValue)
-			--bar.bar:SetStatusBarColor(castColours.success.r, castColours.success.g, castColours.success.b)
-			bar.castBar.spark:Hide()
-			bar.casting = nil
-			bar.channeling = nil
-			bar.fadeOut = true
-		end
-	end
-
-	-- cast:UNIT_SPELLCAST_FAILED
-	function cast:UNIT_SPELLCAST_FAILED(unit)
-		if not unit or not strfind(unit, "^raid%d+$") then
-			return
-		end
-		local bar = TableUnits[unit]
-		if (bar and bar.casting and bar:IsShown()) then
-			bar.castBar.name:SetText(FAILED)
-			bar.castBar:SetValue(bar.maxValue or 1)
-			bar.castBar:SetStatusBarColor(castColours.failure.r, castColours.failure.g, castColours.failure.b)
-			bar.castBar.spark:Hide()
-			bar.casting = nil
-			bar.channeling = nil
-			bar.fadeOut = true
-		end
-	end
-
-	-- cast:UNIT_SPELLCAST_INTERRUPTED
-	function cast:UNIT_SPELLCAST_INTERRUPTED(unit)
-		if not unit or not strfind(unit, "^raid%d+$") then
-			return
-		end
-		local bar = TableUnits[unit]
-		if (bar and bar.casting and bar:IsShown()) then
-			bar.castBar.name:SetText(SPELL_FAILED_INTERRUPTED)
-			bar.castBar:SetValue(bar.maxValue or 1)
-			bar.castBar:SetStatusBarColor(castColours.failure.r, castColours.failure.g, castColours.failure.b)
-			bar.castBar.spark:Hide()
-			bar.casting = nil
-			bar.channeling = nil
-			bar.fadeOut = true
-		end
-	end
-
-	-- cast:UNIT_SPELLCAST_SUCCEEDED
-	function cast:UNIT_SPELLCAST_SUCCEEDED(unit)
-		if not unit or not strfind(unit, "^raid%d+$") then
-			return
-		end
-		local bar = TableUnits[unit]
-		if (bar and bar.casting and bar:IsShown()) then
-			bar.castBar:SetValue(bar.maxValue or 1)
-			bar.castBar:SetStatusBarColor(castColours.success.r, castColours.success.g, castColours.success.b)
-			bar.casting = nil
-			bar.channeling = nil
-			bar.fadeOut = true
-			bar.castBar:SetAlpha(1)
-		end
-	end
-
-	-- cast:UNIT_SPELLCAST_DELAYED
-	function cast:UNIT_SPELLCAST_DELAYED(unit)
-		if not unit or not strfind(unit, "^raid%d+$") then
-			return
-		end
-		local bar = TableUnits[unit]
-		if (bar and bar.casting and bar:IsShown()) then
-			local name, text, texture, startTime, endTime, isTradeSkill = UnitCastingInfo(unit)
-			if name == nil or not FPerl.CanAccess(startTime) or not FPerl.CanAccess(endTime) or startTime >= endTime then
-				return
-			end
-			bar.startTime = startTime / 1000
-			bar.maxValue = endTime / 1000
-			bar.castBar:SetMinMaxValues(bar.startTime, bar.maxValue)
-		end
-	end
-
-	-- cast:UNIT_SPELLCAST_CHANNEL_START
-	function cast:UNIT_SPELLCAST_CHANNEL_START(unit)
-		if not unit or not strfind(unit, "^raid%d+$") then
-			return
-		end
-		local bar = TableUnits[unit]
-		if (bar and bar:IsShown()) then
-			local name, text, texture, startTime, endTime, isTradeSkill = UnitChannelInfo(unit)
-			if name == nil or not FPerl.CanAccess(startTime) or not FPerl.CanAccess(endTime) or startTime >= endTime then
-				return
-			end
-			bar.castBar:SetStatusBarColor(castColours.channel.r, castColours.channel.g, castColours.channel.b)
-			bar.castBar.name:SetText(name)
-			bar.castBar.spark:Show()
-			bar.bar.name:Hide()
-			bar.castBar.icon:SetTexture(texture)
-			bar.maxValue = 1
-			bar.startTime = startTime / 1000
-			bar.endTime = endTime / 1000
-			bar.castBar:SetMinMaxValues(bar.startTime, bar.endTime)
-			bar.castBar:SetValue(bar.endTime)
-			bar.casting = nil
-			bar.fadeOut = nil
-			bar.channeling = true
-			bar.castBar:Show()
-			bar.castBar:SetAlpha(1)
-		end
-	end
-
-	-- cast:UNIT_SPELLCAST_CHANNEL_UPDATE
-	function cast:UNIT_SPELLCAST_CHANNEL_UPDATE(unit)
-		if not unit or not strfind(unit, "^raid%d+$") then
-			return
-		end
-		local bar = TableUnits[unit]
-		if (bar and bar.channeling and bar:IsShown()) then
-			local name, text, texture, startTime, endTime, isTradeSkill = UnitChannelInfo(unit)
-			if name == nil or not FPerl.CanAccess(startTime) or not FPerl.CanAccess(endTime) or startTime >= endTime then
-				return
-			end
-			bar.startTime = startTime / 1000
-			bar.endTime = endTime / 1000
-			bar.maxValue = bar.startTime
-			bar.castBar:SetMinMaxValues(bar.startTime, bar.endTime)
-		end
-	end
-
-	-- cast:UNIT_SPELLCAST_CHANNEL_STOP
-	function cast:UNIT_SPELLCAST_CHANNEL_STOP(unit)
-		if not unit or not strfind(unit, "^raid%d+$") then
-			return
-		end
-		local bar = TableUnits[unit]
-		if (bar and bar.channeling and bar:IsShown()) then
-			bar.castBar:SetValue(bar.maxValue)
-			bar.castBar:SetStatusBarColor(castColours.success.r, castColours.success.g, castColours.success.b)
-			bar.castBar.spark:Hide()
-			bar.casting = nil
-			bar.channeling = nil
-			bar.fadeOut = true
-		end
-	end
-
-	-- cast:UNIT_TARGET
-	function cast:UNIT_TARGET(unit)
-		if not unit or not strfind(unit, "^raid%d+$") then
-			return
-		end
-		local bar = TableUnits[unit]
-		if (bar and bar:IsShown()) then
-			UpdateTarget(bar.target)
-		end
-	end
+	FPerl.RaidMonitor.InitCast(cast, TableUnits, castColours, UpdateTarget)
 
 	-- cast:PLAYER_TARGET_CHANGED
 	function cast:PLAYER_TARGET_CHANGED()
@@ -839,7 +655,7 @@ function FPerl.RaidMonitor.Init(self)
 
 	-- cast:UNIT_HEALTH
 	function cast:UNIT_HEALTH(unit)
-		if not unit or not strfind(unit, "^raid%d+$") then
+		if (not unit or not strfind(unit, "^raid%d+$")) then
 			return
 		end
 
@@ -849,11 +665,11 @@ function FPerl.RaidMonitor.Init(self)
 			UpdateTarget(bar)
 		end
 
-		if (self.lastHealthUpdate or 0) >= GetTime() then
+		if ((self.lastHealthUpdate or 0) >= GetTime()) then
 			return
 		end
 
-		if config.Totals and self:IsShown() then
+		if (config.Totals and self:IsShown()) then
 			self:HealthTotals()
 			self.lastHealthUpdate = GetTime()
 		end
@@ -861,7 +677,7 @@ function FPerl.RaidMonitor.Init(self)
 
 	-- cast:UNIT_MAXHEALTH
 	function cast:UNIT_MAXHEALTH(unit)
-		if not unit or not strfind(unit, "^raid%d+$") then
+		if (not unit or not strfind(unit, "^raid%d+$")) then
 			return
 		end
 
@@ -871,11 +687,11 @@ function FPerl.RaidMonitor.Init(self)
 			UpdateTarget(bar)
 		end
 
-		if (self.lastHealthUpdate or 0) >= GetTime() then
+		if ((self.lastHealthUpdate or 0) >= GetTime()) then
 			return
 		end
 
-		if config.Totals and self:IsShown() then
+		if (config.Totals and self:IsShown()) then
 			self:HealthTotals()
 			self.lastHealthUpdate = GetTime()
 		end
@@ -966,7 +782,7 @@ function FPerl.RaidMonitor.Init(self)
 			"UNIT_POWER_FREQUENT",
 			"UNIT_MAXPOWER",
 			"UNIT_MANA",
-			FPerl.ForeverAPI.healthEvent,
+			"UNIT_HEALTH",
 			"UNIT_MAXHEALTH",
 			"UNIT_TARGET",
 			"UNIT_SPELLCAST_START",
@@ -982,10 +798,6 @@ function FPerl.RaidMonitor.Init(self)
 			"PLAYER_REGEN_ENABLED",
 			"PLAYER_REGEN_DISABLED",
 		}
-
-		local CastbarEventHandler = function(event, ...)
-			return FPerl.RaidMonitor.OnEvent(self, event, ...)
-		end
 
 		for k, v in pairs(events) do
 			-- never error on an event this client does not have
@@ -1071,7 +883,7 @@ function FPerl.RaidMonitor.Init(self)
 			self:Hide()
 		end
 
-		if self:IsShown() and config.Totals then
+		if (self:IsShown() and config.Totals) then
 			if (not self.doneHealth) then
 				self:HealthTotals()
 			end

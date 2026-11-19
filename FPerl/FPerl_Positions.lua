@@ -56,6 +56,10 @@ function FPerl.SetScale(frame, scale)
 	end
 end
 
+-- FPerl.AfterPlace[name](frame, pos): run in place of the saved size when a frame of that name gets its saved
+-- position; an addon that keeps a frame's size elsewhere sets it.
+FPerl.AfterPlace = {}
+
 -- FPerl.PlaceFrame(frame)
 -- The saved position, else the default point; sizes of a resizable frame come with the saved one.
 -- A protected frame is queued in combat (the unit frames are secure); others are placed at once.
@@ -71,16 +75,8 @@ function FPerl.PlaceFrame(frame)
 	local pos = saved and saved[name]
 	if (pos and pos.left and pos.top) then
 		FPerl.SetPointUI(frame, pos.left, pos.top)
-		if (name == "FPerl_Assists_FrameAnchor") then
-			if (FPerlRaidHelperDB) then
-				if (FPerlRaidHelperDB.sizeAssistsX and FPerlRaidHelperDB.sizeAssistsY) then
-					FPerl_Assists_Frame:SetWidth(FPerlRaidHelperDB.sizeAssistsX)
-					FPerl_Assists_Frame:SetHeight(FPerlRaidHelperDB.sizeAssistsY)
-				end
-				if (FPerlRaidHelperDB.sizeAssistsS) then
-					FPerl_Assists_Frame:SetScale(FPerlRaidHelperDB.sizeAssistsS)
-				end
-			end
+		if (FPerl.AfterPlace[name]) then
+			FPerl.AfterPlace[name](frame, pos)
 		elseif (pos.height and pos.width) then
 			if (frame:IsResizable()) then
 				frame:SetHeight(pos.height)
@@ -315,8 +311,6 @@ end
 -- frames have no XML anchors. Entries are {point, relativeTo, relativePoint, x, y}; relativeTo is
 -- a frame name.
 local function TopLeft(x, y) return {{"TOPLEFT", "UIParent", "TOPLEFT", x, y}} end
-local function TopRight(x, y) return {{"TOPRIGHT", "UIParent", "TOPRIGHT", x, y}} end
-local function Center(x, y) return {{"CENTER", "UIParent", "CENTER", x or 0, y or 0}} end
 FPerl.DefaultPoints = {
 	FPerl_Player = TopLeft(35, -16),
 	FPerl_Player_Pet = TopLeft(92, -156),
@@ -325,13 +319,6 @@ FPerl.DefaultPoints = {
 	FPerl_TargetTarget = TopLeft(593, -16),
 	FPerl_Party_Anchor = TopLeft(38, -330),
 	FPerl_Raid_TitlePets = TopLeft(680, -500),
-	FPerl_Assists_FrameAnchor = Center(),
-	FPerl_AggroAnchor = Center(),
-	FPerl_MTList_Anchor = Center(),
-	FPerl_RaidMonitor_Anchor = Center(),
-	FPerl_CheckAnchor = Center(),
-	FPerl_AdminFrameAnchor = Center(),
-	FPerl_RosterTextAnchor = Center(0, -270),
 	FPerl_MinimapButton_Frame = {{"CENTER", "Minimap", "RIGHT", 0, 0}},
 	-- Created in FPerl.TargetTarget.SetBits.
 	FPerl_TargetTargetTarget = {{"TOPLEFT", "FPerl_TargetTargetstatsFrame", "TOPRIGHT", 44, 0}},
@@ -376,7 +363,7 @@ function FPerl.SavePosition(self)
 end
 
 -- FPerl.RestoreAllPositions
--- Places every default frame and every frame with a saved position (FPerl_Positions.lua).
+-- Places every default frame and every frame with a saved position.
 function FPerl.RestoreAllPositions()
 	if (InCombatLockdown()) then
 		FPerl.AfterCombat(FPerl.RestoreAllPositions)
@@ -387,13 +374,12 @@ function FPerl.RestoreAllPositions()
 		names[name] = true
 	end
 	local table = FPerl.GetSavePositionTable()
-	if table then
+	if (table) then
 		for k in pairs(table) do
-			if k == "FPerl_Runes" or k == "FPerl_RaidHelper_Frame" or k == "FPerl_RaidMonitor_Frame" or k == "FPerl_Check" or k == "FPerl_AdminFrame" or k == "FPerl_Assists_Frame" then
-				-- Fix for a wrong name with versions 2.3.2 and 2.3.2a
-				-- It was using FPerl_Frame instead of FPerl_MTList_Anchor
-				-- and FPerl_RaidMonitor_Frame instead of FPerl_RaidMonitor_Anchor
-				-- And now a change to FPerl_Check to FPerl_CheckAnchor and FPerl_AdminFrame to FPerl_AdminFrameAnchor
+			if (k == "FPerl_Runes" or k == "FPerl_RaidHelper_Frame" or k == "FPerl_RaidMonitor_Frame" or k == "FPerl_Check" or k == "FPerl_AdminFrame" or k == "FPerl_Assists_Frame") then
+				-- An entry under one of these names is stale: these frames are placed through their
+				-- anchors (FPerl_MTList_Anchor, FPerl_RaidMonitor_Anchor, FPerl_CheckAnchor,
+				-- FPerl_AdminFrameAnchor, FPerl_Assists_FrameAnchor), and F-Perl has no FPerl_Runes frame.
 				table[k] = nil
 			else
 				names[k] = true
@@ -402,7 +388,7 @@ function FPerl.RestoreAllPositions()
 	end
 	for name in pairs(names) do
 		local frame = _G[name]
-		if frame then
+		if (frame) then
 			FPerl.PlaceFrame(frame)
 		end
 	end
@@ -463,23 +449,23 @@ local function scaleMouseUp(self)
 
 	FPerl.SavePosition(self.anchor)
 
-	if self.resizeTop then
+	if (self.resizeTop) then
 		FPerl.SwitchAnchor(self.anchor, "BOTTOMLEFT")
 	end
 
-	if self.scaling then
-		if self.onScaleChanged then
+	if (self.scaling) then
+		if (self.onScaleChanged) then
 			self:onScaleChanged(self.frame:GetScale())
 		end
 	end
 
-	if self.sizing then
-		if self.onSizeChanged then
+	if (self.sizing) then
+		if (self.onSizeChanged) then
 			self:onSizeChanged(self.frame:GetWidth(), self.frame:GetHeight())
 		end
 	end
 
-	if self.oldBdBorder then
+	if (self.oldBdBorder) then
 		self.frame:SetBackdropBorderColor(unpack(self.oldBdBorder))
 		self.oldBdBorder = nil
 	end
@@ -575,7 +561,7 @@ function FPerl.RegisterScalableFrame(self, anchorFrame, minScale, maxScale, resi
 		self.corner.frame = self
 	end
 
-	if self.SetResizeBounds then
+	if (self.SetResizeBounds) then
 		self:SetResizeBounds(10, 10)
 	else
 		self:SetMinResize(10, 10)

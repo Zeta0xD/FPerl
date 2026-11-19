@@ -509,13 +509,6 @@
 		<Anchors>
 			<Anchor point="TOPLEFT" relativeTo="FPerl_Party_Anchor" relativePoint="CENTER"/>
 		</Anchors>
-		<!--<Attributes>
-			<Attribute name="template" type="string" value="FPerl_Party_FrameTemplate"/>
-			<Attribute name="templateType" type="string" value="Button"/>
-			<Attribute name="minWidth" type="number" value="80"/>
-			<Attribute name="minHeight" type="number" value="10"/>
-			<Attribute name="xOffset" type="number" value="0"/>
-		</Attributes>-->
 	</Frame>
 	<!-- The Real Frames -->
 	<Button name="FPerl_party1" inherits="FPerl_Party_FrameTemplate" parent="FPerl_Party_SecureHeader" id="1"/>

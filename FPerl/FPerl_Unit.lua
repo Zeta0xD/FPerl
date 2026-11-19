@@ -5,19 +5,18 @@
 local conf
 FPerl.RequestConfig(function(New)
 	conf = New
-end, "$Revision: 1 $")
+end)
 
 local largeNumTag = FPERL_LOC_LARGENUMTAG
 local hugeNumTag = FPERL_LOC_HUGENUMTAG
 local veryhugeNumTag = FPERL_LOC_VERYHUGENUMTAG
-local percD = "%d%%"
+local perc0F = "%.0f%%"
 local perc1F = "%.1f%%"
 
 -- FPerl.ShortNumber(v, compact, cap)
 -- A readable v becomes an X-Perl ladder string on abs(v), sign kept. The default ladder is the one
 -- of the value and deficit texts; compact is the healer-mode deficit in the percent slot. cap, the
--- max printed beside v, limits the bracket (a v above its max prints in the max's bracket, as the
--- old nested ladder did). A secret v goes to AbbreviateNumbers, which accepts one.
+-- max printed beside v, limits the bracket (a v above its max prints in the max's bracket). A secret v goes to AbbreviateNumbers, which accepts one.
 function FPerl.ShortNumber(v, compact, cap)
 	if (FPerl.IsSecret(v)) then
 		return AbbreviateNumbers(v)
@@ -84,23 +83,20 @@ function FPerl.SetDeficitPair(fs, missing, max, style)
 end
 
 -- FPerl.FormatPercent(fs, pct, precise)
--- pct is 0..100. Readable: one decimal below 10 (always, when precise), else rounded. Secret:
--- truncated by %d (one decimal when precise), because a secret cannot be added to. precise "whole"
--- never prints a decimal (readable: rounded).
+-- pct is 0..100, plain or secret, rounded by the format. One decimal when precise, or below 10 when pct
+-- is plain (a secret cannot be compared); precise "whole" never prints one.
 function FPerl.FormatPercent(fs, pct, precise)
-	if (FPerl.IsSecret(pct)) then
-		fs:SetFormattedText((precise and precise ~= "whole") and perc1F or percD, pct)
-	elseif (precise == "whole" or (not precise and pct >= 10)) then
-		fs:SetFormattedText(percD, pct + 0.5)
+	if ((precise and precise ~= "whole") or (not precise and not FPerl.IsSecret(pct) and pct < 10)) then
+		fs:SetFormattedText(perc1F, pct)
 	else
-		fs:SetFormattedText(perc1F, min(pct + 0.05, 100))
+		fs:SetFormattedText(perc0F, pct)
 	end
 end
 
 -- FPerl.SetDeficitText(fs, missing, style)
 -- Writes -missing to fs. A secret cannot be concatenated, so the FontString is written here, as
 -- "-%d". Readable: the X-Perl ladder, its compact form (style true) or the whole number (style
--- "full", for the frames that never abbreviated).
+-- "full").
 function FPerl.SetDeficitText(fs, missing, style)
 	if (FPerl.IsSecret(missing)) then
 		fs:SetFormattedText("-%d", missing)
@@ -112,11 +108,11 @@ function FPerl.SetDeficitText(fs, missing, style)
 end
 
 -- FPerl.HealthSetBar(bar, unit, ignoreInverse): fills a health bar from the unit (the "inverse" bar
--- option applies unless ignoreInverse, for the frames that never honoured it); returns hp, hpMax and missing
+-- option applies unless ignoreInverse); returns hp, hpMax and missing
 -- for the text. The readable arithmetic only picks the deficit when both values can be read: it
--- keeps the ladder text of the plain path; a secret deficit comes from UnitHealthMissing. Every
--- health call passes usePredicted = true (the API's default, what the old code showed), so the bar,
--- the texts and the colour read the same health.
+-- keeps the ladder text of the plain path; a secret deficit comes from UnitHealthMissing. UnitHealth,
+-- UnitHealthMissing and UnitHealthPercent (the percent text, FPerl_Colours.lua's colour) are all
+-- called with true as the second argument, so the bar, the texts and the colour make the same request.
 function FPerl.HealthSetBar(bar, u, ignoreInverse)
 	local hp, hpMax = UnitHealth(u, true), UnitHealthMax(u)
 	local missing
@@ -130,7 +126,12 @@ function FPerl.HealthSetBar(bar, u, ignoreInverse)
 	end
 
 	bar:SetMinMaxValues(0, hpMax)
-	bar:SetValue(conf.bar.inverse and not ignoreInverse and missing or hp)
+	-- missing can be secret, and a secret cannot be tested for truth
+	if (conf.bar.inverse and not ignoreInverse) then
+		bar:SetValue(missing)
+	else
+		bar:SetValue(hp)
+	end
 	return hp, hpMax, missing
 end
 
@@ -341,7 +342,7 @@ end
 local function updatePowerType(frame)
 	frame.updatePowerType(frame)
 end
-FPerl.Elements.Health = {events = {[FPerl.ForeverAPI.healthEvent] = updateHealth, UNIT_MAXHEALTH = updateHealth}}
+FPerl.Elements.Health = {events = {UNIT_HEALTH = updateHealth, UNIT_MAXHEALTH = updateHealth}}
 FPerl.Elements.Power = {events = {UNIT_POWER_FREQUENT = updatePower, UNIT_MAXPOWER = updatePower, UNIT_DISPLAYPOWER = updatePowerType}}
 
 -- The aura element. A frame with a frame.conf section with buffs and
@@ -530,7 +531,7 @@ local function refitHandle(frame, h)
 	end
 end
 
--- the ticker's handler; the harness's clock never fires timers in a probe run, so probes call it
+-- the ticker's handler
 function FPerl.AurasSyncHandles()
 	local on = FPerl.Locked == 0 and not inCombat
 	if (on == handlesOn) then
@@ -756,7 +757,6 @@ function FPerl.AurasGroups(c, kind, exclude, lineSize, half)
 	return list
 end
 
--- the container's line width for kind "buffs" or "debuffs"
 local function lineSizeOf(frame, kind)
 	return frame.auraLineSize(frame, kind)
 end

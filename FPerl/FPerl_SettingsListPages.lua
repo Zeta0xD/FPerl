@@ -1,5 +1,5 @@
--- The settings list: one entry per option of the panel's pages (General, Player, Pet, Target, Focus, Party, Raid), in page
--- and section order. Data only (the Player to Raid pages are in FPerl_SettingsListPages.lua): loads under plain lua5.1, calls no API, makes no frame. Format: the header of
+-- The Player, Pet, Target, Focus, Party and Raid pages of the settings list, after the General page of
+-- FPerl_SettingsList.lua. Data only: loads under plain lua5.1, calls no API, makes no frame. Format: the header of
 -- FPerl_SettingsList.lua.
 
 local R = FPerl.SettingsRow
@@ -44,7 +44,7 @@ dropdown("player.shown.healthtext", "Health text", "How health is written on the
 check("player.shown.absorbs", "Absorbs", "Show the absorb bar.", {path = "player.absorbs"})
 check("player.shown.healprediction", "Heal prediction", "Show the heal prediction bar.", {path = "player.healprediction"})
 check("player.shown.castbar", "Cast bar", "Show a cast bar on the player frame.", {path = "player.castBar.enable"})
-dropdown("player.shown.casttime", "Cast time text", "Show the casting time beside the cast bar or inside it.", {
+dropdown("player.shown.casttime", "Cast time text", "Show the casting time beside or inside every F-Perl cast bar: player, pet, target, focus and party.", {
 	base = "player.castBar",
 	map = {
 		{"Off", {castTime = false, inside = false}, {castTime = false}},
@@ -146,9 +146,8 @@ dropdown("pet.pettarget.healthtext", "Health text", "How health is written on th
 	base = "pettarget", map = HEALTHTEXT,
 })
 ------------------------------------------------------------------------------------------------ Target and Focus
--- One layout for both pages (the old UnitPage): `unitPage` adds a page, `unitFrame` the section of a target-of-target
--- style frame. Every frame has its own aura settings; the old Target page wrote its aura values into the
--- target-of-target tables as well (bug O1).
+-- One layout for both pages: `unitPage` adds a page, `unitFrame` the section of a target-of-target
+-- style frame. Every frame has its own aura settings.
 local TOT = {"targettarget"} -- the changer for target of target, target of target of target, focus target and pet target
 -- The aura settings of profile table k. Target and Focus (main) have Big stealable
 -- buffs, the target-of-target style frames Big debuffs.
@@ -157,7 +156,7 @@ local function auraSettings(id, k, who, ap, main)
 	check(id .. ".debuffs", "Debuffs", "Show the " .. who .. "'s debuffs.", {path = k .. ".debuffs.enable", apply = ap})
 	slider(id .. ".buffsize", "Buff size", "The size of the buff icons.", {path = k .. ".buffs.size", min = 7, max = 38, step = 1, apply = ap})
 	slider(id .. ".debuffsize", "Debuff size", "The size of the debuff icons.", {path = k .. ".debuffs.size", min = 7, max = 45, step = 1, apply = ap})
-	if main then
+	if (main) then
 		slider(id .. ".aurasize", "Aura size", "The size of the buff and debuff icons together. Buff size and Debuff size set them apart.", {path = k .. ".buffs.size", with = {k .. ".debuffs.size"}, min = 7, max = 38, step = 1, apply = ap})
 	end
 	check(id .. ".wrap", "Wrap", "Wrap aura icons that exceed the width of the frame.", {path = k .. ".buffs.wrap", apply = ap})
@@ -167,7 +166,7 @@ local function auraSettings(id, k, who, ap, main)
 	check(id .. ".onlymybuffs", "Only my buffs", "Show only the buffs you cast.", {path = k .. ".buffs.onlyMine", apply = ap})
 	check(id .. ".onlymydebuffs", "Only my debuffs", "Show only the debuffs you cast.", {path = k .. ".debuffs.onlyMine", apply = ap})
 	check(id .. ".bigbuffs", "Big buffs", "Show your own buffs larger.", {path = k .. ".buffs.big", apply = ap})
-	if main then
+	if (main) then
 		check(id .. ".bigstealable", "Big stealable buffs", "Show the buffs you can steal larger.", {path = k .. ".buffs.bigStealable", apply = ap})
 	else
 		check(id .. ".bigdebuffs", "Big debuffs", "Show your own debuffs larger.", {path = k .. ".debuffs.big", apply = ap})
@@ -195,7 +194,7 @@ local function unitPage(pageName, k, isTarget)
 	local own = id .. "." .. id
 	R.page = pageName
 	R.section = "Size"
-	if isTarget then
+	if (isTarget) then
 		check(id .. ".size.enable", "Show target frame", "Show the target frame. Takes effect after a reload.", {reload = true, path = k .. ".enable", apply = {}})
 	end
 	slider(id .. ".size.scale", "Scale", "The size of the " .. k .. " frame.", {path = k .. ".scale", min = 0.5, max = 1.5, step = 0.01, percent = true, apply = ap})
@@ -239,7 +238,7 @@ local function unitPage(pageName, k, isTarget)
 	auraSettings(id .. ".auras", k, k, ap, true)
 
 	R.section = pageName
-	if not isTarget then
+	if (not isTarget) then
 		check(own .. ".enable", "Show focus frame", "Show the focus frame.", {path = k .. ".enable", apply = ap})
 	end
 	dropdown(own .. ".classification", "Classification", "How rare, elite and boss units are marked: not at all, as text, or as a graphic on the portrait.", {
@@ -261,7 +260,7 @@ local function unitPage(pageName, k, isTarget)
 			{"Dial on portrait", {threat = 1, threatMode = "portraitFrame"}},
 		},
 	})
-	if isTarget then
+	if (isTarget) then
 		dropdown(own .. ".combo", "Combo points", "How combo points are shown: squares above the name plate, a bar in the name plate, or a number.", {
 			base = k, apply = ap,
 			map = {
@@ -274,11 +273,9 @@ local function unitPage(pageName, k, isTarget)
 	end
 	check(own .. ".sound", "Sound on " .. k .. " change", "Play a sound when the " .. k .. " changes: one for enemies, friendly and neutral units.", {path = k .. ".sound", apply = {}})
 	check(own .. ".raidicon", "Alternate raid icon spot", "Put the raid icon small in the top right corner of the name plate instead of large in its centre.", {path = k .. ".raidIconAlternate", apply = isTarget and {"target", "targettarget"} or ap})
-	if isTarget then
-		check(own .. ".rangehand", "Out-of-range hand icon", "Show a hand icon on the name plate when the unit is out of range. Works for group members.", {path = k .. ".range30yard", apply = ap})
-	end
+	check(own .. ".rangehand", "Out-of-range hand icon", "Show a hand icon on the name plate when the unit is out of range. Works for group members.", {path = k .. ".range30yard", apply = ap})
 
-	if isTarget then
+	if (isTarget) then
 		unitFrame("Target of target", id .. ".tot", "targettarget", "target of target")
 		unitFrame("Target of target of target", id .. ".tott", "targettargettarget", "target of target of target")
 	else
@@ -465,7 +462,7 @@ dropdown("raid.layout.anchor", "Anchor", "The direction the raid groups grow fro
 	options = {{"TOP", "Top"}, {"LEFT", "Left"}, {"BOTTOM", "Bottom"}, {"RIGHT", "Right"}},
 })
 slider("raid.layout.gap", "Gap", "The gap in pixels between neighbouring raid groups in a row, or in a column for the Left and Right anchors. Moves the groups.", {path = "raid.gap", min = 0, max = 100, step = 1})
-slider("raid.layout.spacing", "Spacing", "The spacing between the raid frames of a group.", {path = "raid.spacing", min = -5, max = 20, step = 1, throttle = true}) -- the header attributes take 25 ms (applyeq)
+slider("raid.layout.spacing", "Spacing", "The spacing between the raid frames of a group.", {path = "raid.spacing", min = -5, max = 20, step = 1, throttle = true}) -- setting the raid header attributes takes longer than a frame
 
 R.section = "Raid pets"
 check("raid.pets.enable", "Show raid pets", "Show the pets of the raid members.", {path = "raidpet.enable"})
@@ -495,44 +492,44 @@ do
 	for _, e in ipairs(list) do byId[e.id] = e end
 	local function choices(fe)
 		local out = {}
-		if fe.map then
+		if (fe.map) then
 			for i, m in ipairs(fe.map) do out[i] = m[1] end
-		elseif type(fe.options) == "table" then
+		elseif (type(fe.options) == "table") then
 			for i, o in ipairs(fe.options) do out[i] = o[2] end
 		end
 		return out
 	end
 	for _, e in ipairs(list) do
-		if e.each then
+		if (e.each) then
 			local seen, apply = {}, {}
-			if e.type == "dropdown" then e.options = {} end
+			if (e.type == "dropdown") then e.options = {} end
 			for _, fl in ipairs(FRAMES) do
 				local fe = byId[e.each[fl]]
-				if fe then
+				if (fe) then
 					for _, n in ipairs(fe.apply) do
-						if not seen[n] then
+						if (not seen[n]) then
 							seen[n] = true
 							apply[#apply + 1] = n
 						end
 					end
-					if e.type == "dropdown" then
+					if (e.type == "dropdown") then
 						for _, c in ipairs(choices(fe)) do
-							for s, f in pairs(e.alias and e.alias[fl] or {}) do if f == c then c = s end end
+							for s, f in pairs(e.alias and e.alias[fl] or {}) do if (f == c) then c = s end end
 							local have
 							for _, o in ipairs(e.options) do have = have or o[2] == c end
-							if not have then e.options[#e.options + 1] = {c, c} end
+							if (not have) then e.options[#e.options + 1] = {c, c} end
 						end
-					elseif e.type == "slider" then
+					elseif (e.type == "slider") then
 						e.min = math.min(e.min or fe.min, fe.min)
 						e.max = math.max(e.max or fe.max, fe.max)
 						e.step = e.step or fe.step
 						e.zero = e.zero or fe.zero
-						if e.percent == nil then e.percent = fe.percent end
+						if (e.percent == nil) then e.percent = fe.percent end
 					end
 				end
 			end
 			e.apply = apply
-			if e.type == "slider" then e.throttle = throttleOf(apply) end
+			if (e.type == "slider") then e.throttle = throttleOf(apply) end
 		end
 	end
 end
@@ -546,7 +543,7 @@ do
 	local function need(id, ...)
 		local e = row(id)
 		local n = e.needs
-		if n == nil then n = {} elseif type(n) == "string" or n.key then n = {n} end
+		if (n == nil) then n = {} elseif (type(n) == "string" or n.key) then n = {n} end
 		for _, c in ipairs({...}) do n[#n + 1] = c end
 		e.needs = #n == 1 and n[1] or n
 	end
@@ -575,22 +572,22 @@ do
 	-- every row of a frame needs that frame switched on (the switch row itself excepted)
 	local function switchOf(e)
 		local pg, sec = e.page, e.section
-		if pg == "Player" then return "player.enable"
-		elseif pg == "Pet" then return sec == "Pet's target" and "pettarget.enable" or "pet.enable"
-		elseif pg == "Target" then
+		if (pg == "Player") then return "player.enable"
+		elseif (pg == "Pet") then return sec == "Pet's target" and "pettarget.enable" or "pet.enable"
+		elseif (pg == "Target") then
 			return sec == "Target of target" and "targettarget.enable" or sec == "Target of target of target" and "targettargettarget.enable" or "target.enable"
-		elseif pg == "Focus" then return sec == "Focus target" and "focustarget.enable" or "focus.enable"
-		elseif pg == "Party" then
-			if sec:find("^Visibility") then return nil end
+		elseif (pg == "Focus") then return sec == "Focus target" and "focustarget.enable" or "focus.enable"
+		elseif (pg == "Party") then
+			if (sec:find("^Visibility")) then return nil end
 			return sec == "Party pets" and "partypet.enable" or "party.enable"
-		elseif pg == "Raid" then
-			if sec == "Buff helper" or sec == "Custom highlights" then return nil end
+		elseif (pg == "Raid") then
+			if (sec == "Buff helper" or sec == "Custom highlights") then return nil end
 			return sec == "Raid pets" and "raidpet.enable" or "raid.enable"
 		end
 	end
 	for _, e in ipairs(list) do
 		local key = switchOf(e)
-		if key and e.type ~= "frames" and e.path ~= key and not (e.keys and e.keys[1] == key) then need(e.id, key) end
+		if (key and e.type ~= "frames" and e.path ~= key and not (e.keys and e.keys[1] == key)) then need(e.id, key) end
 	end
 
 	-- aura rows: the matching Buffs or Debuffs switch (a pet's target and the party pets switch both with Buffs); icons per line and Rows need Wrap
@@ -605,15 +602,15 @@ do
 		local debuffs = (k == "partypet") and buffs or k .. ".debuffs.enable"
 		local wrap = k .. ".buffs.wrap"
 		local function on(suffixes, key)
-			for _, sfx in ipairs(suffixes) do if byId[pre .. sfx] then need(pre .. sfx, key) end end
+			for _, sfx in ipairs(suffixes) do if (byId[pre .. sfx]) then need(pre .. sfx, key) end end
 		end
 		on({"buffside", "buffreverse", "buffsize", "bigbuffs", "bigstealable", "onlymybuffs", "onlymine", "big"}, buffs)
 		on({"debuffside", "debuffreverse", "debuffsize", "bigdebuffs", "onlymydebuffs", "halfsize"}, debuffs)
-		if k ~= "raid" then on({"castable"}, buffs) end
+		if (k ~= "raid") then on({"castable"}, buffs) end
 		on({"curable"}, debuffs)
 		on({"buffperline"}, buffs)
 		on({"debuffperline"}, debuffs)
-		if byId[pre .. "wrap"] or k == "raid" then on({"buffperline", "debuffperline", "rows"}, wrap) end
+		if (byId[pre .. "wrap"] or k == "raid") then on({"buffperline", "debuffperline", "rows"}, wrap) end
 	end
 
 	need("general.look.fadetime", "bar.fading")
@@ -647,7 +644,7 @@ do
 end
 
 -- Canonical order: rows that several frame sections share come first, in this order, in every section of the frame pages
--- (the enable row leads); a section's own rows follow in the order they were added. Listed by label. docs/fperl/README.md.
+-- (the enable row leads); a section's own rows follow in the order they were added. Listed by label.
 do
 	local ORDER = {
 		"Scale", "Extra width", "Portrait", "Level", "Class icon", "PvP flag", "Hit indicators", "Hit text position", "Health text",
@@ -660,7 +657,7 @@ do
 	local function rankOf(e) return e.id:find("%.enable$") and 1 or rank[e.label] or 1000 end
 	local bySec = {}
 	for i, e in ipairs(list) do
-		if e.page ~= "General" then
+		if (e.page ~= "General") then
 			local k = e.page .. "|" .. e.section
 			bySec[k] = bySec[k] or {}
 			local t = bySec[k]
@@ -670,16 +667,16 @@ do
 	local out = {}
 	local done = {}
 	for i, e in ipairs(list) do
-		if e.page == "General" then
+		if (e.page == "General") then
 			out[#out + 1] = e
 		else
 			local k = e.page .. "|" .. e.section
-			if not done[k] then
+			if (not done[k]) then
 				done[k] = true
 				local t = bySec[k]
 				table.sort(t, function(a, b)
 					local ra, rb = rankOf(a.e), rankOf(b.e)
-					if ra ~= rb then return ra < rb end
+					if (ra ~= rb) then return ra < rb end
 					return a.i < b.i
 				end)
 				for _, x in ipairs(t) do out[#out + 1] = x.e end

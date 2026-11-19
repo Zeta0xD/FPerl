@@ -4,7 +4,7 @@
 
 	<Button name="FPerl_TargetTarget_Template" inherits="FPerl_BackdropTemplate,SecureUnitButtonTemplate" clampedToScreen="true" frameStrata="LOW" virtual="true" movable="true" parent="UIParent" hidden="true">
 		<Size>
-			<!-- The size of this frame determines what can be clicked for the menu and moving, hence it is the same size as the name frame. -->
+			<!-- The size of this frame determines what can be clicked for the menu and moving; ApplyWidth gives it the name frame's width. -->
 			<AbsDimension x="160" y="62"/>
 		</Size>
 		<Scripts>
@@ -119,14 +119,6 @@
 								</Anchor>
 							</Anchors>
 						</FontString>
-						<!--Texture name="$parentpvpRankIcon">
-							<Size><AbsDimension x="32" y="32"/></Size>
-							<Anchors>
-								<Anchor point="TOP">
-									<Offset><AbsDimension x="-40" y="3"/></Offset>
-								</Anchor>
-							</Anchors>
-						</Texture-->
 					</Layer>
 				</Layers>
 			</Button>

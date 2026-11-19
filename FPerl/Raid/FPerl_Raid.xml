@@ -39,7 +39,7 @@
 
 	<Button name="FPerl_Raid_FrameTemplate" frameStrata="LOW" virtual="true" hidden="true" inherits="FPerl_BackdropTemplate,SecureUnitButtonTemplate">
 		<Size>
-			<!-- The size of this frame determines what can be clicked for the menu and moving, hence it is the same size as the name frame. -->
+			<!-- The size of this frame determines what can be clicked for the menu and moving, hence it is the size of the name frame and the stats frame together. -->
 			<AbsDimension x="80" y="43"/>
 		</Size>
 
@@ -239,7 +239,7 @@
 					<Frame name="$parentready" inherits="FPerl_BackdropTemplate" hidden="true" setAllPoints="true" topLevel="true">
 						<Layers>
 							<Layer level="OVERLAY">
-								<!-- Class Icon -->
+								<!-- Ready Check Icon -->
 								<Texture name="$parentcheck">
 									<Size>
 										<AbsDimension x="24" y="24"/>

@@ -1,14 +1,25 @@
--- F-Perl core: the combat-deferral queue.
+-- F-Perl core: event checks, the combat-deferral queue, group visibility, the event bus and the scheduler.
 -- Loads before FPerl.lua; at load it uses client APIs only.
 
+-- Forever-only values that no API check detects. API checks: FPerl.ForeverAPI (FPerl_Values.lua).
+FPerl.ForeverGame = {
+	-- Separator between UnitName's two values; the second value is a surname on Forever
+	nameJoin = " ",
+	-- Playable classes on Forever, in buff-helper sort order
+	classes = {"WARRIOR", "ROGUE", "HUNTER", "DRUID", "SHAMAN", "PALADIN", "PRIEST", "MAGE", "WARLOCK"},
+	-- The same classes in raid sort-by-class order
+	raidClasses = {"WARRIOR", "ROGUE", "HUNTER", "MAGE", "WARLOCK", "PRIEST", "DRUID", "SHAMAN", "PALADIN"},
+	-- false: NPC 3D portraits inside instances render blank on Forever
+	npcPortrait3DInInstances = false,
+}
+
 -- FPerl.EventValid(event)
--- Retail treats some removed events (the combat log) as *forbidden*: even a
--- pcall-wrapped RegisterEvent/UnregisterEvent raises ADDON_ACTION_FORBIDDEN and
+-- The client treats some events withheld from addons (the combat log) as *forbidden*:
+-- even a pcall-wrapped RegisterEvent/UnregisterEvent raises ADDON_ACTION_FORBIDDEN and
 -- taints the addon. So the client is asked first and such events are never touched.
 function FPerl.EventValid(event)
-	-- C_EventUtils.IsEventValid still says "valid" for the combat log on Midnight
-	-- because the engine keeps it for Blizzard code. Any client that has the
-	-- secret-value API withholds it from addons, so never touch it there.
+	-- C_EventUtils.IsEventValid says "valid" for the combat log because the engine keeps
+	-- it for Blizzard code; where the secret-value API (issecretvalue) exists, addons cannot use it.
 	if (event == "COMBAT_LOG_EVENT_UNFILTERED" and issecretvalue) then
 		return false
 	end
@@ -19,7 +30,7 @@ function FPerl.EventValid(event)
 end
 
 -- FPerl.RegisterEventSafe / FPerl.UnregisterEventSafe / FPerl.RegisterUnitEventSafe
--- Register/unregister that never errors on an event the client no longer has
+-- Register/unregister that never errors on an event the client lacks or withholds
 function FPerl.RegisterEventSafe(frame, event)
 	if (not FPerl.EventValid(event)) then
 		return false
@@ -94,7 +105,7 @@ frame:SetScript("OnEvent", function()
 	local list, args = order, pending
 	order, pending = {}, {}
 	if (#list > 0) then
-		local d = FPerl.Dev; if d and d.listener then d.Emit("combatqueue.run", #list) end
+		local d = FPerl.Dev; if (d and d.listener) then d.Emit("combatqueue.run", #list) end
 	end
 	for i = 1, #list do
 		runFunc = list[i]
@@ -110,7 +121,7 @@ end)
 -- The one decision for the party header (the party pet frames hang off it), the raid group headers
 -- and the raid pet header, from IsInRaid, the group, party.inRaid and party.smallRaid.
 -- Runs out of combat, or after it through FPerl.AfterCombat.
--- Called on the events below and wherever an option, a raid roster change or setup can change the
+-- Called on the events registered in FPerl_Values.lua and wherever an option, a raid roster change or setup can change the
 -- answer. The modules it touches are optional: a frame that does not exist is skipped.
 local function applyGroupVisibility()
 	local conf = FPerl.layout
@@ -168,14 +179,14 @@ local function applyGroupVisibility()
 end
 
 -- Runs per roster event, not debounced, on purpose: no table is built and a SetShown to the current
--- state changes nothing (about 15 calls); visprobe.lua and the raid frames' first-update flag
--- (FPerl.Raid.Initialized) expect the decision to be made in the event itself, before the
+-- state changes nothing; the raid frames' first-update flag (FPerl.Raid.Initialized) expects the
+-- decision to be made in the event itself, before the
 -- C_Timer.After(0) roster work of the raid module. A debounce would move it a frame later.
 function FPerl.GroupVisibilityUpdate()
 	FPerl.AfterCombat(applyGroupVisibility)
 end
 
--- The events that run it are registered through FPerl.On in FPerl.lua.
+-- The events that run it are registered through FPerl.On in FPerl_Values.lua.
 C_Timer.After(0, FPerl.GroupVisibilityUpdate)
 
 -- FPerl.On(event, fn) / FPerl.Off(event, fn)

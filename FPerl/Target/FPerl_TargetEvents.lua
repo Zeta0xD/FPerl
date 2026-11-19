@@ -3,13 +3,6 @@
 
 local Events = FPerl.Elements.Target.events
 
-local conf, tconf, fconf
-FPerl.RequestConfig(function(new)
-	conf = new
-	tconf = conf.target
-	fconf = conf.focus
-end, "$Revision:  $")
-
 local SafeBool = FPerl.SafeBool
 local PlaySound = PlaySound
 local UnitCanAttack = UnitCanAttack
@@ -33,7 +26,6 @@ end
 -- PLAYER_ENTERING_WORLD
 function FPerl.Elements.FocusOnly.events:PLAYER_ENTERING_WORLD()
 	if (UnitExists("focus")) then
-		--self.feigning = nil
 		self.PlayerFlash = 0
 		FPerl.CombatFlashSetFrames(self)
 		FPerl.Target.UpdateDisplay(self)
@@ -42,7 +34,7 @@ end
 
 -- UNIT_COMBAT
 function Events:UNIT_COMBAT(unit, action, descriptor, damage, damageType)
-	if unit ~= self.partyid then
+	if (unit ~= self.partyid) then
 		return
 	end
 	-- set first: the flash and hit text animate even when a later line raises on a secret amount
@@ -50,7 +42,7 @@ function Events:UNIT_COMBAT(unit, action, descriptor, damage, damageType)
 
 	FPerl.Target.UpdateCombat(self)
 
-	if self.conf.hitIndicator then
+	if (self.conf.hitIndicator) then
 		FPerl.HitIndicator(self, action, descriptor, damage, damageType, self.conf)
 	end
 
@@ -65,13 +57,13 @@ end
 -- Full display refresh on purpose: a new target changes every shown field, and the frame is not
 -- updated by any other event until the unit's next health, power or aura event.
 function FPerl.Elements.TargetOnly.events:PLAYER_TARGET_CHANGED()
-	if self ~= FPerl_Target then
+	if (self ~= FPerl_Target) then
 		return
 	end
 	if (self.conf.sound and UnitExists("target")) then
-		if (UnitIsEnemy("target", "player")) then
+		if (SafeBool(UnitIsEnemy("target", "player"), false)) then
 			PlaySound(873)
-		elseif (UnitIsFriend("player", "target")) then
+		elseif (SafeBool(UnitIsFriend("player", "target"), false)) then
 			PlaySound(867)
 		else
 			PlaySound(871)
@@ -95,13 +87,10 @@ end
 
 -- PLAYER_FOCUS_CHANGED
 function FPerl.Elements.FocusOnly.events:PLAYER_FOCUS_CHANGED()
-	if self ~= FPerl_Focus then
-		return
-	end
 	if (self.conf.sound and UnitExists("focus")) then
-		if (UnitIsEnemy("focus", "player")) then
+		if (SafeBool(UnitIsEnemy("focus", "player"), false)) then
 			PlaySound(873)
-		elseif (UnitIsFriend("player", "focus")) then
+		elseif (SafeBool(UnitIsFriend("player", "focus"), false)) then
 			PlaySound(867)
 		else
 			PlaySound(871)
@@ -161,7 +150,7 @@ end
 
 -- UNIT_AURA
 function Events:UNIT_AURA()
-	if not UnitExists(self.partyid) then
+	if (not UnitExists(self.partyid)) then
 		return
 	end
 
@@ -207,7 +196,7 @@ Events.GROUP_ROSTER_UPDATE = Events.PARTY_LOOT_METHOD_CHANGED
 Events.PARTY_LEADER_CHANGED = Events.PARTY_LOOT_METHOD_CHANGED
 
 function Events:UNIT_THREAT_LIST_UPDATE(unit)
-	if (UnitCanAttack("player", self.partyid or "target")) then
+	if (SafeBool(UnitCanAttack("player", self.partyid or "target"), false)) then
 		FPerl.UnitThreatStatus(self, self.partyid == "target" and "player" or nil)
 	else
 		FPerl.UnitThreatStatus(self)
@@ -215,34 +204,14 @@ function Events:UNIT_THREAT_LIST_UPDATE(unit)
 end
 
 function FPerl.Elements.TargetHeal.events:UNIT_HEAL_PREDICTION(unit)
-	if self == FPerl_Target then
-		if (tconf.healprediction and unit == self.partyid) then
-			FPerl.SetExpectedHealth(self)
-		end
-	elseif self == FPerl_Focus then
-		if (fconf.healprediction and unit == self.partyid) then
-			FPerl.SetExpectedHealth(self)
-		end
+	if (self.conf.healprediction and unit == self.partyid) then
+		FPerl.SetExpectedHealth(self)
 	end
 end
 
 function Events:UNIT_ABSORB_AMOUNT_CHANGED(unit)
-	if self == FPerl_Target then
-		if (tconf.absorbs and unit == self.partyid) then
-			FPerl.SetExpectedAbsorbs(self)
-		end
-	elseif self == FPerl_TargetTarget or self == FPerl_TargetTargetTarget then
-		if (self.conf.absorbs and unit == self.partyid) then
-			FPerl.SetExpectedAbsorbs(self)
-		end
-	elseif self == FPerl_Focus then
-		if (fconf.absorbs and unit == self.partyid) then
-			FPerl.SetExpectedAbsorbs(self)
-		end
-	elseif self == FPerl_FocusTarget then
-		if (conf.focustarget.absorbs and unit == self.partyid) then
-			FPerl.SetExpectedAbsorbs(self)
-		end
+	if (self.conf.absorbs and unit == self.partyid) then
+		FPerl.SetExpectedAbsorbs(self)
 	end
 end
 

@@ -28,30 +28,23 @@ FPerl.RequestConfig(function(new)
 	if (FPerl_PetTarget) then
 		FPerl_PetTarget.conf = conf.pettarget
 	end
-end, "$Revision:  $")
+end)
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local CanAccess = FPerl.CanAccess
 local SafeBool = FPerl.SafeBool
 
 -- Upvalues
 local max = max
 local tonumber = tonumber
-local type = type
 local GetDifficultyColor = GetCreatureDifficultyColor or GetQuestDifficultyColor
 local RegisterUnitWatch = RegisterUnitWatch
 local UnitClassBase = UnitClassBase
 local UnitClassification = UnitClassification
 local UnitCreatureType = UnitCreatureType
-local UnitFactionGroup = UnitFactionGroup
 local UnitGUID = UnitGUID
-local UnitIsCharmed = UnitIsCharmed
 local UnitIsFriend = UnitIsFriend
-local UnitIsMercenary = UnitIsMercenary
 local UnitIsPlayer = UnitIsPlayer
-local UnitIsPVP = UnitIsPVP
-local UnitIsPVPFreeForAll = UnitIsPVPFreeForAll
-local UnitIsVisible = UnitIsVisible
 local UnitLevel = UnitLevel
 local UnitPlayerControlled = UnitPlayerControlled
 local UnregisterUnitWatch = UnregisterUnitWatch
@@ -61,7 +54,7 @@ local CombatFeedback_Initialize = CombatFeedback_Initialize
 -- one-point range, so Blizzard can safely feed a protected combo value into it
 -- without addon code comparing or inspecting that value.
 local function FPerl_CreateComboDisplay(self)
-	if self.foreverCombo then
+	if (self.foreverCombo) then
 		return
 	end
 
@@ -79,7 +72,7 @@ local function FPerl_CreateComboDisplay(self)
 		point:SetMinMaxValues(i - 1, i)
 		point:SetValue(0)
 		point:SetStatusBarColor(1, 0.78, 0, 1)
-		if point.SetBackdrop then
+		if (point.SetBackdrop) then
 			point:SetBackdrop({edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 6})
 			point:SetBackdropBorderColor(0.35, 0.35, 0.35, 1)
 		end
@@ -100,6 +93,8 @@ function FPerl.Target.OnLoad(self, partyid)
 	self:RegisterForClicks("AnyUp")
 	self:RegisterForDrag("LeftButton")
 	FPerl.SetChildMembers(self)
+	-- the aura colour highlight is for party and raid frames; this frame shows only the HoT highlight
+	self.hotHighlightOnly = true
 
 	CombatFeedback_Initialize(self, self.hitIndicator.text, 30)
 
@@ -130,15 +125,11 @@ function FPerl.Target.OnLoad(self, partyid)
 		FPerl.BlizzFrameDisable(FocusFrame)
 
 		FPerl.UnitFrameEnable(self, "FocusOnly")
-		--self:SetScript("OnShow", FPerl.Target.UpdateDisplay)
 		self.combatMask = 0x00020000
 	end
 
 	self.auraCancel = true
 
-	--FPerl.SecureUnitButtonOnLoad(self.nameFrame, partyid, nil, TargetFrameDropDown, FPerl_ShowGenericMenu)		--TargetFrame.menu)
-	--FPerl.SecureUnitButtonOnLoad(self, partyid, nil, TargetFrameDropDown, FPerl_ShowGenericMenu)				--TargetFrame.menu)
-	--self.nameFrame:SetAttribute("useparent-unit", true)
 	self.nameFrame:SetAttribute("*type1", "target")
 	self.nameFrame:SetAttribute("type2", "togglemenu")
 	self.nameFrame:SetAttribute("unit", partyid)
@@ -150,12 +141,7 @@ function FPerl.Target.OnLoad(self, partyid)
 	FPerl.RegisterClickCastFrame(self.nameFrame)
 	FPerl.RegisterClickCastFrame(self)
 
-	--RegisterUnitWatch(self)
-
-	--self.PlayerFlash = 0
 	self.time = 0
-
-	--FPerl_InitFadeFrame(self)
 
 	FPerl.RegisterHighlight(self.highlight, 3)
 	FPerl.RegisterPerlFrames(self, {self.nameFrame, self.statsFrame, self.levelFrame, self.portraitFrame, self.typeFramePlayer, self.creatureTypeFrame, self.bossFrame, self.cpFrame})
@@ -168,7 +154,7 @@ function FPerl.Target.OnLoad(self, partyid)
 
 	if (FPerl.layout) then
 		self.conf = FPerl.layout[partyid]
-		-- New-profile defaults are applied by TargetConfigDefault.
+		-- New-profile defaults are applied by TargetConfigDefault (FPerl_Defaults.lua).
 		-- Keep target debuffs a uniform size.  Enlarging player-applied debuffs
 		-- during combat consumes two columns per icon and collapses the intended
 		-- long left-to-right rows into three-icon rows.
@@ -187,7 +173,7 @@ end
 -- HighlightCallback
 function FPerl.Target.HighlightCallback(self, updateGUID)
 	local guid = UnitGUID(self.partyid)
-	if (guid and CanAccess(guid) and guid == updateGUID and UnitIsFriend("player", self.partyid)) then
+	if (guid and CanAccess(guid) and guid == updateGUID and SafeBool(UnitIsFriend("player", self.partyid), false)) then
 		FPerl_Highlight:SetHighlight(self, updateGUID)
 	end
 end
@@ -221,57 +207,30 @@ local function UpdatePVP(self)
 	local partyid = self.partyid
 
 	local pvpIcon = self.nameFrame.pvp
-
-	local factionGroup = UnitFactionGroup(partyid)
-
-	if self.conf.pvpIcon and SafeBool(UnitIsPVPFreeForAll(partyid), false) then
-		pvpIcon.icon:SetTexture("Interface\\TargetingFrame\\UI-PVP-FFA")
-		pvpIcon:Show()
-	elseif self.conf.pvpIcon and factionGroup and factionGroup ~= "Neutral" and SafeBool(UnitIsPVP(partyid), false) then
-		pvpIcon.icon:SetTexture("Interface\\TargetingFrame\\UI-PVP-"..factionGroup)
-
-		if type(UnitIsMercenary) == "function" and SafeBool(UnitIsMercenary(partyid), false) then
-			if factionGroup == "Horde" then
-				pvpIcon.icon:SetTexture("Interface\\TargetingFrame\\UI-PVP-Alliance")
-			elseif factionGroup == "Alliance" then
-				pvpIcon.icon:SetTexture("Interface\\TargetingFrame\\UI-PVP-Horde")
-			end
-		end
-
-		pvpIcon:Show()
-	else
-		pvpIcon:Hide()
-	end
+	FPerl.UpdatePVPIcon(pvpIcon, pvpIcon.icon, partyid, self.conf.pvpIcon)
 
 	if (self.conf.reactionHighlight) then
 		local c = FPerl.ReactionColour(partyid)
 		self.nameFrame:SetBackdropColor(c.r, c.g, c.b)
 
-		if (conf.colour.class and UnitPlayerControlled(partyid)) then
+		if (conf.colour.class and SafeBool(UnitPlayerControlled(partyid), false)) then
 			FPerl.SetUnitNameColor(self.nameFrame.text, partyid)
 		else
 			self.nameFrame.text:SetTextColor(1, 1, 1, conf.transparency.text)
 		end
 	else
-		if not self.conf.highlightDebuffs.enable then
+		if (not self.conf.highlightDebuffs.enable) then
 			self.nameFrame:SetBackdropColor(conf.colour.frame.r, conf.colour.frame.g, conf.colour.frame.b, conf.colour.frame.a)
 		end
 		FPerl.SetUnitNameColor(self.nameFrame.text, partyid)
 	end
 
-	-- indirect units can return secret flags; no icon in that case
-	if SafeBool(UnitIsVisible(partyid), false) and SafeBool(UnitIsCharmed(partyid), false) and SafeBool(UnitIsPlayer(partyid), false) then
-		self.nameFrame.warningIcon:Show()
-	else
-		self.nameFrame.warningIcon:Hide()
-	end
+	self.nameFrame.warningIcon:SetShown(FPerl.IsCharmedPlayer(partyid))
 end
 
 -- UpdateName
 local function UpdateName(self)
-	-- UnitName's second value used to be a rare cross-realm
-	-- suffix; on Forever it's a mandatory surname that's sent for every player
-	-- who has chosen to show it, so it can no longer be silently dropped here
+	-- UnitName's second value is the surname every Forever character has, so the full name is shown here
 	self.nameFrame.text:SetText(FPerl.UnitFullName(self.partyid))
 	UpdatePVP(self)
 end
@@ -319,15 +278,14 @@ local function UpdateClassification(self)
 		return
 	end
 
-	if (targetclassification == "normal" and UnitPlayerControlled(partyid)) then
-		if (not UnitIsPlayer(partyid)) then
+	if (targetclassification == "normal" and SafeBool(UnitPlayerControlled(partyid), false)) then
+		if (not SafeBool(UnitIsPlayer(partyid), false)) then
 			bossType = FPERL_TYPE_PET
 			self.bossFrame.text:SetTextColor(1, 1, 1)
 			self.typeFramePlayer:Hide()
 		end
 
 	elseif (self.conf.level or targetclassification == "rareelite" or targetclassification == "rare" or targetclassification == "elite" or targetclassification == "worldboss") then
-	--elseif ((self.conf.level and self.conf.elite) or targetclassification == "Rare+" or targetclassification == "Rare") then
 		if (self.conf.eliteGfx) then
 			eliteGfx = true
 			if (targetclassification == "worldboss" or targetclassification == "elite") then
@@ -361,11 +319,10 @@ local function UpdateClassification(self)
 		self.typeFramePlayer:Hide()
 	end
 
-	if (partyid == "target" and bossType and not tconf.eliteNone) or (partyid == "focus" and bossType and not fconf.eliteNone) then
+	if ((partyid == "target" and bossType and not tconf.eliteNone) or (partyid == "focus" and bossType and not fconf.eliteNone)) then
 		self.bossFrame:Show()
 		self.bossFrame.text:SetText(bossType)
 		-- GetStringWidth() can be secret even for plain text
-		-- (section 3 taint-propagation nuance)
 		FPerl.SafeSetWidthFromText(self.bossFrame, self.bossFrame.text, 10, 70)
 	else
 		self.bossFrame:Hide()
@@ -385,12 +342,6 @@ local function UpdateClassification(self)
 			self.levelFrame:SetFrameLevel(self.portraitFrame:GetFrameLevel() + 2)
 			self.levelFrame.outOfPlace = true
 		end
-		-- this is hidden if the mob is elite regardless of graphics (wihout gfx it says "Elite" for example)
-		--if (self.conf.classIcon) then
-		--	self.typeFramePlayer:ClearAllPoints()
-		--	self.typeFramePlayer:SetPoint("BOTTOMRIGHT", self.portraitFrame, "BOTTOMRIGHT", 0, 0)
-		--	self.typeFramePlayer.outOfPlace = true
-		--end
 	else
 		self.eliteFrame:Hide()
 		if (partyid == "target" and self.eliteFrame.assistOutOfPlace) then
@@ -405,11 +356,6 @@ local function UpdateClassification(self)
 			self.levelFrame:SetPoint("TOPLEFT", self.portraitFrame, "TOPRIGHT", -2, 0)
 			self.levelFrame:SetFrameLevel(self.portraitFrame:GetFrameLevel())
 		end
-		--if (self.typeFramePlayer.outOfPlace) then
-		--	self.typeFramePlayer.outOfPlace = nil
-		--	self.typeFramePlayer:ClearAllPoints()
-		--	self.typeFramePlayer:SetPoint("BOTTOMLEFT", self.portraitFrame, "BOTTOMRIGHT", 2, 2)
-		--end
 	end
 end
 
@@ -446,9 +392,8 @@ local function UpdateType(self)
 
 	self.creatureTypeFrame.text:SetText(targettype)
 
-	--if (UnitIsPlayer(partyid)) then
 		local classification = UnitClassification(partyid)
-		if (self.conf.classIcon and (UnitIsPlayer(partyid) or (CanAccess(classification) and classification == "normal"))) then
+		if (self.conf.classIcon and (SafeBool(UnitIsPlayer(partyid), false) or (CanAccess(classification) and classification == "normal"))) then
 			local LocalClass = UnitClassBase(partyid)
 
 			if (self.conf.classText) then
@@ -456,32 +401,29 @@ local function UpdateType(self)
 				self.bossFrame.text:SetTextColor(1, 1, 1)
 				self.bossFrame:Show()
 				-- GetStringWidth() can be secret even for
-				-- plain text (section 3 taint-propagation nuance)
+				-- plain text
 				FPerl.SafeSetWidthFromText(self.bossFrame, self.bossFrame.text, 10, 70)
 			else
-				if (UnitIsPlayer(partyid) or not UnitPlayerControlled(partyid)) then
+				if (SafeBool(UnitIsPlayer(partyid), false) or not SafeBool(UnitPlayerControlled(partyid), false)) then
 					local l, r, t, b = FPerl.ClassPos(LocalClass)
 					self.typeFramePlayer.classTexture:SetTexCoord(l, r, t, b)
 					self.typeFramePlayer:Show()
 				end
 			end
 		end
-		if (UnitIsPlayer(partyid)) then
+		if (SafeBool(UnitIsPlayer(partyid), false)) then
 			self.creatureTypeFrame:Hide()
 		end
-	--else
 		if (targettype) then
 			self.creatureTypeFrame.text:SetTextColor(1, 1, 1)
-			-- typeReadable alone is not enough -- confirmed
-			-- live crashing here even with targettype readable, because
-			-- GetStringWidth() picks up taint from any secret value read
-			-- earlier in this same update (section 3 taint-propagation
-			-- nuance). Guard the width itself instead.
+			-- typeReadable alone is not enough: GetStringWidth() can be
+			-- secret even with targettype readable, because it picks up
+			-- taint from any secret value read earlier in this same update.
+			-- Guard the width itself instead.
 			FPerl.SafeSetWidthFromText(self.creatureTypeFrame, self.creatureTypeFrame.text, 10, 70)
 		else
 			self.creatureTypeFrame:Hide()
 		end
-	--end
 
 	AdjustCreatureTypeFrame(self)
 end
@@ -505,15 +447,14 @@ end
 
 -- FPerl.Target.SetWidth
 function FPerl.Target.SetWidth(self)
-	self.conf.size.width = max(0, self.conf.size.width or 0)
-	if self.conf.percent then
+	self.conf.size.width = max(0, self.conf.size.width)
+	if (self.conf.percent) then
 		self.statsFrame.healthBar.percent:Show()
 		self.statsFrame.manaBar.percent:Show()
 	else
 		self.statsFrame.healthBar.percent:Hide()
 		self.statsFrame.manaBar.percent:Hide()
 	end
-	self.conf.scale = self.conf.scale or 0.8
 	FPerl.AfterCombatFor(ApplyWidth, self)
 end
 
@@ -530,8 +471,8 @@ end
 
 -- FPerl.Target.SetBits
 function FPerl.Target.SetBits(self)
-	local d = FPerl.Dev; if d and d.listener then d.Emit("redisplay.target") end
-	if self.off then
+	local d = FPerl.Dev; if (d and d.listener) then d.Emit("redisplay.target") end
+	if (self.off) then
 		return
 	end
 
@@ -566,16 +507,9 @@ function FPerl.Target.SetBits(self)
 		self.typeFramePlayer.classTexture:Hide()
 	end
 
-	--self.highlight:SetPoint("BOTTOMRIGHT", self.portraitFrame, "BOTTOMRIGHT", 26, -1)
-
 	self.conf.buffs.size = tonumber(self.conf.buffs.size) or 20
 
-	if self == FPerl_Target then
-		FPerl.RegisterPrediction(self, tconf, "TargetHeal")
-	end
-	if self == FPerl_Focus then
-		FPerl.RegisterPrediction(self, fconf, "TargetHeal")
-	end
+	FPerl.RegisterPrediction(self, self.conf, "TargetHeal")
 	FPerl.Target.SetWidth(self)
 
 	FPerl.AfterCombatFor(ApplyEnable, self)

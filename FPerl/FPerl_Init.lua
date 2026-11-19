@@ -1,11 +1,14 @@
 -- Author: Resike
 -- License: GNU GPL v3, 29 June 2007 (see LICENSE.txt)
 
+-- Frame registries and their redraws (highlights, gradients, alpha, bar textures, unit text), the buff
+-- tooltip lines, the stats frame bar layout, and the option changers and appliers (FPerl.Apply).
+
 local init_done, gradient, conf, doneOptions
 local errorCount = 0
 FPerl.RequestConfig(function(new)
 	conf = new
-end, "$Revision:  $")
+end)
 
 local format = format
 local geterrorhandler = geterrorhandler
@@ -29,9 +32,9 @@ local IsInRaid = IsInRaid
 local UnitInParty = UnitInParty
 local UnitInRaid = UnitInRaid
 
-local classOrder = {"WARRIOR", "ROGUE", "HUNTER", "DRUID", "SHAMAN", "PALADIN", "PRIEST", "MAGE", "WARLOCK"}
+local classOrder = FPerl.ForeverGame.classes
 
--- SetTexCreateColor
+-- SetTex
 local highlightPositions = {
 	{0, 0.25, 0, 0.5},
 	{0.25, 0.75, 0, 0.5},
@@ -56,14 +59,14 @@ local function SetTex(self, num)
 			self.tex:SetTexture("Interface\\AddOns\\FPerl\\Images\\FPerl_Highlight", "ADD")
 			self.tex:SetTexCoord(unpack(p))
 			self.tex:SetVertexColor(0.86, 0.82, 0.41)
-			if FPerl_Highlight then
+			if (FPerl_Highlight) then
 				FPerl_Highlight:SetHighlight(self:GetParent())
 			end
 		end
 	end
 end
 
--- RegisterHighlight
+-- FPerl.RegisterHighlight(frame, ratio)
 local HighlightFrames = { }
 function FPerl.RegisterHighlight(frame, ratio)
 	HighlightFrames[frame] = ratio
@@ -79,7 +82,7 @@ function FPerl.SetHighlights()
 	end
 end
 
--- FPerl_MakeGradient(self)
+-- FPerl.DoGradient(self, force)
 function FPerl.DoGradient(self, force)
 	if ((force or (conf and conf.colour.gradient.enable)) and not self.tfade) then
 		if (gradient) then
@@ -147,7 +150,7 @@ local function SetupUnitFrameList(frame, subList, keepAlpha)
 	end
 end
 
--- FPerl_RegisterUnitFrame(frame)
+-- FPerl.RegisterPerlFrames(frame, subList)
 local UnitFrames = {}
 function FPerl.RegisterPerlFrames(frame, subList)
 	if (not subList) then
@@ -206,33 +209,41 @@ function FPerl.Pcall(...)
 	return success
 end
 
--- GetNamesWithoutBuff
+-- The buff tooltip asks again on every refresh while it is shown; the last answer holds until an aura of
+-- any unit or the roster changes.
 local lastNamesList
 local lastName
 local lastWith
+local lastFilter
 local lastNamesCount
+local function ForgetNamesWithoutBuff()
+	lastNamesList = nil
+end
+FPerl.On("UNIT_AURA", ForgetNamesWithoutBuff)
+FPerl.On("GROUP_ROSTER_UPDATE", ForgetNamesWithoutBuff)
+
+-- GetNamesWithoutBuff
 local function GetNamesWithoutBuff(spellName, with, filter)
 	-- aura names can be secret in restricted content and can
 	-- then neither be compared nor cached
 	if (not FPerl.CanAccess(spellName)) then
 		return
 	end
-	if spellName == lastName and with == lastWith and lastNamesList then
+	if (spellName == lastName and with == lastWith and filter == lastFilter and lastNamesList) then
 		return lastNamesList, lastNamesCount
 	end
 
 	local count = 0
 	local names
 
-	--local withList = FPerl.GetReusableTable()
 	local withList = { }
 	for unitid, unitName, unitClass, group, zone, online, dead in FPerl.NextMember do
 		local use
 
-		if not conf.buffHelper.visible then
+		if (not conf.buffHelper.visible) then
 			use = true
 		else
-			if conf.raid.sortByClass then
+			if (conf.raid.sortByClass) then
 				if (conf.raid.class[group].enable) then
 					use = unitClass == conf.raid.class[group].name
 				end
@@ -241,36 +252,33 @@ local function GetNamesWithoutBuff(spellName, with, filter)
 			end
 		end
 
-		if unitName and use and online and not dead then
+		if (unitName and use and online and not dead) then
 			local hasBuff
 			for i = 1, 40 do
 				local name = FPerl.UnitAuraByIndex(unitid, i, filter)
-				if not name then
+				if (not name) then
 					break
 				end
 
-				if FPerl.CanAccess(name) and name == spellName then
+				if (FPerl.CanAccess(name) and name == spellName) then
 					hasBuff = true
 				end
 			end
 
-			if (with and hasBuff) or (not with and not hasBuff) then
+			if ((with and hasBuff) or (not with and not hasBuff)) then
 				count = count + 1
 
-				if conf.buffHelper.sort == "group" then
+				if (conf.buffHelper.sort == "group") then
 					if (not withList[group]) then
-						--withList[group] = FPerl.GetReusableTable()
 						withList[group] = { }
 					end
 					tinsert(withList[group], {class = unitClass, name = unitName})
-				elseif conf.buffHelper.sort == "class" then
-					if not withList[unitClass] then
-						--withList[unitClass] = FPerl.GetReusableTable()
+				elseif (conf.buffHelper.sort == "class") then
+					if (not withList[unitClass]) then
 						withList[unitClass] = { }
 					end
 					tinsert(withList[unitClass], unitName)
 				else
-					--local n = FPerl.GetReusableTable()
 					local n = { }
 					tinsert(withList, n)
 					n.class = unitClass
@@ -280,30 +288,29 @@ local function GetNamesWithoutBuff(spellName, with, filter)
 		end
 	end
 
-	if conf.buffHelper.sort == "group" then
+	if (conf.buffHelper.sort == "group") then
 		for i = 1, 8 do
 			local list = withList[i]
-			if list then
+			if (list) then
 				sort(list, function(a, b) return a.name < b.name end)
 
 				names = (names or "").."|r"..i..": "
 				for i, item in ipairs(list) do
-					if item.class and item.class then
+					if (item.class and item.class) then
 						names = names..FPerl.ColourTable[item.class]..item.name.." "
 					end
 				end
 				names = names.."|r\r"
 			end
-			--FPerl.FreeTable(list)
 		end
-	elseif conf.buffHelper.sort == "class" then
+	elseif (conf.buffHelper.sort == "class") then
 		for j, class in ipairs(classOrder) do
 			local list = withList[class]
-			if list then
+			if (list) then
 				sort(list)
 
 				for i, name in ipairs(list) do
-					if i == 1 then
+					if (i == 1) then
 						names = (names or "")..FPerl.ColourTable[class]
 					end
 					names = (names or "")..name.." "
@@ -311,23 +318,20 @@ local function GetNamesWithoutBuff(spellName, with, filter)
 
 				names = (names or "").."|r\r"
 			end
-			--FPerl.FreeTable(list)
 		end
 	else
 		sort(withList, function(a, b) return a.name < b.name end)
 		for i, item in ipairs(withList) do
 			names = (names or "")..FPerl.ColourTable[item.class]..item.name.." "
-			--FPerl.FreeTable(item)
 		end
 
 		names = (names or "").."\r"
 	end
 
-	--FPerl.FreeTable(withList)
-
 	lastNamesList = names
 	lastName = spellName
 	lastWith = with
+	lastFilter = filter
 	lastNamesCount = count
 
 	return names, count
@@ -335,20 +339,20 @@ end
 
 -- ToolTipAddBuffDuration
 local function ToolTipAddBuffDuration(self, partyid, buffID, filter)
-	if IsInRaid() or UnitInParty("player") then
+	if (IsInRaid() or UnitInParty("player")) then
 		local name = FPerl.UnitAuraByIndex(partyid, buffID, filter)
 
-		if conf.buffHelper.enable and partyid and (UnitInParty(partyid) or UnitInRaid(partyid)) then
-			if name and FPerl.CanAccess(name) then
+		if (conf.buffHelper.enable and partyid and (UnitInParty(partyid) or UnitInRaid(partyid))) then
+			if (name and FPerl.CanAccess(name)) then
 				local names, count = GetNamesWithoutBuff(name, IsAltKeyDown(), filter)
-				if names then
-					if IsAltKeyDown() then
+				if (names) then
+					if (IsAltKeyDown()) then
 						self:AddLine(format(FPERL_RAID_TOOLTIP_WITHBUFF, count), 0.3, 1, 0.2)
 					else
 						self:AddLine(format(FPERL_RAID_TOOLTIP_WITHOUTBUFF, count), 1, 0.3, 0.1)
 					end
 
-					if conf.buffHelper.sort then
+					if (conf.buffHelper.sort) then
 						self:AddLine(names, 0.5, 0.5, 0.5)
 					else
 						self:AddLine(names, 0.5, 0.5, 0.5, 1)
@@ -377,12 +381,13 @@ end
 -- FPerl.Init()
 function FPerl.Init()
 	init_done = true
-	if GameTooltip.SetUnitAura then
+	if (GameTooltip.SetUnitAura) then
 		hooksecurefunc(GameTooltip, "SetUnitAura", GameTooltipSetUnitAura)
 		hooksecurefunc(GameTooltip, "SetUnitBuff", GameTooltipSetUnitBuff)
 		hooksecurefunc(GameTooltip, "SetUnitDebuff", GameTooltipSetUnitDebuff)
 	end
 
+	-- A 0x0 probe texture with the saved bar texture: when its size comes back 1x1, the default bar texture replaces it
 	local f = CreateFrame("Frame")
 	local tx = f:CreateTexture()
 	tx:SetPoint("CENTER", WorldFrame)
@@ -390,7 +395,7 @@ function FPerl.Init()
 	f:SetAllPoints(tx)
 	f:SetScript("OnSizeChanged", function(self, width, height)
 		local size = format("%.0f%.0f", width, height)
-		if size == "11" then
+		if (size == "11") then
 			conf.bar.texture[1] = "Perl v2"
 			conf.bar.texture[2] = "Interface\\AddOns\\FPerl\\Images\\FPerl_StatusBar"
 			FPerl.SetBarTextures()
@@ -401,17 +406,13 @@ function FPerl.Init()
 
 	FPerl.Pcall(FPerl.OptionActions)
 
-	--PartyMemberFrame:UnregisterEvent("UNIT_NAME_UPDATE")
-
-	--FPerl.RegisterSMBarTextures()
-
 	FPerl.Pcall(FPerl.DebufHighlightInit)
 
 	FPerl.Init = nil
 end
 
--- FPerl.StatsFrameOnLoad
--- Power events call this; the list of other bars is one table reused per call (the function does not
+-- FPerl.StatsFrameSetup(self, others, offset)
+-- Every layout of a frame's bars calls this; the list of other bars is one table reused per call (the function does not
 -- re-enter and keeps no reference to it).
 local otherBars = {}
 function FPerl.StatsFrameSetup(self, others, offset)
@@ -462,19 +463,14 @@ function FPerl.StatsFrameSetup(self, others, offset)
 	end
 
 	if (conf.bar.fat) then
-		if (StatsFrame == FPerl_Player_PetstatsFrame) then
+		if (self.smallBarText) then
 			healthBarText:SetFontObject(GameFontNormalSmall)
 		else
 			healthBarText:SetFontObject(GameFontNormal)
 		end
 		healthBarText:SetTextColor(1, 1, 1)
 
-		local x = 10
-
-		local frameName = self:GetName()
-		if frameName == "FPerl_partypet1" or frameName == "FPerl_partypet2" or frameName == "FPerl_partypet3" or frameName == "FPerl_partypet4" or frameName == "FPerl_partypet5" then
-			x = 7
-		end
+		local x = self.fatBarStep or 10
 
 		healthBar:ClearAllPoints()
 		healthBar:SetPoint("TOPLEFT", 5, -5)
@@ -538,11 +534,11 @@ function FPerl.SetTextTransparency()
 			v:SetTextColor(r, g, b, t)
 		end
 	end
-	if FPerl_Player_TargettingFrametext then
+	if (FPerl_Player_TargettingFrametext) then
 		local r, g, b = FPerl_Player_TargettingFrametext:GetTextColor()
 		FPerl_Player_TargettingFrametext:SetTextColor(r, g, b, t)
 	end
-	if FPerl_Target_AssistFrametext then
+	if (FPerl_Target_AssistFrametext) then
 		local r, g, b = FPerl_Target_AssistFrametext:GetTextColor()
 		FPerl_Target_AssistFrametext:SetTextColor(r, g, b, t)
 	end
@@ -587,12 +583,12 @@ end
 -- FPerl.RegisterOptionChanger(f, s, name)
 -- name makes the changer an applier (FPerl.Appliers) the settings panel can run on its own.
 local optionFuncs = {}
-FPerl.OptionChangers = optionFuncs -- exported for the test harness
+FPerl.OptionChangers = optionFuncs
 local appliers = {}
 FPerl.Appliers = appliers -- applier name -> function; the panel's `apply` names (FPerl_SettingsList.lua)
 function FPerl.RegisterOptionChanger(f, s, name)
 	local v = {func = f, slf = s, name = name}
-	if name then
+	if (name) then
 		v.run = function()
 			FPerl.NoFadeBars(true)
 			FPerl.Pcall(v.func, v.slf)
@@ -604,8 +600,8 @@ function FPerl.RegisterOptionChanger(f, s, name)
 end
 
 -- FPerl.RegisterApplier(name, f)
--- An applier the settings panel can run that FPerl.OptionActions does not: work the old window did after a setting changed
--- but a full re-apply never did (the raid header attributes). Runs first: it can create the frames the others restyle.
+-- An applier the settings panel can run that FPerl.OptionActions does not: work a setting change needs that a full
+-- re-apply does not do (the raid header attributes). Runs first: it can create the frames the others restyle.
 local plain = {}
 function FPerl.RegisterApplier(name, f)
 	plain[name] = function() FPerl.Pcall(f) end
@@ -624,16 +620,16 @@ appliers.skin = function() FPerl.Pcall(FPerl.SetupAllPerlFrames, nil, true) end
 appliers.framealpha = function() FPerl.Pcall(FPerl.SetPerlFramesAlpha) end
 appliers.custom = function() -- the custom raid highlights (CustomHighlight/)
 	local c = _G.FPerl_Custom
-	if c then FPerl.Pcall(c.Refresh, c) end
+	if (c) then FPerl.Pcall(c.Refresh, c) end
 end
 appliers.highlighttex = function() FPerl.Pcall(FPerl.SetHighlights) end
 appliers.texttransparency = function() FPerl.Pcall(FPerl.SetTextTransparency) end
 FPerl.RegisterOptionChanger(function()
-	if FPerl_MinimapButton_Frame then FPerl_MinimapButton_Frame:SetShown(conf.minimap.enable and true or false) end
+	if (FPerl_MinimapButton_Frame) then FPerl_MinimapButton_Frame:SetShown(conf.minimap.enable and true or false) end
 end, nil, "minimap")
 local headAppliers = {"barcolours", "bartextures", "skin", "framealpha", "highlighttex", "custom"}
 
--- FPerl.Apply(names): runs the named appliers, core pieces first, then the changers in registration order,
+-- FPerl.Apply(names): runs the named appliers, those from FPerl.RegisterApplier first, then the core pieces, then the changers in registration order,
 -- then the text transparency; "full" is FPerl.OptionActions. Deferred whole until combat ends, as
 -- FPerl.OptionActions is; names asked for during combat are merged into one run.
 local queued
@@ -650,41 +646,41 @@ end
 function FPerl.Apply(names)
 	local want = {}
 	for _, n in ipairs(names) do
-		if n ~= "full" and not appliers[n] then error("unknown applier " .. tostring(n), 2) end
+		if (n ~= "full" and not appliers[n]) then error("unknown applier " .. tostring(n), 2) end
 		want[n] = true
 	end
-	if InCombatLockdown() then
+	if (InCombatLockdown()) then
 		queued = queued or {}
 		for n in pairs(want) do tinsert(queued, n) end
 		FPerl.AfterCombat(applyQueued)
 		return
 	end
-	local d = FPerl.Dev; if d and d.listener then d.Emit("apply", unpack(names)) end
-	if want.full then
+	local d = FPerl.Dev; if (d and d.listener) then d.Emit("apply", unpack(names)) end
+	if (want.full) then
 		FPerl.OptionActions()
 		return
 	end
 	clampTransparency()
 	for n, run in pairs(plain) do
-		if want[n] then run() end
+		if (want[n]) then run() end
 	end
 	for _, n in ipairs(headAppliers) do
-		if want[n] then appliers[n]() end
+		if (want[n]) then appliers[n]() end
 	end
 	for _, v in ipairs(optionFuncs) do
-		if v.name and want[v.name] then v.run() end
+		if (v.name and want[v.name]) then v.run() end
 	end
-	if want.texttransparency then appliers.texttransparency() end
+	if (want.texttransparency) then appliers.texttransparency() end
 end
 
--- FPerl.OptionActions()
+-- FPerl.OptionActions(which)
 function FPerl.OptionActions(which)
 
 	if (InCombatLockdown()) then
 		FPerl.AfterCombat(FPerl.OptionActions, which)
 		return
 	end
-	local d = FPerl.Dev; if d and d.listener then d.Emit("optionactions") end
+	local d = FPerl.Dev; if (d and d.listener) then d.Emit("optionactions") end
 
 	FPerl.ResetBarColourCache() -- the health colour curve reads the colour options
 

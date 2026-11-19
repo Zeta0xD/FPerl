@@ -1,7 +1,7 @@
 -- The options window's controls: one "line" per row of FPerl.SettingsList (several rows for an `inline` tag), built on
 -- first use and kept. A line is {ids, page, label, ctl, tip, box, h, full, Refresh(line, combat)}; `ctl` is the control
 -- frame (CheckButton, Slider, Button, DropdownButton, or the group frame of an inline line). Values read and write
--- through FPerl.SettingsCore (FPerl_Settings.lua), so appliers, `with`, `also` and `each` act as they always did.
+-- through FPerl.SettingsCore (FPerl_Settings.lua), which handles each row's `with`, `also`, `each` and applier.
 
 local format, floor = string.format, math.floor
 local C = {}
@@ -17,17 +17,15 @@ local function core()
 	return K
 end
 
-local WHITE = "Interface\\Buttons\\WHITE8X8"
-
 ------------------------------------------------------------------------------------------------ needs and tips
 local keyLabel
 local function labelFor(key)
-	if not keyLabel then
+	if (not keyLabel) then
 		keyLabel = {}
 		for _, e in ipairs(FPerl.SettingsList) do
-			if e.path and not keyLabel[e.path] then keyLabel[e.path] = e.label end
+			if (e.path and not keyLabel[e.path]) then keyLabel[e.path] = e.label end
 			for _, k in ipairs(e.keys or {}) do
-				if not keyLabel[k] then keyLabel[k] = e.label end
+				if (not keyLabel[k]) then keyLabel[k] = e.label end
 			end
 		end
 	end
@@ -37,18 +35,18 @@ end
 -- true when the row's `needs` holds; else false and what it needs
 local function needsMet(e)
 	local n = e.needs
-	if n == nil then return true end
-	if type(n) == "string" or n.key then n = {n} end
+	if (n == nil) then return true end
+	if (type(n) == "string" or n.key) then n = {n} end
 	local k = core()
 	local missing
 	for _, c in ipairs(n) do
 		local ok, text
-		if type(c) == "string" then
+		if (type(c) == "string") then
 			ok, text = k.on(k.read(FPerl.layout, c)), "Needs: " .. labelFor(c)
 		else
 			ok, text = k.norm(k.read(FPerl.layout, c.key)) ~= k.norm(c["not"]), "Needs: " .. labelFor(c.key) .. " set to something else"
 		end
-		if not ok then missing = missing and (missing .. "; " .. text) or text end
+		if (not ok) then missing = missing and (missing .. "; " .. text) or text end
 	end
 	return missing == nil, missing
 end
@@ -58,7 +56,7 @@ local function reloadRow(e) return e.reload == true end
 C.reloadRow = reloadRow
 
 local function tipOf(e)
-	if e.each then return core().sharedTip(e)() end
+	if (e.each) then return core().sharedTip(e)() end
 	return e.tip
 end
 
@@ -71,19 +69,19 @@ local function showTip(line)
 	end
 end
 local function hookTip(frame, line)
-	if frame.HookScript then
+	if (frame.HookScript) then
 		frame:HookScript("OnEnter", showTip(line))
 		frame:HookScript("OnLeave", function() GameTooltip:Hide() end)
 	end
-	if frame.SetMotionScriptsWhileDisabled then frame:SetMotionScriptsWhileDisabled(true) end
+	if (frame.SetMotionScriptsWhileDisabled) then frame:SetMotionScriptsWhileDisabled(true) end
 end
 
--- The state is also kept on the control: a Slider answers IsEnabled from it (wowless does not implement the Slider's own).
+-- The state is also kept on the control: a Slider answers IsEnabled from it.
 local function setEnabled(ctl, on)
 	ctl.fpOn = on
-	if ctl.SetEnabled then
+	if (ctl.SetEnabled) then
 		ctl:SetEnabled(on)
-	elseif on then
+	elseif (on) then
 		ctl:Enable()
 	else
 		ctl:Disable()
@@ -94,7 +92,7 @@ end
 local function text(parent, font, str)
 	local fs = parent:CreateFontString(nil, "ARTWORK", font or "GameFontHighlight")
 	fs:SetJustifyH("LEFT")
-	if str then fs:SetText(str) end
+	if (str) then fs:SetText(str) end
 	return fs
 end
 
@@ -107,16 +105,16 @@ end
 local function labelOf(e) return e.label .. (reloadRow(e) and " (reload)" or "") end
 
 local function sliderFormat(e)
-	if e.percent then return function(v) return format("%d%%", floor(v * 100 + 0.5)) end end
-	if e.step >= 1 then return function(v) return e.zero and v < 0.5 and e.zero or format("%d", floor(v + 0.5)) end end
+	if (e.percent) then return function(v) return format("%d%%", floor(v * 100 + 0.5)) end end
+	if (e.step >= 1) then return function(v) return e.zero and v < 0.5 and e.zero or format("%d", floor(v + 0.5)) end end
 	return function(v) return (format("%.2f", v):gsub("(%.%d-)0+$", "%1"):gsub("%.$", "")) end
 end
 
 local function choices(e)
 	local out = {}
-	if e.map then
+	if (e.map) then
 		for i, m in ipairs(e.map) do out[i] = {i, m[1]} end
-	elseif type(e.options) == "table" then
+	elseif (type(e.options) == "table") then
 		for i, o in ipairs(e.options) do out[i] = {i, o[2]} end
 	else
 		for i, o in ipairs(e.options()) do out[i] = {o[1], o[2]} end
@@ -126,7 +124,7 @@ end
 
 local function hex2rgb(hex)
 	local r, g, b = hex:match("^%x%x(%x%x)(%x%x)(%x%x)$")
-	if not r then return 1, 1, 1 end
+	if (not r) then return 1, 1, 1 end
 	return tonumber(r, 16) / 255, tonumber(g, 16) / 255, tonumber(b, 16) / 255
 end
 local function rgb2hex(r, g, b)
@@ -134,7 +132,7 @@ local function rgb2hex(r, g, b)
 end
 
 ------------------------------------------------------------------------------------------------ builders
--- Each builder fills line.ctl and line.update(): re-read the row's value into the control.
+-- Each builder returns the control, its label (or nil), and an update function that re-reads the row's value into the control.
 local B = {}
 
 function B.check(line, e, parent, x, labelText)
@@ -172,13 +170,13 @@ function B.slider(line, e, box)
 	s:GetThumbTexture():SetSize(14, 22)
 	s:SetMinMaxValues(e.min, e.max)
 	s:SetValueStep(e.step)
-	if s.SetObeyStepOnDrag then s:SetObeyStepOnDrag(true) end
+	if (s.SetObeyStepOnDrag) then s:SetObeyStepOnDrag(true) end
 	s:EnableMouse(true)
 	s.IsEnabled = function(self) return self.fpOn ~= false end
 	local fmt = sliderFormat(e)
 	local busy
 	s:SetScript("OnValueChanged", function(_, v)
-		if busy or s.fpOn == false then return end
+		if (busy or s.fpOn == false) then return end
 		k.store(e, v)
 		val:SetText(fmt(k.valueOf(e, FPerl.layout)))
 		C.onChange(e)
@@ -233,8 +231,8 @@ function B.frames(line, e, box)
 	return dd, fs, function()
 		dd:GenerateMenu()
 		local n, all = 0, #FPerl.SettingsFrames
-		for i = 1, all do if k.ticked(k.maskOf(e.section), i) then n = n + 1 end end
-		if dd.OverrideText then dd:OverrideText(n == 0 and "None" or n == all and "All frames" or (n .. " frames")) end
+		for i = 1, all do if (k.ticked(k.maskOf(e.section), i)) then n = n + 1 end end
+		if (dd.OverrideText) then dd:OverrideText(n == 0 and "None" or n == all and "All frames" or (n .. " frames")) end
 	end
 end
 
@@ -332,7 +330,7 @@ function C.Make(parent, rows)
 	line.full = inline
 	line.h = inline and 28 or HEIGHT[e.type] or 26
 	local box = newBox(parent, line.h)
-	if inline then
+	if (inline) then
 		box:SetWidth(8 * 46 + 80)
 		line.label = (e.inline == "groups") and "Groups" or e.inline
 		line.box = box
@@ -349,7 +347,7 @@ function C.Make(parent, rows)
 	line.box = box
 	local ctl, fs, update
 	local t = e.type
-	if t == "check" then
+	if (t == "check") then
 		ctl, fs, update = B.check(line, e, box)
 	else
 		ctl, fs, update = B[t](line, e, box)
@@ -364,8 +362,8 @@ function C.Make(parent, rows)
 		local on = ok and not combat
 		setEnabled(ctl, on)
 		box:SetAlpha(on and 1 or 0.5)
-		if fs and fs.SetTextColor then
-			if on then fs:SetTextColor(1, 1, 1) else fs:SetTextColor(0.6, 0.6, 0.6) end
+		if (fs and fs.SetTextColor) then
+			if (on) then fs:SetTextColor(1, 1, 1) else fs:SetTextColor(0.6, 0.6, 0.6) end
 		end
 		return ok
 	end

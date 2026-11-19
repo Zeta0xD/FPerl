@@ -15,9 +15,7 @@ FPerl.RequestConfig(function(New)
 	for _, v in ipairs(AllPetFrames) do -- every frame: one without a unit keeps its table too
 		v.conf = petconf
 	end
-end, "$Revision:  $")
-
---local new, del, copy = FPerl.GetReusableTable, FPerl.FreeTable, FPerl.CopyTable
+end)
 
 
 local UnitExists = UnitExists
@@ -26,7 +24,7 @@ local UnitIsDead = UnitIsDead
 local UnitIsPVP = UnitIsPVP
 local UnitName = UnitName
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local CanAccess = FPerl.CanAccess
 local SafeBool = FPerl.SafeBool
 
@@ -50,11 +48,9 @@ end
 local guids = { }
 -- UpdateGUIDs
 local function UpdateGUIDs()
-	--del(guids)
-	--guids = new()
 	wipe(guids)
 	-- never key the table with a nil or secret GUID
-	if pconf.showPlayer then
+	if (pconf.showPlayer) then
 		local guid = UnitGUID("player")
 		if (guid and CanAccess(guid)) then
 			guids[guid] = PartyPetFrames["pet"]
@@ -72,7 +68,7 @@ local function UpdateGUIDs()
 end
 
 function FPerl.PartyPet.SetFrame(id, unit, owner)
-	if not _G["FPerl_partypet"..id].__unitEvents then
+	if (not _G["FPerl_partypet"..id].__unitEvents) then
 		return -- its OnLoad has not run yet (the party frames' OnLoad ran first)
 	end
 	PartyPetFrames[unit] = _G["FPerl_partypet"..id]
@@ -82,7 +78,7 @@ function FPerl.PartyPet.SetFrame(id, unit, owner)
 end
 
 function FPerl.PartyPet.ClearFrame(unit)
-	if not PartyPetFrames[unit] then
+	if (not PartyPetFrames[unit]) then
 		return
 	end
 
@@ -107,11 +103,14 @@ end
 -- FPerl.PartyPet.OnLoad
 function FPerl.PartyPet.OnLoad(self)
 	FPerl.SetChildMembers(self)
+	-- the aura colour highlight is for party and raid frames; this frame shows only the HoT highlight
+	self.hotHighlightOnly = true
+	self.fatBarStep = 7 -- fat bars: the offset per secondary bar on this smaller frame
 
 	tinsert(AllPetFrames, self)
 
-	if self:GetParent():GetParent():GetAttribute("showPlayer") then
-		if self:GetID() == 1 then
+	if (self:GetParent():GetParent():GetAttribute("showPlayer")) then
+		if (self:GetID() == 1) then
 			self.partyid = "pet"
 			self.ownerid = "player"
 		else
@@ -143,10 +142,9 @@ function FPerl.PartyPet.OnLoad(self)
 	self.FlashFrames = {self.nameFrame, self.statsFrame}
 
 	self:SetScript("OnShow", function(self)
-		if not self.conf then
+		if (not self.conf) then
 			self.conf = conf.partypet
 		end
-		--CheckVisiblity()
 		FPerl.PartyPet.UpdateDisplay(self)
 		if (self.perlOwner) then
 			FPerl.Party.PlaceAuras(self.perlOwner)
@@ -160,24 +158,21 @@ function FPerl.PartyPet.OnLoad(self)
 	FPerl.PartyPet.SetBits1(self)
 end
 
--- FPerl_Party_Pet_CheckPet
--- returns true if full update required (frame shown)
-
 -- UpdateName
 local function UpdateName(self)
-	if not self.partyid then
+	if (not self.partyid) then
 		self.petName = nil
 		return
 	end
 
 	self.petName = UnitName(self.partyid)
 
-	if not petconf.name then
+	if (not petconf.name) then
 		return
 	end
 
 	local unitName = UnitName(self.partyid)
-	if unitName then
+	if (unitName) then
 		self.nameFrame.text:SetText(unitName)
 		if (UnitIsPVP(self.ownerid)) then
 			self.nameFrame.text:SetTextColor(0, 1, 0)
@@ -187,44 +182,21 @@ local function UpdateName(self)
 	end
 end
 
--- UpdateAbsorbPrediction
-local function UpdateAbsorbPrediction(self)
-	if pconf.absorbs then
-		FPerl.SetExpectedAbsorbs(self)
-	else
-		self.statsFrame.expectedAbsorbs:Hide()
-	end
-end
-
--- UpdateHealPrediction
-local function UpdateHealPrediction(self)
-	if pconf.healprediction then
-		FPerl.SetExpectedHealth(self)
-	else
-		self.statsFrame.expectedHealth:Hide()
-	end
-end
-
 local function UpdateResurrectionStatus(self)
-	if (UnitHasIncomingResurrection(self.partyid)) then
-		self.statsFrame.resurrect:Show()
-	else
-		self.statsFrame.resurrect:Hide()
-	end
+	FPerl.UpdateResurrect(self, self.statsFrame.resurrect)
 end
 
 -- UpdateHealth
 local function UpdateHealth(self)
 	local partyid = self.partyid
-	if not partyid then
+	if (not partyid) then
 		return
 	end
 
 	local _, hpMax, missing = FPerl.HealthSetBar(self.statsFrame.healthBar, partyid, true)
 	FPerl.ColourHealthBar(self, partyid)
 
-	UpdateAbsorbPrediction(self)
-	UpdateHealPrediction(self)
+	FPerl.UpdatePrediction(self, pconf, self.statsFrame)
 	UpdateResurrectionStatus(self)
 
 	local text = self.statsFrame.healthBar.text
@@ -239,8 +211,7 @@ local function UpdateHealth(self)
 				FPerl.SetDeficitText(text, missing, "full")
 			end
 		else
-			-- direct: one format for plain and secret; FormatPercent truncates a secret and adds a decimal below 10
-			text:SetFormattedText("%.0f%%", UnitHealthPercent(partyid, true, CurveConstants.ScaleTo100))
+			FPerl.FormatPercent(text, UnitHealthPercent(partyid, true, CurveConstants.ScaleTo100), "whole")
 		end
 
 		text:Show()
@@ -272,7 +243,7 @@ end
 -- FPerl.PartyPet.UpdateDisplay
 function FPerl.PartyPet.UpdateDisplay(self)
 	local partyid = self.partyid
-	if not partyid then
+	if (not partyid) then
 		self.guid = nil
 		return
 	end
@@ -293,19 +264,10 @@ function FPerl.PartyPet.UpdateDisplay(self)
 	self.guid = UnitGUID(partyid)
 end
 
---------------------
--- Click Handlers --
---------------------
-
 -- UpdateControl
 local function UpdateControl(self)
 	local partyid = self.partyid
-	-- indirect units can return secret flags; no icon in that case
-	if partyid and SafeBool(UnitIsVisible(partyid), false) and SafeBool(UnitIsCharmed(partyid), false) and SafeBool(UnitIsPlayer(partyid), false) then
-		self.nameFrame.warningIcon:Show()
-	else
-		self.nameFrame.warningIcon:Hide()
-	end
+	self.nameFrame.warningIcon:SetShown(partyid and FPerl.IsCharmedPlayer(partyid) or false)
 end
 
 -- FPerl.PartyPet.UpdateCombat
@@ -330,13 +292,13 @@ local function CombatFlash(self, elapsed, argNew, argGreen)
 	end
 end
 
--- OnUpdate: the combat flash only; the polls are on the scheduler below.
+-- OnUpdate: the combat flash only; the range poll is on the scheduler below.
 local function OnUpdate(self, elapsed)
-	if not self:IsShown() or not self.partyid then
+	if (not self:IsShown() or not self.partyid) then
 		return
 	end
 
-	if (conf.combatFlash and self.PlayerFlash) then
+	if (self.PlayerFlash) then
 		CombatFlash(self, elapsed, false)
 	end
 	FPerl.OnUpdateIdle(self)
@@ -346,12 +308,12 @@ end
 -- follow UNIT_HEALTH / UNIT_MAXHEALTH / UNIT_AURA (elements Health, Auras), a changed pet or name
 -- UNIT_PET / UNIT_NAME_UPDATE (below).
 local function PollFrames()
-	if not conf.rangeFinder.enabled then
+	if (not conf.rangeFinder.enabled) then
 		return
 	end
 	for _, self in ipairs(AllPetFrames) do
 		local partyid = self.partyid
-		if partyid and self:IsVisible() then
+		if (partyid and self:IsVisible()) then
 			FPerl.UpdateSpellRange(self, partyid)
 		end
 	end
@@ -364,7 +326,7 @@ FPerl.Every(0.2, PollFrames)
 -------------------
 
 -- EnableEvents: called by OnLoad. The unit events follow the frame's unit (FPerl.UnitFrameSetUnit,
--- from FPerl.PartyPet.SetFrame / _ClearFrame, which the Party frames call).
+-- from FPerl.PartyPet.SetFrame / FPerl.PartyPet.ClearFrame, which the Party frames call).
 EnableEvents = function(self)
 	self.updateHealth = UpdateHealth
 	self.updatePower = UpdateMana
@@ -377,17 +339,17 @@ end
 function Bus.PARTY_MEMBER_ENABLE(event, unit)
 	local pet = string.gsub(unit, "(%a+)(%d+)", "%1pet%2")
 	local frame = PartyPetFrames[pet]
-	if frame then
+	if (frame) then
 		local owner
 		local unitID = frame.partyid
-		if unitID == "pet" or unitID == "playerpet" then
+		if (unitID == "pet" or unitID == "playerpet") then
 			owner = "player"
 		else
 			owner = string.gsub(unitID, "(%a+)pet(%d+)", "%1%2")
 		end
 
-		if owner ~= "player" then
-			if not SafeBool(UnitIsUnit(owner, unit), true) then
+		if (owner ~= "player") then
+			if (not SafeBool(UnitIsUnit(owner, unit), true)) then
 				return
 			end
 		else
@@ -401,7 +363,7 @@ Bus.PARTY_MEMBER_DISABLE = Bus.PARTY_MEMBER_ENABLE
 
 -- UNIT_COMBAT
 function Events:UNIT_COMBAT(unit, action, descriptor, damage, damageType)
-	if unit ~= self.partyid then
+	if (unit ~= self.partyid) then
 		return
 	end
 	-- set first: the flash and hit text animate even when a later line raises on a secret amount
@@ -420,13 +382,54 @@ function Bus.PLAYER_ENTERING_WORLD()
 	FPerl.PartyPet.UpdateDisplayAll()
 end
 -- Full refresh of every shown frame on purpose: a roster change moves members, and so their pets,
--- between unit tokens, UNIT_PET puts a different pet (or none) on a token, a secret GUID cannot be compared, and UpdateDisplay is the only path that
--- re-applies name, class colour, auras and debuff highlight together. At most 5 frames per burst.
-Bus.GROUP_ROSTER_UPDATE = Bus.PLAYER_ENTERING_WORLD
-Bus.UNIT_PET = Bus.PLAYER_ENTERING_WORLD
--- a vehicle swap changed the GUID the 0.2 s poll used to catch: not checked in game
-Bus.UNIT_ENTERED_VEHICLE = Bus.PLAYER_ENTERING_WORLD
-Bus.UNIT_EXITED_VEHICLE = Bus.PLAYER_ENTERING_WORLD
+-- between unit tokens, a secret GUID cannot be compared, and UpdateDisplay is the only path that
+-- re-applies name, health, power, auras and debuff highlight together. At most 5 frames, once per
+-- video frame with roster events.
+local rosterRedraw
+local function RosterRedraw()
+	rosterRedraw = nil
+	FPerl.PartyPet.UpdateDisplayAll()
+end
+
+function Bus.GROUP_ROSTER_UPDATE()
+	UpdateGUIDs()
+	if (not rosterRedraw) then -- many roster events can occur in one video frame: one redraw after them
+		rosterRedraw = true
+		C_Timer.After(0, RosterRedraw)
+	end
+end
+
+-- The pet frame of an owner token: player and partyN by name, raidN through the party member it is.
+local function OwnerPetFrame(unit)
+	if (unit == "player") then
+		return PartyPetFrames["pet"]
+	end
+	local n = unit:match("^party(%d)$")
+	if (n) then
+		return PartyPetFrames["partypet"..n]
+	end
+	if (unit:find("^raid%d")) then
+		for i = 1, GetNumSubgroupMembers() do
+			if (SafeBool(UnitIsUnit(unit, "party"..i), false)) then
+				return PartyPetFrames["partypet"..i]
+			end
+		end
+	end
+end
+
+-- UNIT_PET puts a different pet (or none) on the owner's pet token, a vehicle swap a different unit:
+-- redraw that owner's frame only. The bus delivers these for every unit in the world.
+function Bus.UNIT_PET(event, unit)
+	local frame = OwnerPetFrame(unit)
+	if (frame) then
+		UpdateGUIDs()
+		if (frame:IsShown()) then
+			FPerl.PartyPet.UpdateDisplay(frame)
+		end
+	end
+end
+Bus.UNIT_ENTERED_VEHICLE = Bus.UNIT_PET
+Bus.UNIT_EXITED_VEHICLE = Bus.UNIT_PET
 
 -- UNIT_FLAGS
 function Events:UNIT_FLAGS()
@@ -456,19 +459,19 @@ function Events:UNIT_AURA()
 end
 
 function Events:UNIT_HEAL_PREDICTION(unit)
-	if pconf.healprediction and unit == self.partyid then
+	if (pconf.healprediction and unit == self.partyid) then
 		FPerl.SetExpectedHealth(self)
 	end
 end
 
 function Events:UNIT_ABSORB_AMOUNT_CHANGED(unit)
-	if pconf.absorbs then
+	if (pconf.absorbs) then
 		FPerl.SetExpectedAbsorbs(self)
 	end
 end
 
 function Events:INCOMING_RESURRECT_CHANGED(unit)
-	if unit == self.partyid then
+	if (unit == self.partyid) then
 		UpdateResurrectionStatus(self)
 	end
 end
@@ -484,7 +487,7 @@ local function EnableDisable(self)
 	end
 end
 
--- ApplyLayout: the protected part of Set_Bits1; reads the config when it runs
+-- ApplyLayout: the protected part of SetBits1; reads the config when it runs
 local function ApplyLayout(self)
 	if (not self:GetParent()) then
 		self:SetParent(_G["FPerl_party"..self:GetID()])
@@ -541,7 +544,7 @@ end
 
 -- FPerl.PartyPet.SetBits
 function FPerl.PartyPet.SetBits()
-	local d = FPerl.Dev; if d and d.listener then d.Emit("redisplay.partypet") end
+	local d = FPerl.Dev; if (d and d.listener) then d.Emit("redisplay.partypet") end
 	for k, v in pairs(AllPetFrames) do
 		FPerl.PartyPet.SetBits1(v)
 	end

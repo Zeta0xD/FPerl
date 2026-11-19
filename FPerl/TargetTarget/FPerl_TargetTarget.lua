@@ -11,17 +11,11 @@ local RegisterUnitWatch = RegisterUnitWatch
 local UnitAffectingCombat = UnitAffectingCombat
 local UnitClassification = UnitClassification
 local UnitExists = UnitExists
-local UnitFactionGroup = UnitFactionGroup
 local UnitGUID = UnitGUID
 local UnitHealthMax = UnitHealthMax
 local UnitIsAFK = UnitIsAFK
-local UnitIsCharmed = UnitIsCharmed
 local UnitIsConnected = UnitIsConnected
 local UnitIsFriend = UnitIsFriend
-local UnitIsPlayer = UnitIsPlayer
-local UnitIsPVP = UnitIsPVP
-local UnitIsPVPFreeForAll = UnitIsPVPFreeForAll
-local UnitIsVisible = UnitIsVisible
 local UnitLevel = UnitLevel
 local UnitPower = UnitPower
 local UnitPowerMax = UnitPowerMax
@@ -30,36 +24,36 @@ local UnregisterUnitWatch = UnregisterUnitWatch
 
 local UIParent = UIParent
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local CanAccess = FPerl.CanAccess
 local IsSecret = FPerl.IsSecret
 local SafeBool = FPerl.SafeBool
 local SetAlphaFromBoolean = FPerl.SetAlphaFromBoolean
 
---local feignDeath = GetSpellInfo and GetSpellInfo(5384) or (C_Spell.GetSpellInfo(5384) and C_Spell.GetSpellInfo(5384).name)
-
 local conf
 FPerl.RequestConfig(function(new)
 	conf = new
-	if FPerl_TargetTarget then
+	if (FPerl_TargetTarget) then
 		FPerl_TargetTarget.conf = conf.targettarget
 	end
-	if FPerl_TargetTargetTarget then
+	if (FPerl_TargetTargetTarget) then
 		FPerl_TargetTargetTarget.conf = conf.targettargettarget
 	end
-	if FPerl_FocusTarget then
+	if (FPerl_FocusTarget) then
 		FPerl_FocusTarget.conf = conf.focustarget
 	end
-	if FPerl_PetTarget then
+	if (FPerl_PetTarget) then
 		FPerl_PetTarget.conf = conf.pettarget
 	end
-end, "$Revision:  $")
+end)
 
 -- FPerl.TargetTarget.OnLoad
 function FPerl.TargetTarget.OnLoad(self)
 	self:RegisterForClicks("AnyUp")
 	self:RegisterForDrag("LeftButton")
 	FPerl.SetChildMembers(self)
+	-- the aura colour highlight is for party and raid frames; this frame shows only the HoT highlight
+	self.hotHighlightOnly = true
 
 	self.guid = 0
 
@@ -99,25 +93,22 @@ function FPerl.TargetTarget.OnLoad(self)
 	FPerl.SecureUnitButtonOnLoad(self, self.partyid, FPerl_ShowGenericMenu)
 	FPerl.SecureUnitButtonOnLoad(self.nameFrame, self.partyid, FPerl_ShowGenericMenu)
 
-	--RegisterUnitWatch(self)
-
 	self.targetname = ""
 
-	--FPerl_InitFadeFrame(self)
 	FPerl.RegisterHighlight(self.highlight, 2)
 	FPerl.RegisterPerlFrames(self, {self.nameFrame, self.statsFrame, self.levelFrame})
 
-	if FPerl.layout then
+	if (FPerl.layout) then
 		self.conf = FPerl.layout[self.partyid]
 	end
 
 	FPerl_Highlight:Register(FPerl.TargetTarget.HighlightCallback, self)
 
-	if self == FPerl_TargetTarget then
+	if (self == FPerl_TargetTarget) then
 		FPerl.RegisterOptionChanger(FPerl.TargetTarget.SetBits, "TargetTarget", "targettarget")
 	end
 
-	if FPerl_TargetTarget and FPerl_FocusTarget and FPerl_PetTarget and FPerl_TargetTargetTarget then
+	if (FPerl_TargetTarget and FPerl_FocusTarget and FPerl_PetTarget and FPerl_TargetTargetTarget) then
 		FPerl.TargetTarget.OnLoad = nil
 	end
 end
@@ -126,7 +117,7 @@ end
 function FPerl.TargetTarget.HighlightCallback(self, updateGUID)
 	local partyid = self.partyid
 	local guid = UnitGUID(partyid)
-	if guid and CanAccess(guid) and guid == updateGUID and UnitIsFriend("player", partyid) then
+	if (guid and CanAccess(guid) and guid == updateGUID and UnitIsFriend("player", partyid)) then
 		FPerl_Highlight:SetHighlight(self, updateGUID)
 	end
 end
@@ -135,20 +126,8 @@ end
 -- The Update Function --
 -------------------------
 local function UpdatePVP(self)
-	local partyid = self.partyid
-	-- indirect units can return secret flags; no icon in that case
-	local ffa, isPvP, faction = UnitIsPVPFreeForAll(partyid), UnitIsPVP(partyid), UnitFactionGroup(partyid)
-	if (not CanAccess(ffa) or not CanAccess(isPvP) or (faction ~= nil and not CanAccess(faction))) then
-		self.nameFrame.pvpIcon:Hide()
-		return
-	end
-	local pvp = self.conf.pvpIcon and ((ffa and "FFA") or (isPvP and (faction ~= "Neutral") and faction))
-	if pvp then
-		self.nameFrame.pvpIcon:SetTexture("Interface\\TargetingFrame\\UI-PVP-"..pvp)
-		self.nameFrame.pvpIcon:Show()
-	else
-		self.nameFrame.pvpIcon:Hide()
-	end
+	local pvpIcon = self.nameFrame.pvpIcon
+	FPerl.UpdatePVPIcon(pvpIcon, pvpIcon, self.partyid, self.conf.pvpIcon)
 end
 
 -- RaidIconUpdate
@@ -159,7 +138,7 @@ local function RaidIconUpdate(self)
 	FPerl.UpdateRaidIcon(frameRaidIcon, self.partyid)
 
 	frameRaidIcon:ClearAllPoints()
-	if conf.target.raidIconAlternate then
+	if (conf.target.raidIconAlternate) then
 		frameRaidIcon:SetHeight(16)
 		frameRaidIcon:SetWidth(16)
 		frameRaidIcon:SetPoint("CENTER", frameNameFrame, "TOPRIGHT", -5, -4)
@@ -172,14 +151,14 @@ end
 
 -- FPerl.TargetTarget.UpdateDisplay
 function FPerl.TargetTarget.UpdateDisplay(self)
-	if not self.conf then
+	if (not self.conf) then
 		self.conf = FPerl.layout and FPerl.layout[self.partyid]
-		if not self.conf then
+		if (not self.conf) then
 			return
 		end
 	end
 	local partyid = self.partyid
-	if not partyid then
+	if (not partyid) then
 		self.targethp = 0
 		self.targethpmax = 0
 		self.targetmanatype = 0
@@ -189,26 +168,20 @@ function FPerl.TargetTarget.UpdateDisplay(self)
 		self.guid = nil
 		return
 	end
-	if self.conf.enable and UnitExists(self.parentid) and SafeBool(UnitIsConnected(partyid), true) then
-		-- full "First Last" (or "First-Realm") display name
+	if (self.conf.enable and UnitExists(self.parentid) and SafeBool(UnitIsConnected(partyid), true)) then
+		-- full "First Surname" display name (FPerl.UnitFullName)
 		self.targetname = FPerl.UnitFullName(partyid)
-		if self.targetname then
+		if (self.targetname) then
 			FPerl_Highlight:RemoveHighlight(self)
 
 			UpdatePVP(self)
 
-			-- Save these, so we know whether to update the frame later
-			--self.targethp = UnitIsGhost(partyid) and 1 or (UnitIsDead(partyid) and 0 or UnitHealth(partyid))
-			--self.targethpmax = UnitHealthMax(partyid)
-			--self.targetmanatype = UnitPowerType(partyid)
-			--self.targetmana = UnitPower(partyid)
-			--self.targetmanamax = UnitPowerMax(partyid)
-			--self.afk = UnitIsAFK(partyid) and conf.showAFK
+			-- GuidChanged compares the poll's GUID with this one
 			self.guid = UnitGUID(partyid)
 
 			FPerl.SetUnitNameColor(self.nameFrame.text, partyid)
 
-			if self.conf.level then
+			if (self.conf.level) then
 				local TargetTargetLevel = UnitLevel(partyid)
 				local classification = UnitClassification(partyid)
 
@@ -221,8 +194,8 @@ function FPerl.TargetTarget.UpdateDisplay(self)
 					self.levelFrame.text:SetTextColor(1, 1, 1)
 				else
 					local color = GetDifficultyColor(TargetTargetLevel)
-					if TargetTargetLevel == -1 then
-						if classification == "worldboss" then
+					if (TargetTargetLevel == -1) then
+						if (classification == "worldboss") then
 							TargetTargetLevel = "Boss"
 						else
 							self.levelFrame.text:Hide()
@@ -237,9 +210,9 @@ function FPerl.TargetTarget.UpdateDisplay(self)
 
 					self.levelFrame.text:SetText(TargetTargetLevel)
 
-					if TargetTargetLevel == "Boss" then
+					if (TargetTargetLevel == "Boss") then
 						-- GetStringWidth() can be secret even
-						-- for plain text (section 3 taint-propagation nuance)
+						-- for plain text
 						FPerl.SafeSetWidthFromText(self.levelFrame, self.levelFrame.text, 6, 33)
 						color = {r = 1, g = 0, b = 0}
 					end
@@ -248,15 +221,12 @@ function FPerl.TargetTarget.UpdateDisplay(self)
 				end
 			end
 
-			-- Set name - Must do after level as the NameFrame can change size just above here.
 			local TargetTargetname = self.targetname
 			self.nameFrame.text:SetText(TargetTargetname)
 
-			-- Set health
 			FPerl.Target.UpdateHealth(self)
 
-			-- Set mana
-			if not self.statsFrame.greyMana then
+			if (not self.statsFrame.greyMana) then
 				FPerl.Target.SetManaType(self)
 			end
 			FPerl.Target.SetMana(self)
@@ -286,12 +256,7 @@ end
 -- UpdateControl
 local function UpdateControl(self)
 	local partyid = self.partyid
-	-- indirect units can return secret flags; no icon in that case
-	if SafeBool(UnitIsVisible(partyid), false) and SafeBool(UnitIsCharmed(partyid), false) and SafeBool(UnitIsPlayer(self.partyid), false) then
-		self.nameFrame.warningIcon:Show()
-	else
-		self.nameFrame.warningIcon:Hide()
-	end
+	self.nameFrame.warningIcon:SetShown(FPerl.IsCharmedPlayer(partyid))
 end
 
 -- UpdateCombat
@@ -301,7 +266,7 @@ local function UpdateCombat(self)
 		-- let the widget resolve the secret boolean
 		self.nameFrame.combatIcon:Show()
 		SetAlphaFromBoolean(self.nameFrame.combatIcon, inCombat, 1, 0)
-	elseif inCombat then
+	elseif (inCombat) then
 		self.nameFrame.combatIcon:SetAlpha(1)
 		self.nameFrame.combatIcon:Show()
 	else
@@ -329,7 +294,7 @@ function FPerl.TargetTarget.OnUpdate(self)
 	local newAFK = SafeBool(UnitIsAFK(partyid), false)
 
 	-- FPerl.Differs: a secret value redraws every tick
-	if (conf.showAFK and newAFK ~= self.afk) or FPerl.Differs(newHP, self.targethp) or FPerl.Differs(newHPMax, self.targethpmax) then
+	if ((conf.showAFK and newAFK ~= self.afk) or FPerl.Differs(newHP, self.targethp) or FPerl.Differs(newHPMax, self.targethpmax)) then
 		FPerl.Target.UpdateHealth(self)
 	end
 
@@ -338,7 +303,7 @@ function FPerl.TargetTarget.OnUpdate(self)
 		FPerl.Target.SetMana(self)
 	end
 
-	if FPerl.Differs(newMana, self.targetmana) or FPerl.Differs(newManaMax, self.targetmanamax) then
+	if (FPerl.Differs(newMana, self.targetmana) or FPerl.Differs(newManaMax, self.targetmanamax)) then
 		FPerl.Target.SetMana(self)
 	end
 
@@ -363,35 +328,7 @@ function FPerl.TargetTarget.OnSlowUpdate(self)
 	end
 end
 
--- FPerl.TargetTarget.TargetTargetTargetOnUpdate
-function FPerl.TargetTarget.TargetTargetTargetOnUpdate(self)
-	local partyid = self.partyid
-
-	local newGuid = UnitGUID(partyid)
-	local newHP, newHPMax = UnitHealth(partyid), UnitHealthMax(partyid)
-	local newManaType = UnitPowerType(partyid)
-	local newMana = UnitPower(partyid)
-	local newAFK = SafeBool(UnitIsAFK(partyid), false)
-
-	if (conf.showAFK and newAFK ~= self.afk) or FPerl.Differs(newHP, self.targethp) or FPerl.Differs(newHPMax, self.targethpmax) then
-		FPerl.Target.UpdateHealth(self)
-	end
-
-	if (newManaType ~= self.targetmanatype) then
-		FPerl.Target.SetManaType(self)
-		FPerl.Target.SetMana(self)
-	end
-
-	if FPerl.Differs(newMana, self.targetmana) then
-		FPerl.Target.SetMana(self)
-	end
-
-	if (GuidChanged(self, newGuid)) then
-		FPerl.TargetTarget.UpdateDisplay(self)
-	end
-end
-
--- The polls of the frames whose own unit has no unit events, on the scheduler (they ran every frame).
+-- The polls of the frames whose own unit has no unit events, on the scheduler.
 local function poll(frame, func)
 	if (frame and frame.partyid and frame:IsVisible()) then
 		func(frame)
@@ -401,7 +338,7 @@ FPerl.Every(0.2, function()
 	poll(FPerl_TargetTarget, FPerl.TargetTarget.OnUpdate)
 	poll(FPerl_FocusTarget, FPerl.TargetTarget.OnUpdate)
 	poll(FPerl_PetTarget, FPerl.TargetTarget.OnUpdate)
-	poll(FPerl_TargetTargetTarget, FPerl.TargetTarget.TargetTargetTargetOnUpdate)
+	poll(FPerl_TargetTargetTarget, FPerl.TargetTarget.OnUpdate)
 end)
 FPerl.Every(0.5, function()
 	poll(FPerl_TargetTarget, FPerl.TargetTarget.OnSlowUpdate)
@@ -418,7 +355,7 @@ end)
 local function refresh(self)
 	FPerl.NoFadeBars(true)
 	FPerl.TargetTarget.UpdateDisplay(self)
-	if self ~= FPerl_FocusTarget and FPerl_FocusTarget and FPerl_FocusTarget:IsShown() then
+	if (self ~= FPerl_FocusTarget and FPerl_FocusTarget and FPerl_FocusTarget:IsShown()) then
 		FPerl.TargetTarget.UpdateDisplay(FPerl_FocusTarget)
 	end
 	FPerl.NoFadeBars()
@@ -429,14 +366,14 @@ end
 -- Health and power events (the highest-rate events) update the bars only; name, level, auras and
 -- the rest change with the unit, which UNIT_TARGET and the guid poll in OnUpdate refresh.
 local function barsOf(frame, func)
-	if frame and frame:IsShown() then
+	if (frame and frame:IsShown()) then
 		func(frame)
 	end
 end
 local function updateHealthBars(self)
 	FPerl.NoFadeBars(true)
 	FPerl.Target.UpdateHealth(self)
-	if self ~= FPerl_FocusTarget then
+	if (self ~= FPerl_FocusTarget) then
 		barsOf(FPerl_FocusTarget, FPerl.Target.UpdateHealth)
 	end
 	FPerl.NoFadeBars()
@@ -444,7 +381,7 @@ end
 local function updatePowerBars(self)
 	FPerl.NoFadeBars(true)
 	FPerl.Target.SetMana(self)
-	if self ~= FPerl_FocusTarget then
+	if (self ~= FPerl_FocusTarget) then
 		barsOf(FPerl_FocusTarget, FPerl.Target.SetMana)
 	end
 	FPerl.NoFadeBars()
@@ -455,7 +392,7 @@ FPerl.Elements.TargetTarget = {events = {
 	INCOMING_RESURRECT_CHANGED = function(self)
 		FPerl.Target.UpdateResurrectionStatus(self)
 	end,
-	[FPerl.ForeverAPI.healthEvent] = updateHealthBars,
+	UNIT_HEALTH = updateHealthBars,
 	UNIT_POWER_FREQUENT = updatePowerBars,
 	UNIT_TARGET = refresh,
 }}
@@ -463,7 +400,7 @@ FPerl.Elements.TargetTarget = {events = {
 -- frame hangs off
 FPerl.Elements.TargetTargetHeal = {events = {
 	UNIT_HEAL_PREDICTION = function(self, unit)
-		if unit == self.regUnit and self.conf.healprediction then
+		if (unit == self.regUnit and self.conf.healprediction) then
 			refresh(self)
 		end
 	end,
@@ -474,8 +411,8 @@ FPerl.Elements.TargetTargetFocus = {events = {PLAYER_FOCUS_CHANGED = display}}
 
 -- EnableDisable
 local function EnableDisable(self)
-	if self.conf.enable then
-		if not self.virtual then
+	if (self.conf.enable) then
+		if (not self.virtual) then
 			RegisterUnitWatch(self)
 		end
 	else
@@ -498,7 +435,7 @@ function FPerl.TargetTarget.SetWidth(self)
 
 	self.conf.size.width = max(0, self.conf.size.width or 0)
 
-	if self.conf.percent then
+	if (self.conf.percent) then
 		self.statsFrame.healthBar.percent:Show()
 		self.statsFrame.manaBar.percent:Show()
 	else
@@ -514,21 +451,21 @@ end
 
 -- Set
 local function Set(self)
-	if not self.conf then
+	if (not self.conf) then
 		self.conf = FPerl.layout and FPerl.layout[self.partyid]
-		if not self.conf then
+		if (not self.conf) then
 			return
 		end
 	end
 	FPerl.RegisterPrediction(self, self.conf, "TargetTargetHeal")
-	if self.conf.level then
+	if (self.conf.level) then
 		self.levelFrame:Show()
 		self.levelFrame:SetWidth(27)
 	else
 		self.levelFrame:Hide()
 	end
 
-	if self.conf.mana then
+	if (self.conf.mana) then
 		self.statsFrame.manaBar:Show()
 		self.statsFrame:SetHeight(40)
 	else
@@ -536,7 +473,7 @@ local function Set(self)
 		self.statsFrame:SetHeight(30)
 	end
 
-	if self.conf.values then
+	if (self.conf.values) then
 		self.statsFrame.healthBar.text:Show()
 		self.statsFrame.manaBar.text:Show()
 	else
@@ -556,7 +493,7 @@ local function Set(self)
 		FPerl.AurasUpdate(self)
 	end
 
-	if self:IsShown() then
+	if (self:IsShown()) then
 		FPerl.TargetTarget.UpdateDisplay(self)
 	end
 end
@@ -568,27 +505,27 @@ end
 
 -- FPerl.TargetTarget.SetBits
 function FPerl.TargetTarget.SetBits()
-	local d = FPerl.Dev; if d and d.listener then d.Emit("redisplay.targettarget") end
-	if not FPerl_TargetTarget then
+	local d = FPerl.Dev; if (d and d.listener) then d.Emit("redisplay.targettarget") end
+	if (not FPerl_TargetTarget) then
 		return
 	end
 
-	if conf.targettargettarget.enable then
-		if not FPerl_TargetTargetTarget then
+	if (conf.targettargettarget.enable) then
+		if (not FPerl_TargetTargetTarget) then
 			local ttt = CreateFrame("Button", "FPerl_TargetTargetTarget", UIParent, "FPerl_TargetTarget_Template")
 			FPerl.PlaceFrame(ttt)
 		end
 	end
 
-	if conf.focustarget.enable then
-		if not FPerl_FocusTarget then
+	if (conf.focustarget.enable) then
+		if (not FPerl_FocusTarget) then
 			local ft = CreateFrame("Button", "FPerl_FocusTarget", UIParent, "FPerl_TargetTarget_Template")
 			FPerl.PlaceFrame(ft)
 		end
 	end
 
-	if conf.pettarget.enable and FPerl_Player_Pet then
-		if not FPerl_PetTarget then
+	if (conf.pettarget.enable and FPerl_Player_Pet) then
+		if (not FPerl_PetTarget) then
 			local pt = CreateFrame("Button", "FPerl_PetTarget", FPerl_Player_Pet, "FPerl_TargetTarget_Template")
 			FPerl.PlaceFrame(pt)
 		end
@@ -596,13 +533,13 @@ function FPerl.TargetTarget.SetBits()
 	end
 
 	Set(FPerl_TargetTarget)
-	if FPerl_TargetTargetTarget then
+	if (FPerl_TargetTargetTarget) then
 		Set(FPerl_TargetTargetTarget)
 	end
-	if FPerl_FocusTarget then
+	if (FPerl_FocusTarget) then
 		Set(FPerl_FocusTarget)
 	end
-	if FPerl_PetTarget then
+	if (FPerl_PetTarget) then
 		Set(FPerl_PetTarget)
 	end
 end

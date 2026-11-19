@@ -9,7 +9,7 @@ local conf, rconf
 FPerl.RequestConfig(function(new)
 	conf = new.custom
 	rconf = new.raid
-end, "$Revision:  $")
+end)
 
 local pairs = pairs
 local tinsert = tinsert
@@ -27,8 +27,7 @@ FPerl.On("PLAYER_ENTERING_WORLD", function() CustomHighlight:PLAYER_ENTERING_WOR
 
 CustomHighlight.RaidFrameArray = FPerl.Raid.GetFrameArray()
 
--- Pull zone names from encounter journal so they don't need to be localized.
--- Cataclysm Raids
+-- Zone names from localization.lua; GetRealZoneText is matched against them.
 local FPERL_LOC_ZONE_ANTORUS = FPERL_LOC_ZONE_ANTORUS
 local FPERL_LOC_ZONE_BARADIN_HOLD = FPERL_LOC_ZONE_BARADIN_HOLD
 local FPERL_LOC_ZONE_BASTION_OF_TWILIGHT = FPERL_LOC_ZONE_BASTION_OF_TWILIGHT
@@ -208,10 +207,6 @@ function CustomHighlight:DefaultZoneData()
 			},
 		[FPERL_LOC_ZONE_ICECROWN_CITADEL] =
 			{
---				[70451] = true,								-- Blood Mirror (Trash)
---				[70432] = true,								-- Blood Sap (Trash)
---				[71154] = true,								-- Rend Flesh (Trash)
-
 				[69065] = true,								-- Impaled (Lord Marrowgars)
 
 				[71289] = true,								-- Dominate Mind (Lady Deathwhisper)
@@ -349,28 +344,36 @@ function CustomHighlight:DefaultZoneData()
 	}
 end
 
+local function OnUnitAura(_, unit)
+	CustomHighlight:UNIT_AURA(unit)
+end
+
+local function OnZoneChanged()
+	CustomHighlight:PLAYER_ENTERING_WORLD()
+end
+
 -- CustomHighlight:PLAYER_ENTERING_WORLD
 function CustomHighlight:PLAYER_ENTERING_WORLD()
-	if conf and conf.enable and rconf.enable then
-		if not self.listening then
+	if (conf and conf.enable and rconf.enable) then
+		if (not self.listening) then
 			self.listening = true
-			FPerl.On("UNIT_AURA", function(_, unit) CustomHighlight:UNIT_AURA(unit) end)
-			FPerl.On("ZONE_CHANGED_NEW_AREA", function() CustomHighlight:PLAYER_ENTERING_WORLD() end)
+			FPerl.On("UNIT_AURA", OnUnitAura)
+			FPerl.On("ZONE_CHANGED_NEW_AREA", OnZoneChanged)
 		end
 
-		if not conf.zones then
+		if (not conf.zones) then
 			conf.zones = self:DefaultZoneData()
 		end
 		local zoneName = GetRealZoneText()
 		self.zoneDataRaw = conf and conf.zones[zoneName]
 
-		if self.zoneDataRaw then
+		if (self.zoneDataRaw) then
 			self.zoneData = {}
 			for spellid in pairs(self.zoneDataRaw) do
 				local spellName, icon
-				if C_Spell and C_Spell.GetSpellInfo then
+				if (C_Spell and C_Spell.GetSpellInfo) then
 					local spellInfo = C_Spell.GetSpellInfo(spellid)
-					if spellInfo then
+					if (spellInfo) then
 						spellName = spellInfo.name
 						icon = spellInfo.iconID
 					end
@@ -386,22 +389,23 @@ function CustomHighlight:PLAYER_ENTERING_WORLD()
 			self.zoneData = nil
 		end
 	else
-		self:UnregisterAllEvents()
+		if (self.listening) then
+			self.listening = nil
+			FPerl.Off("UNIT_AURA", OnUnitAura)
+			FPerl.Off("ZONE_CHANGED_NEW_AREA", OnZoneChanged)
+		end
 		self.zoneData = nil
 	end
 end
 
-CustomHighlight.ZONE_CHANGED_NEW_AREA = CustomHighlight.PLAYER_ENTERING_WORLD
---CustomHighlight:.MINIMAP_ZONE_CHANGED = CustomHighlight:.PLAYER_ENTERING_WORLD
-
--- CustomHighlight:UpdateRoster
+-- CustomHighlight:UpdateUnits
 function CustomHighlight:UpdateUnits()
-	if not conf or not conf.enable or not rconf.enable then
+	if (not conf or not conf.enable or not rconf.enable) then
 		return
 	end
 
 	for unit, frame in pairs(self.RaidFrameArray) do
-		if frame:IsShown() then
+		if (frame:IsShown()) then
 			self:Check(frame, unit)
 		end
 	end
@@ -410,9 +414,9 @@ end
 -- CustomHighlight:Refresh: after a change of custom.enable, alpha or blend (the settings panel)
 function CustomHighlight:Refresh()
 	self:PLAYER_ENTERING_WORLD()
-	if not conf.enable then
+	if (not conf.enable) then
 		self:ClearAll()
-	elseif self.usedIcons then
+	elseif (self.usedIcons) then
 		for icon in pairs(self.usedIcons) do
 			icon:SetAlpha(conf.alpha or 0.5)
 			icon.tex:SetBlendMode(conf.blend or "ADD")
@@ -423,15 +427,15 @@ end
 
 -- CustomHighlight:IconAcquire
 function CustomHighlight:IconAcquire()
-	if not self.icons then
+	if (not self.icons) then
 		self.icons = {}
 	end
-	if not self.usedIcons then
+	if (not self.usedIcons) then
 		self.usedIcons = {}
 	end
 
 	local icon = self.icons[1]
-	if not icon then
+	if (not icon) then
 		icon = CreateFrame("Frame", nil)
 		icon:SetFrameStrata("MEDIUM")
 		icon.tex = icon:CreateTexture(nil, "OVERLAY")
@@ -456,10 +460,10 @@ end
 
 -- CustomHighlight:Highlight
 function CustomHighlight:Highlight(frame, mode, unit, debuff, buffIcon)
-	if not self.active[frame] then
+	if (not self.active[frame]) then
 		self.active[frame] = buffIcon
 		local c = frame.customHighlight
-		if not c then
+		if (not c) then
 			c = {}
 			frame.customHighlight = c
 		end
@@ -482,19 +486,19 @@ end
 
 -- CustomHighlight:Clear
 function CustomHighlight:Clear(frame)
-	if self.active[frame] then
+	if (self.active[frame]) then
 		self.active[frame] = nil
 		local c = frame.customHighlight
-		if c then
+		if (c) then
 			self:IconFree(c.icon)
 			c.icon = nil
 		end
 	end
 end
 
--- CustomHighlight:Clear
+-- CustomHighlight:ClearAll
 function CustomHighlight:ClearAll()
-	if not self.usedIcons then
+	if (not self.usedIcons) then
 		return
 	end
 	-- usedIcons is a set keyed by icon (IconAcquire)
@@ -509,27 +513,27 @@ end
 -- CustomHighlight:UNIT_AURA
 -- Scans the unit's debuff slots on every event: no table builds, and the highlight must follow each aura change.
 function CustomHighlight:UNIT_AURA(unit)
-	if not strmatch(unit, "raid%d+") then
+	if (not strmatch(unit, "^raid%d+$")) then
 		return
 	end
 
 	local frame = FPerl.Raid.GetUnitFrameByUnit(unit)
-	if frame then
+	if (frame) then
 		self:Check(frame, unit)
 	end
 end
 
 -- CustomHighlight:Check
 function CustomHighlight:Check(frame, unit)
-	if not conf or not conf.enable or not rconf.enable then
+	if (not conf or not conf.enable or not rconf.enable) then
 		return
 	end
 
 	local z = self.zoneData
-	if z then
-		if not unit then
+	if (z) then
+		if (not unit) then
 			unit = frame:GetAttribute("unit")
-			if not unit then
+			if (not unit) then
 				unit = SecureButton_GetUnit(frame)
 				if (not unit) then
 					return
@@ -539,11 +543,11 @@ function CustomHighlight:Check(frame, unit)
 
 		for i = 1, 40 do
 			local name, icon = FPerl.UnitAuraByIndex(unit, i, "HARMFUL")
-			if not name then
+			if (not name) then
 				break
 			end
 			-- a secret aura name cannot be looked up
-			if FPerl.CanAccess(name) and z[name] then
+			if (FPerl.CanAccess(name) and z[name]) then
 				self:Highlight(frame, "debuff", unit, name, icon)
 				return
 			end
@@ -553,7 +557,7 @@ function CustomHighlight:Check(frame, unit)
 	self:Clear(frame)
 end
 
-if not conf then
+if (not conf) then
 	conf = {
 		enable = false,
 		zones = CustomHighlight:DefaultZoneData(),

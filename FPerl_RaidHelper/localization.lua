@@ -29,10 +29,6 @@ FPERL_HELPER_MACLEAR		= "Main Assist |c00FF0000cleared!"
 FPERL_HELPER_MAREMOVED		= "Main Assist %s not found in tank list - removed!"
 FPERL_HELPER_MAREMOTESET	= "%s has assigned the Main Assist to be %s"
 
-FPERL_HELPER_FINDFOUND		= "Using FIND found suitable target. ('|c00007F00/fphelper find|r' to clear)."
-FPERL_HELPER_FINDCLEARED	= "Find |c00FF0000cleared!|r"
-FPERL_HELPER_FINDSET		= "Find set to %s. ('|c00007F00/fphelper find|r' to clear)."
-
 FPERL_AGGRO_PLAYER		= "- AGGRO -"
 FPERL_AGGRO_PET			= "- PET AGGRO -"
 FPERL_AGGRO_DRAGTIP		= "Move the location of the Aggro warning"

@@ -204,7 +204,7 @@
 								</Anchor>
 							</Anchors>
 						</Texture>
-						<!-- Leader Icon -->
+						<!-- Assist Icon -->
 						<Texture name="$parentassistIcon" file="Interface\GroupFrame\UI-Group-AssistantIcon" hidden="true">
 							<Size>
 								<AbsDimension x="16" y="16"/>

@@ -12,60 +12,34 @@ FPerl.RequestConfig(function(New)
 	conf = New
 	raidconf = New.raid
 	rconf = New.raidpet
-end, "$Revision:  $")
-
---local new, del, copy = FPerl.GetReusableTable, FPerl.FreeTable, FPerl.CopyTable
+end)
 
 local pairs = pairs
 
 local GetNumGroupMembers = GetNumGroupMembers
 local GetRaidTargetIndex = GetRaidTargetIndex
 local InCombatLockdown = InCombatLockdown
-local SetRaidTargetIconTexture = SetRaidTargetIconTexture
 local UnitClass = UnitClass
 local UnitExists = UnitExists
 local UnitGUID = UnitGUID
-local UnitHasIncomingResurrection = UnitHasIncomingResurrection
 local UnitIsDead = UnitIsDead
 local UnitName = UnitName
 
 local SecureButton_GetUnit = SecureButton_GetUnit
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local CanAccess = FPerl.CanAccess
 
 local LOCALIZED_CLASS_NAMES_MALE = LOCALIZED_CLASS_NAMES_MALE
 local CLASS_COUNT = 0
 for k, v in pairs(LOCALIZED_CLASS_NAMES_MALE) do
-	if k ~= "Adventurer" and k ~= "TRAVELER" then
+	if (k ~= "Adventurer" and k ~= "TRAVELER") then
 		CLASS_COUNT = CLASS_COUNT + 1
 	end
 end
 
--- UpdateAbsorbPrediction
-local function UpdateAbsorbPrediction(self)
-	if raidconf.absorbs then
-		FPerl.SetExpectedAbsorbs(self)
-	else
-		self.expectedAbsorbs:Hide()
-	end
-end
-
--- UpdateHealPrediction
-local function UpdateHealPrediction(self)
-	if raidconf.healprediction then
-		FPerl.SetExpectedHealth(self)
-	else
-		self.expectedHealth:Hide()
-	end
-end
-
 local function UpdateResurrectionStatus(self)
-	if (UnitHasIncomingResurrection(self.partyid)) then
-		self.resurrect:Show()
-	else
-		self.resurrect:Hide()
-	end
+	FPerl.UpdateResurrect(self, self.resurrect)
 end
 
 local guids = { }
@@ -87,16 +61,16 @@ end
 -- UpdateName
 local function UpdateName(self)
 	local partyid = SecureButton_GetUnit(self)
-	if not partyid then
+	if (not partyid) then
 		self.petGUID = nil
 		self.petID = nil
 		self.petName = nil
 		return
 	end
 	local name
-	if partyid then
+	if (partyid) then
 		name = UnitName(partyid)
-		if name then
+		if (name) then
 			self.text:SetFormattedText("%s", name)
 		end
 	end
@@ -118,7 +92,7 @@ end
 -- UpdateHealth
 local function UpdateHealth(self)
 	local partyid = SecureButton_GetUnit(self)
-	if not partyid then
+	if (not partyid) then
 		self.healthBar:SetValue(0)
 		return
 	end
@@ -131,12 +105,10 @@ local function UpdateHealth(self)
 		self.healthBar:SetStatusBarColor(0.5, 0.5, 0.5, 1)
 		self.healthBar.bg:SetVertexColor(0.5, 0.5, 0.5, 0.5)
 	else
-		-- direct: one format for plain and secret; FormatPercent truncates a secret and adds a decimal below 10
-		self.healthBar.text:SetFormattedText("%.0f%%", UnitHealthPercent(partyid, true, CurveConstants.ScaleTo100))
+		FPerl.FormatPercent(self.healthBar.text, UnitHealthPercent(partyid, true, CurveConstants.ScaleTo100), "whole")
 	end
 
-	UpdateAbsorbPrediction(self)
-	UpdateHealPrediction(self)
+	FPerl.UpdatePrediction(self, raidconf, self)
 	UpdateResurrectionStatus(self)
 end
 
@@ -144,12 +116,12 @@ end
 -- UNIT_HEALTH / UNIT_MAXHEALTH (element Health), the debuff highlight UNIT_AURA, a changed pet or name
 -- UNIT_PET / UNIT_NAME_UPDATE (bus below).
 local function PollFrames()
-	if not conf.rangeFinder.enabled then
+	if (not conf.rangeFinder.enabled) then
 		return
 	end
 	for _, self in ipairs(allFrames) do
 		local partyid = self:IsVisible() and (SecureButton_GetUnit(self) or self.partyid)
-		if partyid then
+		if (partyid) then
 			FPerl.UpdateSpellRange(self, partyid, true)
 		end
 	end
@@ -173,8 +145,6 @@ end
 function FPerl.RaidPets.OnLoad(self)
 	self.Array = { }
 
-	--FPerl_Raid_GrpPets:UnregisterEvent("UNIT_NAME_UPDATE") -- Fix for WoW 2.1 UNIT_NAME_UPDATE issue
-
 
 	FPerl.RegisterOptionChanger(FPerl.RaidPets.OptionActions, nil, "raidpets")
 
@@ -186,29 +156,25 @@ end
 -- RaidTargetUpdate
 local function RaidTargetUpdate(self)
 	local icon = self.raidIcon
-	local raidIcon
-	if self.partyid then
-		raidIcon = GetRaidTargetIndex(self.partyid)
-	end
-
-	if (CanAccess(raidIcon)) then
-		if (not icon) then
-			icon = self:CreateTexture(nil, "OVERLAY")
-			self.raidIcon = icon
-			icon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
-			icon:SetPoint("TOPLEFT")
-			icon:SetWidth(13)
-			icon:SetHeight(13)
-		else
-			icon:Show()
+	if (not icon) then
+		-- the texture is made on the first mark
+		if (not self.partyid or not GetRaidTargetIndex(self.partyid)) then
+			return
 		end
-		SetRaidTargetIconTexture(icon, raidIcon)
-	elseif (icon) then
+		icon = self:CreateTexture(nil, "OVERLAY")
+		self.raidIcon = icon
+		icon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
+		icon:SetPoint("TOPLEFT")
+		icon:SetSize(13, 13)
+	end
+	if (self.partyid) then
+		FPerl.UpdateRaidIcon(icon, self.partyid)
+	else
 		icon:Hide()
 	end
 end
 
--- FPerl.RaidPets.UpdateDisplay
+-- FPerl.RaidPets.UpdateDisplayAll
 function FPerl.RaidPets.UpdateDisplayAll()
 	for k, frame in pairs(RaidPetFrameArray) do
 		if (frame:IsShown()) then
@@ -220,7 +186,7 @@ end
 -- FPerl.RaidPets.UpdateDisplay
 function FPerl.RaidPets.UpdateDisplay(self)
 	local partyid = SecureButton_GetUnit(self)
-	if not partyid then
+	if (not partyid) then
 		return
 	end
 
@@ -239,13 +205,13 @@ function Events:UNIT_HEAL_PREDICTION(unit)
 end
 
 function Events:UNIT_AURA(unit)
-	if conf.highlightDebuffs.enable and unit == self.partyid then
+	if (conf.highlightDebuffs.enable and unit == self.partyid) then
 		FPerl.CheckDebuffs(self, unit)
 	end
 end
 
 function Events:INCOMING_RESURRECT_CHANGED(unit)
-	if unit == self.partyid then
+	if (unit == self.partyid) then
 		UpdateResurrectionStatus(self)
 	end
 end
@@ -303,15 +269,12 @@ function Bus.UNIT_ENTERED_VEHICLE(event, unit)
 			UpdateName(frame)
 		end
 	end
-	--TitlesUpdateFrame:Show()
 end
--- the vehicle swap the 0.2 s poll used to catch as a changed GUID: not checked in game
+-- a vehicle swap puts a different unit on the pet token
 Bus.UNIT_EXITED_VEHICLE = Bus.UNIT_ENTERED_VEHICLE
 
 -- GROUP_ROSTER_UPDATE
 function Bus.GROUP_ROSTER_UPDATE()
-	--TitlesUpdateFrame:Show()
-	--FPerl.ProtectedCall(FPerl.RaidPets.Align)
 	RaidPetUpdateGUIDs()
 end
 
@@ -335,7 +298,7 @@ end
 local function onAttrChanged(self, name, value)
 	if (name == "unit") then
 		if (value) then
-			SetFrameArray(self, value)		-- "raidpet"..strmatch(value, "^raid(%d+)"))
+			SetFrameArray(self, value)
 			self.ownerid = value:gsub("(%a+)pet(%d+)", "%1%2")
 
 			local guid = UnitGUID(self.partyid)
@@ -365,6 +328,8 @@ end
 
 -- FPerl.RaidPets.RaidPetSingleOnLoad
 function FPerl.RaidPets.RaidPetSingleOnLoad(self)
+	-- the aura colour highlight is for party and raid frames; this frame shows only the HoT highlight
+	self.hotHighlightOnly = true
 	self:OnBackdropLoaded()
 	self.updateHealth = UpdateHealth
 	FPerl.UnitFrameInit(self, nil, {})
@@ -380,7 +345,6 @@ function FPerl.RaidPets.RaidPetSingleOnLoad(self)
 	FPerl.RegisterHighlight(self.highlight, 2)
 
 	FPerl.RegisterPerlFrames(self)
-	--self.FlashFrames = {self}
 
 	self:SetScript("OnAttributeChanged", onAttrChanged)
 	FPerl.RegisterClickCastFrame(self)
@@ -394,21 +358,12 @@ function FPerl.RaidPets.RaidPetSingleOnLoad(self)
 
 end
 
--- initialConfigFunction
---local function initialConfigFunction(self)
-	-- This is the only place we're allowed to set attributes whilst in combat
-	--self:SetAttribute("unitsuffix", "pet")
-	--self:SetAttribute("*type1", "target")
-	--self:SetAttribute("initial-height", 30)
-	--FPerl.RaidPets.UpdateDisplay(self)
---end
-
 -- SetMainHeaderAttributes
 local function SetMainHeaderAttributes(self)
 	self:Hide()
 
 	local petsPerColumn
-	if conf.raid.mana then
+	if (conf.raid.mana) then
 		petsPerColumn = 7
 	else
 		petsPerColumn = 6
@@ -443,8 +398,6 @@ local function SetMainHeaderAttributes(self)
 		self:SetAttribute("xOffset", -conf.raid.spacing)
 		self:SetAttribute("yOffset", 0)
 	end
-	--self:SetAttribute("template", "FPerl_RaidPet_FrameTemplate")
-	--self:SetAttribute("templateType", "Button")
 
 	-- Fix Secure Header taint in combat
 	local maxColumns = self:GetAttribute("maxColumns") or 1
@@ -456,10 +409,8 @@ local function SetMainHeaderAttributes(self)
 	self:SetAttribute("startingIndex", - maxUnits + 1)
 	self:SetAttribute("startingIndex", startingIndex)
 
-	-- the header makes buttons for what its attributes allow, so the decider waits for them
+	-- the header makes buttons for what its attributes allow, so FPerl.GroupVisibilityUpdate waits for them
 	FPerl.RaidPets.Ready = true
-
-	--self.initialConfigFunction = initialConfigFunction
 end
 
 -- FPerl.RaidPets.ChangeAttributes
@@ -516,7 +467,7 @@ function FPerl.RaidPets.OptionActions()
 		FPerl.AfterCombat(FPerl.RaidPets.OptionActions)
 		return
 	end
-	local d = FPerl.Dev; if d and d.listener then d.Emit("redisplay.raidpets") end
+	local d = FPerl.Dev; if (d and d.listener) then d.Emit("redisplay.raidpets") end
 
 	SetMainHeaderAttributes(FPerl_Raid_GrpPets)
 

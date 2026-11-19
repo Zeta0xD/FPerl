@@ -10,8 +10,6 @@ FPerl.ModMenuIcon		= "Interface\\Icons\\INV_Misc_Gem_Pearl_02"
 
 FPERL_MINIMAP_HELP1		= "|c00FFFFFFLeft click|r for Options"
 FPERL_MINIMAP_HELP2		= "|c00FFFFFFRight click|r to drag this icon"
-FPERL_MINIMAP_HELP5		= "|c00FFFFFFAlt|r for F-Perl memory usage"
-FPERL_MINIMAP_HELP6		= "|c00FFFFFF+Shift|r for F-Perl memory usage since startup"
 
 FPERL_MINIMENU_OPTIONS	= "Options"
 FPERL_MINIMENU_ASSIST	= "Show Assists Frame"
@@ -55,9 +53,7 @@ FPERL_LOC_DEAD		= DEAD			-- "Dead"
 FPERL_LOC_GHOST 	= "Ghost"
 FPERL_LOC_OFFLINE	= PLAYER_OFFLINE	-- "Offline"
 FPERL_LOC_RESURRECTED	= "Resurrected"
-FPERL_LOC_SS_AVAILABLE	= "SS Available"
 FPERL_LOC_UPDATING	= "Updating"
-FPERL_LOC_ACCEPTEDRES	= "Accepted"		-- Res accepted
 FPERL_RAID_GROUP	= "Group %d"
 FPERL_RAID_GROUPSHORT	= "G%d"
 

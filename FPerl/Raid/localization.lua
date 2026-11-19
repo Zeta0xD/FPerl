@@ -5,7 +5,6 @@ FPERL_RAID_GROUP		= "Group %d"
 FPERL_RAID_TOOLTIP_OFFLINE	= "Offline for %s"
 FPERL_RAID_TOOLTIP_AFK		= "AFK for %s"
 FPERL_RAID_TOOLTIP_DND		= "DND for %s"
-FPERL_RAID_TOOLTIP_DYING	= "Dying in %s"
 
 
 

@@ -301,7 +301,6 @@
 						</Size>
 						<Anchors>
 							<Anchor point="RIGHT" relativeTo="$parent_Pin" relativePoint="LEFT"/>
-							<!--Anchor point="RIGHT" relativeTo="FPerl_Frame_ExpandLock" relativePoint="LEFT"/-->
 						</Anchors>
 						<NormalTexture file="Interface\Addons\FPerl_RaidHelper\Images\FPerl_Bits">
 							<TexCoords left="0.5" right="0.625" top="0.0" bottom="0.125"/>
@@ -348,7 +347,6 @@
 						</Size>
 						<Anchors>
 							<Anchor point="RIGHT" relativeTo="$parent_ToggleLabels" relativePoint="LEFT"/>
-							<!--Anchor point="RIGHT" relativeTo="FPerl_Frame_ToggleTargets" relativePoint="LEFT"/-->
 						</Anchors>
 						<NormalTexture file="Interface\Addons\FPerl_RaidHelper\Images\FPerl_Bits">
 							<TexCoords left="0.625" right="0.75" top="0.0" bottom="0.125"/>

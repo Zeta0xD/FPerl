@@ -1,8 +1,6 @@
 -- Author: Resike
 -- License: GNU GPL v3, 29 June 2007 (see LICENSE.txt)
 
-FPerl.SetModuleRevision("$Revision:  $")
-
 FPerlRaidAdminItems = {}
 
 -- Upvalues
@@ -11,7 +9,6 @@ local floor = floor
 local format = format
 local ipairs = ipairs
 local pairs = pairs
-local setmetatable = setmetatable
 local sort = sort
 local strfind = strfind
 local string = string
@@ -76,7 +73,6 @@ function FPerl.RaidAdmin.CheckOnLoad(self)
 	self:SetScript("OnEvent", FPerl.RaidAdmin.CheckOnEvent)
 	self:SetScript("OnShow", FPerl.RaidAdmin.CheckOnShow)
 	self:SetScript("OnHide", FPerl.RaidAdmin.CheckOnHide)
-	--self:RegisterEvent("CHAT_MSG_ADDON")
 
 	FPerl_CheckListItemsScrollBar.offset = 0
 	FPerl_CheckListPlayersScrollBar.offset = 0
@@ -92,38 +88,6 @@ function FPerl.RaidAdmin.CheckOnLoad(self)
 	FPerl_Check:SetHeight(18)
 
 	FPerl.RaidAdmin.CheckOnLoad = nil
-end
-
-if (not FPerl.GetClassColour) then
-	FPerl.GetClassColour = function(class)
-		if (class) then
-			local color = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class] -- Now using the WoW class color table
-			if (color) then
-				return color
-			end
-		end
-		return {r = 0.5, g = 0.5, b = 1}
-	end
-end
-
-if (not FPerl.ColourTable) then
-	FPerl.ColourTable = setmetatable({},{
-		__index = function(self, class)
-			local c = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class] or {r = 0, g = 0, b = 0}
-			return format("|c00%02X%02X%02X", 255 * c.r, 255 * c.g, 255 * c.b)
-		end
-	})
-end
-
-if (not FPerl.ClassPos) then
-	local ClassPos = CLASS_BUTTONS
-	function FPerl.ClassPos(class)
-		local b = ClassPos[class] -- Now using the Blizzard supplied from FrameXML/WorldStateFrame.lua
-		if (b) then
-			return unpack(b)
-		end
-		return 0.25, 0.5, 0.5, 0.75
-	end
 end
 
 -- FPerl.RaidAdmin.CheckSetup
@@ -196,9 +160,8 @@ function FPerl.RaidAdmin.CheckOnEvent(self, event, a1)
 end
 
 -- CheckOnUpdate
--- Only active after a query, and only for 10 seconds
+-- Runs during an active scan, and after a query until the message queue is sent and 5 seconds have passed
 local function CheckOnUpdate(self, elapsed)
-	-- TODO Total Progress indication
 	if (#MsgQueue > 0) then
 		local Time = GetTime()
 		local send
@@ -217,7 +180,7 @@ local function CheckOnUpdate(self, elapsed)
 			while (#MsgQueue > 0 and count < 4) do
 				local sub = MsgQueue[1]
 
-				if (strlen(msg..sub) > 220) and UnitInRaid("player") then
+				if ((strlen(msg..sub) > 220) and UnitInRaid("player")) then
 					C_ChatInfo.SendAddonMessage("CTRA", msg, "RAID")
 					break
 				else
@@ -231,7 +194,7 @@ local function CheckOnUpdate(self, elapsed)
 				end
 			end
 
-			if (msg ~= "") and UnitInRaid("player") then
+			if ((msg ~= "") and UnitInRaid("player")) then
 				C_ChatInfo.SendAddonMessage("CTRA", msg, "RAID")
 			end
 		end
@@ -292,7 +255,7 @@ local function GotItem(link)
 	end
 end
 
--- GotItem
+-- GotItemName
 local function GotItemName(itemName)
 	for k,v in pairs(FPerlRaidAdminItems) do
 		local linkName = strmatch(v.link, "%[(.+)%]")
@@ -355,10 +318,6 @@ function FPerl.RaidAdmin.ItemCheck(itemName)
 			return
 		end
 
-		if (strsub(itemName, 1, 1) == "|") then
-			-- TODO search for item in inventory (and LootLink) and use the link
-		end
-
 		InsertItemLink(itemName)
 	elseif (cmd == "/radur") then
 		ClearSelectedItem()
@@ -376,20 +335,20 @@ function FPerl.RaidAdmin.ItemCheck(itemName)
 	FPerl.RaidAdmin.CheckQuery()
 end
 
--- FPerl_PickupContainerItem
+-- Remember the bag and slot of the last item picked up
 local PickupBag, PickupSlot
-if C_Container then
+if (C_Container) then
 	hooksecurefunc(C_Container, "PickupContainerItem", function(bagID, slot)
 		PickupBag, PickupSlot = bagID, slot
 	end)
-elseif PickupContainerItem then
+elseif (PickupContainerItem) then
 	hooksecurefunc("PickupContainerItem", function(bagID, slot)
 		PickupBag, PickupSlot = bagID, slot
 	end)
 end
 
 -- sortItems
--- Fixed entries at top, followed by last current queried, followed by rest. Alphabetical within this.
+-- Fixed entries first, then items in the last query, then ticked items, then the rest. Alphabetical within each.
 local function sortItems(i1, i2)
 	local itemName1 = GetVLinkName(i1)
 	local itemName2 = GetVLinkName(i2)
@@ -405,7 +364,7 @@ local function sortItems(i1, i2)
 	return f1..q1..t1..itemName1 < f2..q2..t2..itemName2
 end
 
--- ItemsChanged
+-- FPerl.RaidAdmin.CheckItemsChanged
 function FPerl.RaidAdmin.CheckItemsChanged()
 	-- Validate. Make sure we have our fixed entries
 	local dur, reg, res
@@ -434,7 +393,7 @@ function FPerl.RaidAdmin.CheckItemsChanged()
 	FPerl.RaidAdmin.CheckValidateButtons()
 end
 
--- GetSelectedResults
+-- GetSelectedItem
 local function GetSelectedItem()
 	for k,v in ipairs(FPerlRaidAdminItems) do
 		if (v.selected) then
@@ -459,7 +418,6 @@ end
 
 -- GetSelectedItemLink
 local function GetSelectedItemLink()
-	local link
 	for k,v in ipairs(FPerlRaidAdminItems) do
 		if (v.selected) then
 			return v.link
@@ -467,7 +425,7 @@ local function GetSelectedItemLink()
 	end
 end
 
--- GetCursorItem
+-- GetCursorItemLink
 local function GetCursorItemLink(self)
 	local id = self:GetID() + FPerl_CheckListItemsScrollBar.offset
 	local item = FPerlRaidAdminItems[id]
@@ -569,7 +527,7 @@ function FPerl.RaidAdmin.CheckOnClickItem(button)
 			end
 
 			FPerl_CheckListPlayersScrollBarScrollBar:SetValue(0)
-			FPerl_CheckButtonPlayerPortrait:SetTexture("")	-- SetPortraitTexture(FPerl_CheckButtonPlayerPortrait, "raidx")
+			FPerl_CheckButtonPlayerPortrait:SetTexture("")
 			SelectedPlayer = nil
 			SelectClickedTickItem(button)
 			FPerl.RaidAdmin.CheckValidateButtons()
@@ -627,7 +585,7 @@ local function SmoothColour(percentage)
 	return r, g, 0
 end
 
--- SmoothBarColor
+-- SmoothGuageColor
 local function SmoothGuageColor(bar, percentage)
 	local r, g, b = SmoothColour(percentage)
 	bar:SetVertexColor(r, g, b, 0.75)
@@ -665,7 +623,7 @@ function FPerl.RaidAdmin.CheckUpdateItemList()
 				if (v.link == "res") then
 					nameFrame:SetText(RESISTANCE_LABEL)
 					countFrame:SetText(ResistResults.count)
-					if onlineCount == 0 then
+					if (onlineCount == 0) then
 						div = 1
 					else
 						div = ResistResults.count / onlineCount
@@ -678,7 +636,7 @@ function FPerl.RaidAdmin.CheckUpdateItemList()
 					end
 					nameFrame:SetText(dur)
 					countFrame:SetText(DurResults.count)
-					if onlineCount == 0 then
+					if (onlineCount == 0) then
 						div = 1
 					else
 						div = DurResults.count / onlineCount
@@ -687,7 +645,7 @@ function FPerl.RaidAdmin.CheckUpdateItemList()
 				elseif (v.link == "reg") then
 					nameFrame:SetText(FPERL_CHECK_REAGENTS)
 					countFrame:SetText(RegResults.count)
-					if reagentCount == 0 then
+					if (reagentCount == 0) then
 						div = 1
 					else
 						div = RegResults.count / reagentCount
@@ -711,7 +669,7 @@ function FPerl.RaidAdmin.CheckUpdateItemList()
 
 				local itemId = strmatch(v.link, "item:(%d+):")
 				if (itemId) then
-					local itemName, itemString, itemQuality, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture = GetItemInfo(itemId)
+					local itemTexture = select(10, GetItemInfo(itemId))
 					iconFrame:SetTexture(itemTexture)
 					iconFrame:Show()
 				else
@@ -930,7 +888,7 @@ function FPerl.RaidAdmin.CheckMakePlayerList()
 
 			if (resType == "item") then
 				for k,v in ipairs(results) do
-					if (v.name == name) then	-- type(v) == "table" and
+					if (v.name == name) then
 						count = v.count
 						if (count > 0) then
 							noCTRA = nil
@@ -1004,11 +962,10 @@ end
 function FPerl.RaidAdmin.CheckUpdatePlayerList()
 	local onlineCount, tFR, tFRR, tNR, tSR, tAR, tDur, tBroken, tCount = 0, 0, 0, 0, 0, 0, 0, 0, 0
 
-	local results, resType = GetSelectedItem()
+	local _, resType = GetSelectedItem()
 	local index = 1
 
 	for i = 1,#PlayerList do
-		--    + FPerl_CheckListPlayersScrollBar.offset, PLAYERLISTSIZE + FPerl_CheckListPlayersScrollBar.offset do
 		local v = PlayerList[i]
 		if (not v) then
 			break
@@ -1293,7 +1250,7 @@ function FPerl.RaidAdmin.CheckOnEnter(self)
 	GameTooltip:Show()
 end
 
--- FPerl_Check_OnClickStart
+-- FPerl.RaidAdmin.CheckOnClickTick
 function FPerl.RaidAdmin.CheckOnClickTick(self)
 	local id = self:GetParent():GetID() + FPerl_CheckListItemsScrollBar.offset
 	if (FPerlRaidAdminItems[id]) then
@@ -1336,7 +1293,6 @@ function FPerl.RaidAdmin.CheckQuery()
 	DurResults.count = 0
 	RegResults.count = 0
 
-	local msg
 	for k, v in ipairs(FPerlRaidAdminItems) do
 		if (v.ticked) then
 			v.query = true
@@ -1385,7 +1341,7 @@ local function GetActiveScanItem()
 		return
 	end
 
-	local itemName, itemString, itemQuality, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture = GetItemInfo(itemId)
+	local _, _, _, _, _, itemType, _, _, itemEquipLoc = GetItemInfo(itemId)
 
 	if (not itemEquipLoc or not itemType) then
 		return
@@ -1454,7 +1410,7 @@ function FPerl.RaidAdmin.CheckValidateButtons()
 		end
 	end
 
-	local results, resType = GetSelectedItem()
+	local results = GetSelectedItem()
 
 	if (anyTicked and not FPerl_Check.queryStart) then
 		FPerl_CheckButtonDelete:Enable()
@@ -1635,7 +1591,7 @@ function FPerl.RaidAdmin.CheckReport(showNames)
 				local equipable = ""
 				if (strsub(link, 1, 1) == "|") then
 					local itemId = strmatch(link, "item:(%d+):")
-					local itemName, itemString, itemQuality, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture = GetItemInfo(itemId)
+					local _, _, _, _, _, itemType, _, _, itemEquipLoc = GetItemInfo(itemId)
 					if (itemEquipLoc and itemType) then
 						if (itemType == "Armor" or itemType == "Weapon") then
 							equipable = "_EQ"
@@ -1753,7 +1709,7 @@ function FPerl.RaidAdmin.CheckReport(showNames)
 							end
 						end
 
-						if (ActiveScanTotals) then	-- and ActiveScanTotals.missing == 0) then
+						if (ActiveScanTotals) then
 							Out(FPERL_CHECK_REPORT_EQUIPEDSHORT, ActiveScanTotals.equipped)
 							Out(FPERL_CHECK_REPORT_NOTEQUIPEDSHORT, ActiveScanTotals.notequipped)
 							Out(FPERL_CHECK_REPORT_OFFLINE, ActiveScanTotals.offline)
@@ -1832,7 +1788,6 @@ end
 function FPerl.RaidAdmin.CheckActiveScan()
 	local function CheckSlot(unit, slot)
 		local link = GetInventoryItemLink(unit, slot)
-		local eq
 		local name = UnitName(unit)
 
 		if (link) then
@@ -1861,21 +1816,18 @@ function FPerl.RaidAdmin.CheckActiveScan()
 
 	local myZone = GetRealZoneText()
 
-	local any
 	local update
 	ActiveScanTotals = {missing = 0, equipped = 0, notequipped = 0, offline = 0, wrongZone = 0}
 
 	for i = 1, GetNumGroupMembers() do
 		local name, _, _, _, _, _, zone = GetRaidRosterInfo(i)
 		local unit = "raid"..i
-		local new
 		local myScan = ActiveScan[name]
 
 		if (not myScan or myScan.changed) then
 			if (myScan) then
 				myScan.changed = nil
 			end
-			any = true
 			if (not InCombatLockdown() and CheckInteractDistance(unit, 1)) then		-- Checks to see if in inspect range
 				local eq
 				if (type(ActiveScanItem.slot) == "table") then

@@ -6,11 +6,11 @@ local conf, pconf
 FPerl.RequestConfig(function(new)
 	conf = new
 	pconf = new.pet
-	if FPerl_Player_Pet then
+	if (FPerl_Player_Pet) then
 		FPerl_Player_Pet.conf = pconf
 		FPerl.MainFrameStart(FPerl_Player_Pet, pconf.enable, PetFrame)
 	end
-end, "$Revision:  $")
+end)
 
 -- Upvalues
 local _G = _G
@@ -26,9 +26,7 @@ local UnitAffectingCombat = UnitAffectingCombat
 local UnitClass = UnitClass
 local UnitExists = UnitExists
 local UnitGUID = UnitGUID
-local UnitHasIncomingResurrection = UnitHasIncomingResurrection
 local UnitHasVehicleUI = UnitHasVehicleUI
-local UnitIsCharmed = UnitIsCharmed
 local UnitIsDead = UnitIsDead
 local UnitIsFriend = UnitIsFriend
 local UnitName = UnitName
@@ -39,7 +37,7 @@ local UnregisterUnitWatch = UnregisterUnitWatch
 local CombatFeedback_Initialize = CombatFeedback_Initialize
 local CombatFeedback_OnUpdate = CombatFeedback_OnUpdate
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local CanAccess = FPerl.CanAccess
 local IsSecret = FPerl.IsSecret
 local SafeBool = FPerl.SafeBool
@@ -50,13 +48,13 @@ local EnableEvents
 -- FPerl.PlayerPet.OnLoad
 function FPerl.PlayerPet.OnLoad(self)
 	FPerl.SetChildMembers(self)
+	-- the aura colour highlight is for party and raid frames; this frame shows only the HoT highlight
+	self.hotHighlightOnly = true
+	self.smallBarText = true -- fat bars use the small font on this frame
 	self.partyid = "pet"
 
 	CombatFeedback_Initialize(self, self.hitIndicator.text, 30)
 	self.portraitW = 50
-
-	--FPerl.SecureUnitButtonOnLoad(self, "pet", nil, PetFrameDropDown, FPerl_ShowGenericMenu)			--PetFrame.menu)
-	--FPerl.SecureUnitButtonOnLoad(self.nameFrame, "pet", nil, PetFrameDropDown, FPerl_ShowGenericMenu)	--PetFrame.menu)
 
 	self.nameFrame:SetAttribute("*type1", "target")
 	self.nameFrame:SetAttribute("type2", "togglemenu")
@@ -65,20 +63,18 @@ function FPerl.PlayerPet.OnLoad(self)
 	self:SetAttribute("type2", "togglemenu")
 	self:SetAttribute("unit", self.partyid)
 
-	--RegisterAttributeDriver(self.nameFrame, "unit", "[vehicleui] player; pet")
 	RegisterAttributeDriver(self, "unit", "[vehicleui] player; pet")
 
 	FPerl.RegisterClickCastFrame(self.nameFrame)
 	FPerl.RegisterClickCastFrame(self)
 
-	--RegisterUnitWatch(self)
 	EnableEvents(self)
 
 	self.time = 0
 
 	self:SetScript("OnShow", FPerl.UnitUpdatePortrait)
 
-	if FPerl.ArcaneBar.RegisterFrame then
+	if (FPerl.ArcaneBar.RegisterFrame) then
 		FPerl.ArcaneBar.RegisterFrame(self.nameFrame, UnitHasVehicleUI("player") and "player" or "pet")
 	end
 
@@ -90,7 +86,7 @@ function FPerl.PlayerPet.OnLoad(self)
 
 	FPerl_Highlight:Register(HighlightCallback, self)
 
-	if FPerl.layout then
+	if (FPerl.layout) then
 		self.conf = FPerl.layout.pet
 	end
 
@@ -99,7 +95,7 @@ end
 
 -- HighlightCallback
 function HighlightCallback(self, updateGUID)
-	if updateGUID == UnitGUID("pet") then
+	if (updateGUID == UnitGUID("pet")) then
 		FPerl_Highlight:SetHighlight(self, updateGUID)
 	end
 end
@@ -109,16 +105,16 @@ local function UpdateName(self)
 	local partyid = self.partyid
 	local petname = UnitName(partyid)
 
-	if CanAccess(petname) and petname == UNKNOWN then
+	if (CanAccess(petname) and petname == UNKNOWN) then
 		self.nameFrame.text:SetText("")
 	else
 		self.nameFrame.text:SetText(petname)
 	end
 
-	if partyid == "pet" then
+	if (partyid == "pet") then
 		local c = conf.colour.reaction.none
 		self.nameFrame.text:SetTextColor(c.r, c.g, c.b, conf.transparency.text)
-	elseif not UnitIsFriend("player", "pet") then		-- Pet or you charmed
+	elseif (not SafeBool(UnitIsFriend("player", "pet"), true)) then		-- Pet or you charmed
 		local c = conf.colour.reaction.enemy
 		self.nameFrame.text:SetTextColor(c.r, c.g, c.b, conf.transparency.text)
 	else
@@ -131,38 +127,8 @@ local function UpdateLevel(self)
 	FPerl.UnitUpdateLevel(self)
 end
 
--- UpdateAbsorbPrediction
-local function UpdateAbsorbPrediction(self)
-	if pconf.absorbs then
-		FPerl.SetExpectedAbsorbs(self)
-	else
-		self.statsFrame.expectedAbsorbs:Hide()
-	end
-end
-
--- UpdateHealPrediction
-local function UpdateHealPrediction(self)
-	if pconf.healprediction then
-		FPerl.SetExpectedHealth(self)
-	else
-		self.statsFrame.expectedHealth:Hide()
-	end
-end
-
 local function UpdateResurrectionStatus(self)
-	if UnitHasIncomingResurrection(self.partyid) then
-		if pconf.portrait then
-			self.portraitFrame.resurrect:Show()
-		else
-			self.statsFrame.resurrect:Show()
-		end
-	else
-		if pconf.portrait then
-			self.portraitFrame.resurrect:Hide()
-		else
-			self.statsFrame.resurrect:Hide()
-		end
-	end
+	FPerl.UpdateResurrect(self, pconf.portrait and self.portraitFrame.resurrect or self.statsFrame.resurrect)
 end
 
 -- UpdateHealth
@@ -171,11 +137,10 @@ local function UpdateHealth(self)
 
 	FPerl.SetHealthBar(self)
 
-	UpdateAbsorbPrediction(self)
-	UpdateHealPrediction(self)
+	FPerl.UpdatePrediction(self, pconf, self.statsFrame)
 	UpdateResurrectionStatus(self)
 
-	if SafeBool(UnitIsDead(partyid), false) then
+	if (SafeBool(UnitIsDead(partyid), false)) then
 		self.statsFrame.healthBar.text:SetText(FPERL_LOC_DEAD)
 		self.statsFrame.manaBar.text:Hide()
 	end
@@ -186,14 +151,14 @@ local powerStyle = {text = "whole"}
 local function UpdateMana(self)
 	FPerl.PowerUpdate(self, powerStyle)
 
-	if pconf.values then
+	if (pconf.values) then
 		self.statsFrame.manaBar.text:Show()
 	end
 end
 
 -- CombatFlash
 local function CombatFlash(self, elapsed, argNew, argGreen)
-	if FPerl.CombatFlashSet(self, elapsed, argNew, argGreen) then
+	if (FPerl.CombatFlashSet(self, elapsed, argNew, argGreen)) then
 		FPerl.CombatFlashSetFrames(self)
 	end
 end
@@ -201,10 +166,10 @@ end
 -- FPerl.PlayerPet.OnUpdate
 function FPerl.PlayerPet.OnUpdate(self, elapsed)
 	local feedback = pconf.hitIndicator
-	if feedback then
+	if (feedback) then
 		CombatFeedback_OnUpdate(self, elapsed)
 	end
-	if self.PlayerFlash then
+	if (self.PlayerFlash) then
 		CombatFlash(self, elapsed, false)
 	end
 	FPerl.OnUpdateIdle(self, feedback)
@@ -213,13 +178,10 @@ end
 ---------------
 -- Happiness --
 ---------------
--- GetPetHappiness is gone, but happiness itself still exists --
--- it is now a power type, Enum.PowerType.Happiness (27). Confirmed on a live
--- hunter pet: 975 of a 1000 maximum while the pet showed as happy. The 1/2/3
--- level comes from three equal bands, the classic model; adjust HAPPY_BANDS
--- alone if a reading at content or unhappy ever contradicts it. damagePercentage
--- and loyaltyRate have no power-type equivalent, so those two tooltip lines are
--- dropped on this path.
+-- Where GetPetHappiness is missing, happiness is the power type Enum.PowerType.Happiness
+-- (27), with a maximum of 1000, read as the 1/2/3 level in three equal bands (HAPPY_BANDS).
+-- damagePercentage and loyaltyRate have no power-type equivalent, so those two tooltip
+-- lines are left out on that path.
 local HAPPY_BANDS = 3
 local function HappinessFromPower(unit)
 	local powerType = Enum and Enum.PowerType and Enum.PowerType.Happiness
@@ -227,14 +189,14 @@ local function HappinessFromPower(unit)
 		return
 	end
 	local cur, max = UnitPower(unit, powerType), UnitPowerMax(unit, powerType)
-	-- A pet's power can be secret in combat, and this drives comparisons and
-	-- maths below; bail rather than crash.
+	-- A pet's power can be secret in combat, and the comparisons and maths
+	-- below error on a secret value; return without a reading instead.
 	if (not cur or not max or IsSecret(cur) or IsSecret(max) or max <= 0) then
 		return
 	end
 	-- Zero is a real reading here (a pet about to run away), not "no happiness":
-	-- this only ever runs for hunters, since VARIABLES_LOADED nils the whole
-	-- function for every other class. The clamp below turns it into band 1.
+	-- this only ever runs for hunters, since VARIABLES_LOADED nils SetHappiness,
+	-- its only caller, for every other class. The clamp below turns it into band 1.
 	local band = math.ceil((cur / max) * HAPPY_BANDS)
 	if (band < 1) then
 		band = 1
@@ -252,7 +214,7 @@ local function SetHappiness(self)
 		happiness = HappinessFromPower(self.partyid)
 	end
 	if (not happiness) then
-		-- No happiness for this pet (or unreadable): leave the icon alone.
+		-- No happiness for this pet (or unreadable): hide the icon.
 		FPerl.FrameFlashStop(self.happyFrame)
 		self.happyFrame:Hide()
 		return
@@ -261,12 +223,11 @@ local function SetHappiness(self)
 	local icon = self.happyFrame.icon
 	icon.tex:SetTexCoord(0.5625 - (0.1875 * happiness), 0.75 - (0.1875 * happiness), 0, 0.359375)
 
-	if pconf.happiness.enable and (not pconf.happiness.onlyWhenSad or happiness < 3) then
+	if (pconf.happiness.enable and (not pconf.happiness.onlyWhenSad or happiness < 3)) then
 		self.happyFrame:Show()
 
 		icon.tooltip = _G[("PET_HAPPINESS"..happiness)]
-		-- Both of these are nil whenever GetPetHappiness is unavailable, and
-		-- the old code compared loyaltyRate without checking it existed.
+		-- Both of these are nil whenever GetPetHappiness is unavailable.
 		icon.tooltipDamage = damagePercentage and format(PET_DAMAGE_PERCENTAGE, damagePercentage) or nil
 		if (not loyaltyRate or loyaltyRate == 0) then
 			icon.tooltipLoyalty = nil
@@ -276,7 +237,7 @@ local function SetHappiness(self)
 			icon.tooltipLoyalty = GAINING_LOYALTY
 		end
 
-		if pconf.happiness.flashWhenSad and happiness < 3 then
+		if (pconf.happiness.flashWhenSad and happiness < 3) then
 			FPerl.FrameFlash(self.happyFrame)
 		else
 			FPerl.FrameFlashStop(self.happyFrame)
@@ -289,19 +250,14 @@ end
 
 -- UpdateControl
 local function UpdateControl(self)
-	-- indirect units can return secret flags; no icon in that case
-	if SafeBool(UnitIsCharmed(self.partyid), false) and SafeBool(UnitIsPlayer(self.partyid), false) then
-		self.nameFrame.warningIcon:Show()
-	else
-		self.nameFrame.warningIcon:Hide()
-	end
+	self.nameFrame.warningIcon:SetShown(FPerl.IsCharmedPlayer(self.partyid))
 end
 
 -- UpdateCombat
 local function UpdateCombat(self)
 	local partyid = self.partyid
-	if UnitExists(partyid) then
-		if (UnitAffectingCombat(partyid)) then
+	if (UnitExists(partyid)) then
+		if (SafeBool(UnitAffectingCombat(partyid), false)) then
 			self.nameFrame.combatIcon:Show()
 		else
 			self.nameFrame.combatIcon:Hide()
@@ -313,7 +269,7 @@ end
 -- FPerl.PlayerPet.UpdateDisplay
 function FPerl.PlayerPet.UpdateDisplay(self)
 	local unit = self:GetAttribute("unit")
-	if unit ~= self.partyid then
+	if (unit ~= self.partyid) then
 		self.portraitFrame:SetAlpha(0)
 		self.nameFrame:SetAlpha(0)
 		self.statsFrame:SetAlpha(0)
@@ -328,14 +284,14 @@ function FPerl.PlayerPet.UpdateDisplay(self)
 	UpdateName(self)
 	UpdateHealth(self)
 	FPerl.SetManaBarType(self)
-	if SetHappiness then
+	if (SetHappiness) then
 		SetHappiness(self)
 	end
 	UpdateMana(self)
 	UpdateLevel(self)
 	FPerl.AurasRebuild(self)
 	FPerl.AurasUpdate(self)
-	if UnitExists(self.partyid) then
+	if (UnitExists(self.partyid)) then
 		FPerl.CheckDebuffs(self, self.partyid)
 	end
 	UpdateCombat(self)
@@ -369,7 +325,7 @@ EnableEvents = function(self)
 	self.updateHealth = UpdateHealth
 	self.auraInset = AuraInset
 	FPerl.UnitFrameInit(self, {"pet", "player"}, {"PetLoad", "Health", "PlayerPet", "Auras"})
-	if classFileName == "HUNTER" then
+	if (classFileName == "HUNTER") then
 		FPerl.UnitFrameEnable(self, "PetHappiness")
 	end
 end
@@ -377,7 +333,7 @@ end
 -- VARIABLES_LOADED
 function FPerl.Elements.PetLoad.events:VARIABLES_LOADED()
 	local _, classFileName = UnitClass("player")
-	if classFileName ~= "HUNTER" then
+	if (classFileName ~= "HUNTER") then
 		-- Disable happiness for non-hunters
 		SetHappiness = nil
 	end
@@ -387,15 +343,14 @@ end
 
 -- UNIT_AURA
 function Events:UNIT_AURA()
-	if UnitExists(self.partyid) then
+	if (UnitExists(self.partyid)) then
 		FPerl.CheckDebuffs(self, self.partyid)
 	end
 end
 
 -- UNIT_PET
 function Events:UNIT_PET()
-	if conf then		-- DK can issue very early UNIT_PET, long before PEW. We refresh on entering world regardless
-		--self.partyid = UnitHasVehicleUI("player") and "player" or "pet"
+	if (conf) then		-- DK can issue very early UNIT_PET, long before PEW; SetBits updates the frame once the config loads
 		FPerl.PlayerPet.UpdateDisplay(self)
 	end
 end
@@ -414,7 +369,7 @@ function Events:UNIT_POWER_FREQUENT()
 	UpdateMana(self)
 	UpdateCombat(self)
 	-- Without GetPetHappiness there is no UNIT_HAPPINESS to ride, and happiness
-	-- is itself a power now, so this is where it changes.
+	-- is a power type, so this is where it changes.
 	if (not GetPetHappiness and SetHappiness) then
 		SetHappiness(self)
 	end
@@ -448,17 +403,17 @@ end
 
 -- UNIT_COMBAT
 function Events:UNIT_COMBAT(unit, action, descriptor, damage, damageType)
-	if unit ~= self.partyid then
+	if (unit ~= self.partyid) then
 		return
 	end
 	-- set first: the flash and hit text animate even when a later line raises on a secret amount
 	self:SetScript("OnUpdate", FPerl.PlayerPet.OnUpdate)
 
-	if pconf.hitIndicator then
+	if (pconf.hitIndicator) then
 		FPerl.HitIndicator(self, action, descriptor, damage, damageType, pconf)
 	end
 
-	if action == "HEAL" then
+	if (action == "HEAL") then
 		CombatFlash(FPerl_Player_Pet, 0, true, true)
 	elseif (FPerl.IsHit(action, damage)) then
 		CombatFlash(FPerl_Player_Pet, 0, true)
@@ -489,10 +444,10 @@ end
 
 -- UNIT_ENTERED_VEHICLE
 function Events:UNIT_ENTERED_VEHICLE(unit, showVehicle)
-	if showVehicle then
+	if (showVehicle) then
 		self.partyid = "player"
 		self.unit = self.partyid
-		if FPerl.ArcaneBar.SetUnit then
+		if (FPerl.ArcaneBar.SetUnit) then
 			FPerl.ArcaneBar.SetUnit(self.nameFrame, "player")
 		end
 		FPerl.PlayerPet.UpdateDisplay(self)
@@ -501,7 +456,7 @@ end
 
 -- UNIT_EXITING_VEHICLE
 function Events:UNIT_EXITING_VEHICLE()
-	if self.partyid ~= "pet" then
+	if (self.partyid ~= "pet") then
 		self.partyid = "pet"
 		self.unit = self.partyid
 		if (FPerl.ArcaneBar.SetUnit) then
@@ -519,22 +474,22 @@ Events.UNIT_TARGET = Events.PLAYER_TARGET_CHANGED
 -- PLAYER_REGEN_DISABLED
 local virtual
 function FPerl.Elements.PetPreview.events:PLAYER_REGEN_DISABLED()
-	-- Whether lockdown is already on at this event is unmeasured; if it is, leave preview mode after combat
-	if virtual and InCombatLockdown() then
+	-- Lockdown can already be on at this event; if it is, leave preview mode after combat
+	if (virtual and InCombatLockdown()) then
 		FPerl.AfterCombat(FPerl.Elements.PetPreview.events.PLAYER_REGEN_DISABLED, self)
 		return
 	end
-	if virtual then
+	if (virtual) then
 		virtual = nil
 		RegisterUnitWatch(FPerl_Player_Pet)
-		if UnitExists("pet") then
+		if (UnitExists("pet")) then
 			FPerl_Player_Pet:Show()
 			FPerl.PlayerPet.UpdateDisplay(FPerl_Player_Pet)
 		else
 			FPerl_Player_Pet:Hide()
 		end
 
-		if FPerl_PetTarget then
+		if (FPerl_PetTarget) then
 			RegisterUnitWatch(FPerl_PetTarget)
 			if (UnitExists("pettarget")) then
 				FPerl_PetTarget:Show()
@@ -547,19 +502,19 @@ function FPerl.Elements.PetPreview.events:PLAYER_REGEN_DISABLED()
 end
 
 function FPerl.Elements.PetHeal.events:UNIT_HEAL_PREDICTION(unit)
-	if pconf.healprediction and unit == self.partyid then
+	if (pconf.healprediction and unit == self.partyid) then
 		FPerl.SetExpectedHealth(self)
 	end
 end
 
 function Events:UNIT_ABSORB_AMOUNT_CHANGED(unit)
-	if pconf.absorbs and unit == self.partyid then
+	if (pconf.absorbs and unit == self.partyid) then
 		FPerl.SetExpectedAbsorbs(self)
 	end
 end
 
 function Events:INCOMING_RESURRECT_CHANGED(unit)
-	if unit == self.partyid then
+	if (unit == self.partyid) then
 		UpdateResurrectionStatus(self)
 	end
 end
@@ -579,17 +534,17 @@ end
 
 -- FPerl.PlayerPet.Virtual
 function FPerl.PlayerPet.Virtual(show)
-	if FPerl_Player_Pet.off then
+	if (FPerl_Player_Pet.off) then
 		return
 	end
-	if InCombatLockdown() then
+	if (InCombatLockdown()) then
 		FPerl.AfterCombat(FPerl.PlayerPet.Virtual, show and true or false)
 		return
 	end
-	if show then
-		if not virtual then
+	if (show) then
+		if (not virtual) then
 			virtual = true
-			if not UnitExists("pet") then
+			if (not UnitExists("pet")) then
 				FPerl.UnitFrameEnable(FPerl_Player_Pet, "PetPreview")
 				UnregisterUnitWatch(FPerl_Player_Pet)
 				FPerl_Player_Pet:Show()
@@ -599,7 +554,7 @@ function FPerl.PlayerPet.Virtual(show)
 				FPerl_Player_Pet:SetAlpha(0.5)
 			end
 
-			if FPerl_PetTarget and not UnitExists("pettarget") then
+			if (FPerl_PetTarget and not UnitExists("pettarget")) then
 				FPerl_PetTarget.virtual = true
 				UnregisterUnitWatch(FPerl_PetTarget)
 				FPerl_PetTarget:Show()
@@ -612,10 +567,10 @@ function FPerl.PlayerPet.Virtual(show)
 			end
 		end
 	else
-		if virtual then
+		if (virtual) then
 			virtual = nil
 			RegisterUnitWatch(FPerl_Player_Pet)
-			if FPerl_PetTarget then
+			if (FPerl_PetTarget) then
 				FPerl_PetTarget.virtual = nil
 				if (FPerl_PetTarget.conf and FPerl_PetTarget.conf.enable) then
 					RegisterUnitWatch(FPerl_PetTarget)
@@ -627,13 +582,13 @@ function FPerl.PlayerPet.Virtual(show)
 	end
 end
 
--- ApplyLayout: the protected part of Set_Bits; reads the config when it runs
+-- ApplyLayout: the protected part of FPerl.PlayerPet.SetBits; reads the config when it runs
 local function ApplyLayout(self)
-	if not virtual then
+	if (not virtual) then
 		RegisterUnitWatch(self)
 	end
 
-	if pconf.portrait then
+	if (pconf.portrait) then
 		self.portraitFrame:Show()
 		self.portraitFrame:SetWidth(self.portraitW)
 		self.statsFrame.resurrect:Hide()
@@ -642,7 +597,7 @@ local function ApplyLayout(self)
 		self.portraitFrame:SetWidth(3)
 	end
 
-	if pconf.name then
+	if (pconf.name) then
 		self.nameFrame:Show()
 		self.nameFrame:SetHeight(24)
 	else
@@ -655,29 +610,29 @@ end
 
 -- FPerl.PlayerPet.SetBits
 function FPerl.PlayerPet.SetBits(self)
-	local d = FPerl.Dev; if d and d.listener then d.Emit("redisplay.playerpet") end
-	if self.off then
+	local d = FPerl.Dev; if (d and d.listener) then d.Emit("redisplay.playerpet") end
+	if (self.off) then
 		return
 	end
 	FPerl.AfterCombat(ApplyLayout, self)
 
-	if pconf.name or pconf.portrait then
-		if pconf.level then
+	if (pconf.name or pconf.portrait) then
+		if (pconf.level) then
 			self.levelFrame:SetPoint("TOPRIGHT", self.portraitFrame, "TOPLEFT", 2, 0)
 		end
 	else
-		if pconf.level then
+		if (pconf.level) then
 			self.levelFrame:SetPoint("TOPRIGHT", self.statsFrame, "TOPLEFT", 2, 0)
 		end
 	end
 
-	if pconf.level then
+	if (pconf.level) then
 		self.levelFrame:Show()
 	else
 		self.levelFrame:Hide()
 	end
 
-	if pconf.values then
+	if (pconf.values) then
 		self.statsFrame.healthBar.text:Show()
 		self.statsFrame.manaBar.text:Show()
 	else
@@ -686,7 +641,7 @@ function FPerl.PlayerPet.SetBits(self)
 	end
 
 	self.highlight:ClearAllPoints()
-	if pconf.portrait or pconf.name then
+	if (pconf.portrait or pconf.name) then
 		self.highlight:SetPoint("BOTTOMLEFT", self.portraitFrame)
 	else
 		self.highlight:SetPoint("BOTTOMLEFT", self.statsFrame)
@@ -699,7 +654,7 @@ function FPerl.PlayerPet.SetBits(self)
 
 	FPerl.PlayerPet.SetWidth(self)
 
-	if self:IsShown() then
+	if (self:IsShown()) then
 		FPerl.PlayerPet.UpdateDisplay(self)
 	end
 end

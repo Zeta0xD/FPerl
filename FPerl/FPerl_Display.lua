@@ -7,7 +7,7 @@ local conf
 
 FPerl.RequestConfig(function(New)
 	conf = New
-end, "$Revision: 1 $")
+end)
 
 local abs = abs
 local cos = cos
@@ -33,7 +33,7 @@ local GetRealZoneText = GetRealZoneText
 local IsInRaid = IsInRaid
 local SetPortraitTexture = SetPortraitTexture
 local SetPortraitToTexture = SetPortraitToTexture or function(texture, asset)
-	-- Removed from newer clients; plain texture swap is equivalent here
+	-- where SetPortraitToTexture is missing, a plain texture swap stands in
 	texture:SetTexture(asset)
 	texture:SetTexCoord(0, 1, 0, 1)
 end
@@ -101,7 +101,7 @@ end
 
 -- CheckOnUpdate
 local function CheckOnUpdate()
-	if next(fadeBars) then
+	if (next(fadeBars)) then
 		FPerl_Globals:SetScript("OnUpdate", FPerl.BarUpdate)
 	else
 		FPerl_Globals:SetScript("OnUpdate", nil)
@@ -109,12 +109,10 @@ local function CheckOnUpdate()
 end
 
 -- FPerl.BarUpdate
---local speakerTimer = 0
---local speakerCycle = 0
 function FPerl.BarUpdate(self, arg1)
 	local did
 	for k, v in pairs(fadeBars) do
-		if k:IsShown() then
+		if (k:IsShown()) then
 			v:SetAlpha(k.fadeAlpha)
 			k.fadeAlpha = k.fadeAlpha - (arg1 / conf.bar.fadeTime)
 
@@ -125,7 +123,7 @@ function FPerl.BarUpdate(self, arg1)
 			k.fadeAlpha = 0
 		end
 
-		if k.fadeAlpha <= 0 then
+		if (k.fadeAlpha <= 0) then
 			tinsert(freeFadeBars, v)
 			fadeBars[k] = nil
 			k.fadeAlpha = nil
@@ -137,7 +135,7 @@ function FPerl.BarUpdate(self, arg1)
 		end
 	end
 
-	if did then
+	if (did) then
 		CheckOnUpdate()
 	end
 end
@@ -145,7 +143,7 @@ end
 -- GetFreeFader
 local function GetFreeFader(parent)
 	local bar = freeFadeBars[1]
-	if bar then
+	if (bar) then
 		tremove(freeFadeBars, 1)
 		bar:SetParent(parent)
 	else
@@ -154,14 +152,14 @@ local function GetFreeFader(parent)
 		bar = CreateFrame("StatusBar", nil, parent)
 	end
 
-	if bar then
+	if (bar) then
 		fadeBars[parent] = bar
 		CheckOnUpdate()
 
 		bar.tex = parent.tex
 
 		local tex = parent:GetStatusBarTexture()
-		if tex:GetTexture() then
+		if (tex:GetTexture()) then
 			bar:SetStatusBarTexture(tex:GetTexture())
 			bar:GetStatusBarTexture():SetHorizTile(false)
 			bar:GetStatusBarTexture():SetVertTile(false)
@@ -183,22 +181,22 @@ end
 
 -- FPerl.StatusBarSetValue
 function FPerl.StatusBarSetValue(self, val)
-	if not tempDisableFadeBars and conf.bar.fading and self:GetName() then
+	if (not tempDisableFadeBars and conf.bar.fading and self:GetName()) then
 		local min, max = self:GetMinMaxValues()
 		local current = self:GetValue()
 
-		-- secret values (health always, power always) cannot be compared, so every update fades
+		-- secret values cannot be compared, so every update fades
 		-- from the old value; after a gain the fader lies inside the bar's own fill and does not show
 		local readable = CanAccess(val) and CanAccess(current) and CanAccess(max)
-		if not readable or (val < current and val <= max and val >= min) then
+		if (not readable or (val < current and val <= max and val >= min)) then
 			local bar = fadeBars[self]
 
-			if not bar then
+			if (not bar) then
 				bar = GetFreeFader(self)
 			end
 
-			if bar then
-				if not self.fadeAlpha then
+			if (bar) then
+				if (not self.fadeAlpha) then
 					-- the party range fade sets a secret alpha, which BarUpdate cannot count down
 					local alpha = self:GetParent():GetAlpha()
 					self.fadeAlpha = CanAccess(alpha) and alpha or 1
@@ -217,7 +215,7 @@ end
 
 -- FPerl.RegisterClickCastFrame
 function FPerl.RegisterClickCastFrame(self)
-	if not ClickCastFrames then
+	if (not ClickCastFrames) then
 		ClickCastFrames = { }
 	end
 	ClickCastFrames[self] = true
@@ -226,26 +224,76 @@ end
 -- FPerl.SecureUnitButtonOnLoad
 function FPerl.SecureUnitButtonOnLoad(self, unit, menufunc, m1, m2, toggledisabled)
 	self:SetAttribute("*type1", "target")
-	if toggledisabled then
+	if (toggledisabled) then
 		self:SetAttribute("type2", "menu")
 	else
 		self:SetAttribute("type2", "togglemenu")
 	end
 
-	if unit then
+	if (unit) then
 		self:SetAttribute("unit", unit)
 	end
 
 	FPerl.RegisterClickCastFrame(self)
 end
 
+local roleIcons = {
+	TANK = "Interface\\AddOns\\FPerl\\Images\\FPerl_RoleTank",
+	HEALER = "Interface\\AddOns\\FPerl\\Images\\FPerl_RoleHealer",
+	DAMAGER = "Interface\\AddOns\\FPerl\\Images\\FPerl_RoleDamage",
+}
+local oldRoleIcons = {
+	TANK = "Interface\\GroupFrame\\UI-Group-MainTankIcon",
+	HEALER = "Interface\\AddOns\\FPerl\\Images\\FPerl_RoleHealer_old",
+	DAMAGER = "Interface\\GroupFrame\\UI-Group-MainAssistIcon",
+}
+
+-- FPerl.SetRoleIcon(icon, role)
+-- Shows the texture icon for role (TANK, HEALER, DAMAGER), from the X-Perl set when oldRoleIcons is on;
+-- hides it for any other role, or a secret one.
+function FPerl.SetRoleIcon(icon, role)
+	local path = CanAccess(role) and (conf.oldRoleIcons and oldRoleIcons or roleIcons)[role]
+	if (path) then
+		icon:SetTexture(path)
+		icon:Show()
+	else
+		icon:Hide()
+	end
+end
+
+-- FPerl.IsMasterLooter(unit)
+-- True when the group uses master loot and unit is the master looter; a secret answer reads false.
+function FPerl.IsMasterLooter(unit)
+	local method, partyIndex, raidIndex = C_PartyInfo.GetLootMethod()
+	if (method ~= Enum.LootMethod.Masterlooter) then
+		return false
+	end
+	if (raidIndex) then
+		return FPerl.SafeBool(UnitIsUnit("raid"..raidIndex, unit), false)
+	elseif (partyIndex == 0) then
+		return FPerl.SafeBool(UnitIsUnit("player", unit), false)
+	elseif (partyIndex) then
+		return FPerl.SafeBool(UnitIsUnit("party"..partyIndex, unit), false)
+	end
+	return false
+end
+
+-- FPerl.IsCharmedPlayer(unit)
+-- True for a visible player unit under another's control (the warning icon); a secret flag reads false.
+function FPerl.IsCharmedPlayer(unit)
+	local SafeBool = FPerl.SafeBool
+	return SafeBool(UnitIsVisible(unit), false) and SafeBool(UnitIsCharmed(unit), false) and SafeBool(UnitIsPlayer(unit), false)
+end
+
 -- FPerl.UpdateRaidIcon
+-- GetRaidTargetIndex returns a mark's index secret and no mark as nil: the index is tested for truth only,
+-- and SetRaidTargetIconTexture hands it to SetSpriteSheetCell, which takes a secret.
 function FPerl.UpdateRaidIcon(self, unit)
 	local index = GetRaidTargetIndex(unit)
-	if CanAccess(index) then
+	if (index) then
 		local mark
-		if unit == "player" or unit == "vehicle" or unit == "target" or unit == "focus" then
-			if self.texture then
+		if (unit == "player" or unit == "vehicle" or unit == "target" or unit == "focus") then
+			if (self.texture) then
 				mark = self.texture
 			else
 				mark = self
@@ -257,6 +305,60 @@ function FPerl.UpdateRaidIcon(self, unit)
 		self:Show()
 	else
 		self:Hide()
+	end
+end
+
+-- FPerl.UpdatePrediction(self, uconf, holder)
+-- The absorb and heal prediction bars of a frame: drawn while uconf.absorbs / uconf.healprediction is on,
+-- else hidden. holder holds expectedAbsorbs and expectedHealth (the stats frame, or the frame itself).
+function FPerl.UpdatePrediction(self, uconf, holder)
+	if (uconf.absorbs) then
+		FPerl.SetExpectedAbsorbs(self)
+	else
+		holder.expectedAbsorbs:Hide()
+	end
+	if (uconf.healprediction) then
+		FPerl.SetExpectedHealth(self)
+	else
+		holder.expectedHealth:Hide()
+	end
+end
+
+-- FPerl.UpdateResurrect(self, icon)
+-- Shows icon while the frame's unit has a resurrection incoming. The flag can be secret for an
+-- indirect unit: then the icon hides.
+function FPerl.UpdateResurrect(self, icon)
+	if (FPerl.SafeBool(UnitHasIncomingResurrection(self.partyid), false)) then
+		icon:Show()
+	else
+		icon:Hide()
+	end
+end
+
+-- FPerl.UpdatePVPIcon(icon, texture, unit, enabled)
+-- The PvP flag icon: free-for-all, else the unit's faction, the other faction for a mercenary. icon is
+-- shown or hidden, texture takes the image (the same region, or the icon's child). Secret flags hide it.
+function FPerl.UpdatePVPIcon(icon, texture, unit, enabled)
+	local pvp
+	if (enabled) then
+		local SafeBool = FPerl.SafeBool
+		if (SafeBool(UnitIsPVPFreeForAll(unit), false)) then
+			pvp = "FFA"
+		else
+			local faction = UnitFactionGroup(unit)
+			if (faction and CanAccess(faction) and faction ~= "Neutral" and SafeBool(UnitIsPVP(unit), false)) then
+				pvp = faction
+				if (UnitIsMercenary and SafeBool(UnitIsMercenary(unit), false)) then
+					pvp = (faction == "Horde" and "Alliance") or (faction == "Alliance" and "Horde") or faction
+				end
+			end
+		end
+	end
+	if (pvp) then
+		texture:SetTexture("Interface\\TargetingFrame\\UI-PVP-"..pvp)
+		icon:Show()
+	else
+		icon:Hide()
 	end
 end
 
@@ -329,7 +431,6 @@ function FPerl.FrameFlashStop(self, method)
 		self:Hide()
 	end
 
-	--FPerl.FreeTable(self.frameFlash)
 	self.frameFlash = nil
 
 	self:SetAlpha(1)
@@ -348,7 +449,7 @@ function FPerl.ProtectedCall(func, self)
 	end
 end
 
--- nextMember(last)
+-- FPerl.NextMember(_, last)
 function FPerl.NextMember(_, last)
 	if (last) then
 		local raidCount = GetNumGroupMembers()
@@ -395,9 +496,9 @@ end
 -- FPerl.UnitUpdatePortrait
 function FPerl.UnitUpdatePortrait(self, force)
 	if (self.conf and self.conf.portrait) then
-		if self.conf.classPortrait then
+		if (self.conf.classPortrait) then
 			local _, englishClass = UnitClass(self.partyid)
-			if UnitIsPlayer(self.partyid) and englishClass then
+			if (FPerl.SafeBool(UnitIsPlayer(self.partyid), false) and englishClass and CanAccess(englishClass)) then
 				SetPortraitToTexture(self.portraitFrame.portrait, "Interface\\Icons\\ClassIcon_"..englishClass)
 			else
 				SetPortraitTexture(self.portraitFrame.portrait, self.partyid)
@@ -406,19 +507,15 @@ function FPerl.UnitUpdatePortrait(self, force)
 			SetPortraitTexture(self.portraitFrame.portrait, self.partyid)
 		end
 		-- If a player moves out of range for a 3D portrait, it will show their proper 2D one.
-		-- NPC 3D portraits also frequently fail to render at all inside instances
-		-- (dungeons/raids) on this client, leaving a blank spot instead of a model --
-		-- use the already-populated 2D portrait for NPCs there instead of attempting
-		-- 3D. Real players keep their animated portrait everywhere, since that case
-		-- has been reliable.
-		if (self.conf.portrait3D and UnitIsVisible(self.partyid) and (not IsInInstance() or UnitIsPlayer(self.partyid))) then
+		-- NPC 3D models inside instances render blank on Forever (ForeverGame.npcPortrait3DInInstances).
+		-- Player 3D models render in instances.
+		if (self.conf.portrait3D and FPerl.SafeBool(UnitIsVisible(self.partyid), false) and (FPerl.ForeverGame.npcPortrait3DInInstances or not IsInInstance() or FPerl.SafeBool(UnitIsPlayer(self.partyid), false))) then
 			self.portraitFrame.portrait:Hide()
 			local guid = UnitGUID(self.partyid)
 			-- A secret GUID cannot be compared, and that includes the *stored*
-			-- one from a previous secret-identity target -- this crashed on a
-			-- perfectly readable new guid because the stored one was secret.
-			-- Guard both sides; always refresh if either is unreadable.
-			if force or not CanAccess(guid) or not CanAccess(self.portraitFrame.portrait3D.guid) or guid ~= self.portraitFrame.portrait3D.guid or not self.portraitFrame.portrait3D:IsShown() then
+			-- one from a previous secret-identity target, even when the new guid
+			-- is readable. Guard both sides; always refresh if either is unreadable.
+			if (force or not CanAccess(guid) or not CanAccess(self.portraitFrame.portrait3D.guid) or guid ~= self.portraitFrame.portrait3D.guid or not self.portraitFrame.portrait3D:IsShown()) then
 				self.portraitFrame.portrait3D:Show()
 				self.portraitFrame.portrait3D:ClearModel()
 				self.portraitFrame.portrait3D:SetUnit(self.partyid)
@@ -505,13 +602,13 @@ end
 -- FPerl.UnitUpdateReadyState
 function FPerl.UnitUpdateReadyState(self)
 	local status = conf.showReadyCheck and self.partyid and GetReadyCheckStatus(self.partyid)
-	if status then
+	if (status) then
 		self.statsFrame.ready:Show()
-		if status == "ready" then
+		if (status == "ready") then
 			self.statsFrame.ready.check:SetTexture(READY_CHECK_READY_TEXTURE)
-		elseif status == "waiting" then
+		elseif (status == "waiting") then
 			self.statsFrame.ready.check:SetTexture(READY_CHECK_WAITING_TEXTURE)
-		elseif status == "notready" then
+		elseif (status == "notready") then
 			self.statsFrame.ready.check:SetTexture(READY_CHECK_NOT_READY_TEXTURE)
 		else
 			self.statsFrame.ready:Hide()
@@ -523,8 +620,6 @@ end
 
 -- FPerl.SwitchAnchor(self, new)
 -- Changes anchored corner without actually moving the frame
-
--- FPerl.SwitchAnchor
 function FPerl.SwitchAnchor(self, New)
 	local left, top, ratio = FPerl.FramePointUI(self)
 	if (left and not self:GetPoint(2)) then
@@ -560,7 +655,7 @@ end
 -- FPerl.SetExpectedAbsorbs
 function FPerl.SetExpectedAbsorbs(self)
 	local bar
-	if self.statsFrame and self.statsFrame.expectedAbsorbs then
+	if (self.statsFrame and self.statsFrame.expectedAbsorbs) then
 		bar = self.statsFrame.expectedAbsorbs
 	else
 		bar = self.expectedAbsorbs
@@ -568,7 +663,7 @@ function FPerl.SetExpectedAbsorbs(self)
 	if (bar) then
 		local unit = self.partyid
 
-		if not unit then
+		if (not unit) then
 			unit = self:GetParent().targetid
 		end
 
@@ -578,13 +673,10 @@ function FPerl.SetExpectedAbsorbs(self)
 			-- the amount cannot be positioned by maths. Draw it as
 			-- a reverse-filled overlay on the health bar; Blizzard scales it.
 			local healthBar
-			if self.statsFrame and self.statsFrame.healthBar then
+			if (self.statsFrame and self.statsFrame.healthBar) then
 				healthBar = self.statsFrame.healthBar
 			else
 				healthBar = self.healthBar
-			end
-			if (not conf.colour.bar.absorb) then
-				conf.colour.bar.absorb = {r = 0.14, g = 0.33, b = 0.7, a = 0.7}
 			end
 			bar:SetStatusBarColor(conf.colour.bar.absorb.r, conf.colour.bar.absorb.g, conf.colour.bar.absorb.b, conf.colour.bar.absorb.a)
 			-- Anchored on every call on purpose: the readable path below anchors and fills the same bar
@@ -611,17 +703,9 @@ function FPerl.SetExpectedAbsorbs(self)
 		if (amount and amount > 0 and not FPerl.SafeBool(UnitIsDeadOrGhost(unit), false)) then
 			local healthMax = UnitHealthMax(unit)
 
-			if FPerl.SafeBool(UnitIsAFK(unit), false) then
+			if (FPerl.SafeBool(UnitIsAFK(unit), false)) then
 				bar:SetStatusBarColor(0.2, 0.2, 0.2, 0.7)
 			else
-				if not conf.colour.bar.absorb then
-					conf.colour.bar.absorb = { }
-					conf.colour.bar.absorb.r = 0.14
-					conf.colour.bar.absorb.g = 0.33
-					conf.colour.bar.absorb.b = 0.7
-					conf.colour.bar.absorb.a = 0.7
-				end
-
 				bar:SetStatusBarColor(conf.colour.bar.absorb.r, conf.colour.bar.absorb.g, conf.colour.bar.absorb.b, conf.colour.bar.absorb.a)
 			end
 
@@ -632,7 +716,7 @@ function FPerl.SetExpectedAbsorbs(self)
 			bar:SetMinMaxValues(0, healthMax)
 
 			local healthBar
-			if self.statsFrame and self.statsFrame.healthBar then
+			if (self.statsFrame and self.statsFrame.healthBar) then
 				healthBar = self.statsFrame.healthBar
 			else
 				healthBar = self.healthBar
@@ -645,7 +729,7 @@ function FPerl.SetExpectedAbsorbs(self)
 			end
 			local position = ((max - value) / max) * healthBar:GetWidth()
 
-			if healthBar:GetWidth() <= 0 or healthBar:GetWidth() == position then
+			if (healthBar:GetWidth() <= 0 or healthBar:GetWidth() == position) then
 				return
 			end
 
@@ -662,7 +746,7 @@ end
 -- FPerl.SetExpectedHealth
 function FPerl.SetExpectedHealth(self)
 	local bar
-	if self.statsFrame and self.statsFrame.expectedHealth then
+	if (self.statsFrame and self.statsFrame.expectedHealth) then
 		bar = self.statsFrame.expectedHealth
 	else
 		bar = self.expectedHealth
@@ -670,7 +754,7 @@ function FPerl.SetExpectedHealth(self)
 	if (bar) then
 		local unit = self.partyid
 
-		if not unit then
+		if (not unit) then
 			unit = self:GetParent().targetid
 		end
 
@@ -680,17 +764,8 @@ function FPerl.SetExpectedHealth(self)
 			amount = UnitGetIncomingHeals(unit)
 		end
 
-		if not conf.colour.bar.healprediction then
-			conf.colour.bar.healprediction = { }
-			conf.colour.bar.healprediction.r = 0
-			conf.colour.bar.healprediction.g = 1
-			conf.colour.bar.healprediction.b = 1
-			conf.colour.bar.healprediction.a = 1
-		end
-
 		if (IsSecret(amount)) then
-			-- Secret heal amount: UnitHealth(unit, true) is health plus incoming
-			-- heals as computed by Blizzard, which is exactly this bar's value.
+			-- Secret heal amount: the bar is set to UnitHealth(unit, true) against UnitHealthMax.
 			bar:SetStatusBarColor(conf.colour.bar.healprediction.r, conf.colour.bar.healprediction.g, conf.colour.bar.healprediction.b, conf.colour.bar.healprediction.a)
 			bar:SetMinMaxValues(0, UnitHealthMax(unit))
 			bar:SetValue(UnitHealth(unit, true))
@@ -863,12 +938,12 @@ end
 -- The heal prediction option turns the frame's heal element (UNIT_HEAL_PREDICTION for the frame's
 -- units) on or off. The frame must have run FPerl.UnitFrameInit.
 function FPerl.RegisterPrediction(self, conf, element)
-	if not self then
+	if (not self) then
 		return
 	end
 
 	-- the client's own event drives the bar
-	if conf.healprediction and type(UnitGetIncomingHeals) == "function" then
+	if (conf.healprediction and type(UnitGetIncomingHeals) == "function") then
 		FPerl.UnitFrameEnable(self, element)
 	else
 		FPerl.UnitFrameDisable(self, element)

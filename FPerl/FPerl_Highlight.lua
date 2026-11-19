@@ -5,7 +5,7 @@ local playerClass
 local conf
 FPerl.RequestConfig(function(new)
 	conf = new
-end, "$Revision:  $")
+end)
 
 local _G = _G
 
@@ -35,7 +35,7 @@ local new = FPerl.GetReusableTable
 local hotSpells  = FPERL_HIGHLIGHT_SPELLS.hotSpells
 local shieldSpells = FPERL_HIGHLIGHT_SPELLS.shieldSpells
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local CanAccess = FPerl.CanAccess
 local UnitAuraByIndex = FPerl.UnitAuraByIndex
 local colours = {
@@ -66,13 +66,13 @@ local function rotate(angle)
 	return ULx + 0.5, ULy + 0.5, LLx + 0.5, LLy + 0.5, URx + 0.5, URy + 0.5, LRx + 0.5, LRy + 0.5
 end
 
--- FPerl_Highlight:Add
+-- xpHigh:Add
 function xpHigh:Add(guid, highlightType, duration, source)
 	if (not guid or not CanAccess(guid)) then
 		return
 	end
 	if (not strfind(guid, "-")) then
-		guid = self.lookup and self.lookup[guid]
+		return
 	end
 
 	local a = self.list[guid]
@@ -89,7 +89,7 @@ function xpHigh:Add(guid, highlightType, duration, source)
 			a[highlightType] = 0
 			self:Send(guid)
 		else
-			-- one Send per aura event, only while the HOTCOUNT option has registered UNIT_AURA; the callbacks redraw one frame
+			-- HOTCOUNT holds a count, not an end time: every call sends, once per UNIT_AURA while the HOTCOUNT option is on
 			if (highlightType == "HOTCOUNT") then
 				a[highlightType] = duration
 				self:Send(guid)
@@ -136,7 +136,7 @@ function xpHigh:Remove(guid, highlightType)
 		return
 	end
 	if (not strfind(guid, "-")) then
-		guid = self.lookup and self.lookup[guid]
+		return
 	end
 
 	local a = self.list[guid]
@@ -152,7 +152,7 @@ function xpHigh:HasEffect(guid, effect)
 		return
 	end
 	if (not strfind(guid, "-")) then
-		guid = self.lookup and self.lookup[guid]
+		return
 	end
 
 	local list = self.list[guid]
@@ -161,7 +161,7 @@ function xpHigh:HasEffect(guid, effect)
 	end
 end
 
--- xpHigh:OnUpdate
+-- xpHigh:RosterUpdate
 -- The roster refresh, one video frame after the last GROUP_ROSTER_UPDATE
 function xpHigh:RosterUpdate()
 	if (self.rosterUpdate) then
@@ -174,8 +174,7 @@ local function expireTick() xpHigh:Expire() end
 
 -- The expiry check, every 0.2 s on the scheduler while HOT / SHIELD highlights are on
 function xpHigh:Expire()
-	-- We expire things 1 second early so people can cast in time for buff to expire
-	local now = GetTime() --  + 1
+	local now = GetTime()
 
 	for guid, list in pairs(self.list) do
 		local any
@@ -204,7 +203,7 @@ function xpHigh:Expire()
 	end
 end
 
--- xpHigh:Query
+-- xpHigh:SetHighlight
 function xpHigh:SetHighlight(frame, guid)
 	if (not frame.highlight) then
 		FPerl.Notice("No .highlight region for "..frame:GetName())
@@ -241,8 +240,7 @@ function xpHigh:SetHighlight(frame, guid)
 					hotBar = true
 				else
 					if (not r1 or t1 == "TARGET") then
-						if frame == FPerl_Player or frame == FPerl_Player_Pet or frame == FPerl_Target or frame == FPerl_TargetTarget or frame == FPerl_TargetTargetTarget or frame == FPerl_Focus or frame == FPerl_FocusTarget or frame == FPerl_partypet1 or frame == FPerl_partypet2 or frame == FPerl_partypet3 or frame == FPerl_partypet4 or frame == FPerl_partypet5 or strmatch(frame:GetName(), "FPerl_Raid_GrpPetsUnitButton") then
-						else
+						if (not frame.hotHighlightOnly) then
 							t1 = k
 							r1, g1, b1 = colours[k].r, colours[k].g, colours[k].b
 						end
@@ -510,10 +508,10 @@ function xpHigh:HasMyHOT(unit)
 	for i = 1, 40 do
 		local name
 		name = UnitAuraByIndex(unit, i, "HELPFUL|PLAYER")
-		if not name then
+		if (not name) then
 			break
 		end
-		if CanAccess(name) and hotSpells[name] then
+		if (CanAccess(name) and hotSpells[name]) then
 			return true
 		end
 	end
@@ -577,7 +575,7 @@ function xpHigh:Send(guid)
 	end
 end
 
--- FPerl_RegisterFrameHighlighter
+-- xpHigh:Register
 function xpHigh:Register(callback, slf)
 	tinsert(self.callbacks, {callback, slf})
 end
@@ -607,7 +605,7 @@ end
 local function setHealBar(bar)
 	local unit = SecureButton_GetUnit(bar.owner)
 	if (unit and not UnitIsDeadOrGhost(unit)) then
-		-- no truth test on the secret (`x or 0`): whether the client allows one is unverified
+		-- a secret amount goes to SetValue untested: no truth test (`x or 0`) runs on a secret
 		local amount = UnitGetIncomingHeals(unit)
 		if (FPerl.IsSecret(amount)) then
 			bar:SetValue(amount)
@@ -659,7 +657,7 @@ function xpHigh:HasMyShield(unit)
 		local name, expirationTime
 		local _
 		name, _, _, _, _, expirationTime = UnitAuraByIndex(unit, i, "HELPFUL|PLAYER")
-		if not name then
+		if (not name) then
 			break
 		end
 		if (CanAccess(name) and shieldSpells[name] and CanAccess(expirationTime)) then
@@ -671,7 +669,7 @@ end
 -- RemoveAllFromGUID
 function xpHigh:RemoveAllFromGUID(unit)
 	local guid = UnitGUID(unit)
-	if guid and CanAccess(guid) and self.list[guid] then
+	if (guid and CanAccess(guid) and self.list[guid]) then
 		self.list[guid] = nil
 		self:Send(guid)
 	end
@@ -681,7 +679,7 @@ end
 -- Scans the unit's auras per event (up to three 40-slot loops) because the client gives no list of
 -- who cast an aura or when it expires without iterating; the event names the unit, not the change.
 function xpHigh:UNIT_AURA(unit)
-	if not UnitInParty(unit) and not UnitPlayerOrPetInRaid(unit) and not UnitPlayerOrPetInParty(unit) then
+	if (not UnitInParty(unit) and not UnitPlayerOrPetInRaid(unit) and not UnitPlayerOrPetInParty(unit)) then
 		return
 	end
 
@@ -689,7 +687,7 @@ function xpHigh:UNIT_AURA(unit)
 	if (not CanAccess(guid)) then
 		return
 	end
-	if UnitIsDeadOrGhost(unit) then
+	if (UnitIsDeadOrGhost(unit)) then
 		self:RemoveAllFromGUID(unit)
 		return
 	end
@@ -716,29 +714,29 @@ function xpHigh:UNIT_AURA(unit)
 		end
 	end
 
-	-- Check for pre-mature end of shield buff (Power Word: Shield, Earth Shield)
-	if playerClass == "SHAMAN" then	-- or playerClass == "PRIEST") then
-		if self:HasEffect(guid, "SHIELD") then
-			if not self:HasMyShield(unit) then
+	-- Check for pre-mature end of shield buff (Earth Shield)
+	if (playerClass == "SHAMAN") then
+		if (self:HasEffect(guid, "SHIELD")) then
+			if (not self:HasMyShield(unit)) then
 				self:Remove(guid, "SHIELD")
 			end
 		end
 	end
 
-	if conf.highlight.HOTCOUNT then
+	if (conf.highlight.HOTCOUNT) then
 		local hotCount = 0
 		for i = 1, 40 do
 			local name
 			name = UnitAuraByIndex(unit, i, "HELPFUL")
-			if not name then
+			if (not name) then
 				break
 			end
-			if CanAccess(name) and hotSpells[name] then
+			if (CanAccess(name) and hotSpells[name]) then
 				hotCount = hotCount + 1
 			end
 		end
 
-		if hotCount == 0 then
+		if (hotCount == 0) then
 			self:Remove(guid, "HOTCOUNT")
 		else
 			self:Add(guid, "HOTCOUNT", hotCount)
@@ -780,7 +778,7 @@ function xpHigh:OptionChange()
 		self:ClearAll("SHIELD")
 	end
 
-	if type(UnitGetIncomingHeals) == "function" then
+	if (type(UnitGetIncomingHeals) == "function") then
 		if (conf.highlight.enable and conf.highlight.HEAL) then
 			listen("UNIT_HEAL_PREDICTION", true)
 		else

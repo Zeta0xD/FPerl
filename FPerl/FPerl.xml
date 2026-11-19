@@ -1,6 +1,7 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
 
 	<Script file="FPerl_Values.lua"/>
+	<Script file="FPerl_AuraContainer.lua"/>
 	<Script file="FPerl_HitText.lua"/>
 	<Script file="FPerl.lua"/>
 	<Script file="FPerl_Colours.lua"/>
@@ -45,10 +46,9 @@
 			<OnLoad>
 				self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 				self:RegisterForDrag("RightButton")
-				-- free-drag instead of the old minimap-circle
-				-- constraint (FPerl_MinimapButton_Dragging); matches every
-				-- other movable Z-Perl frame's own StartMoving idiom. The position
-				-- is ours (FPerl.PlaceFrame), not the client's layout cache.
+				-- The button drags freely with StartMoving, like the other
+				-- movable F-Perl frames. FPerl.PlaceFrame owns its position,
+				-- not the client's layout cache.
 				self:SetDontSavePosition(true)
 			</OnLoad>
 			<OnEnter>

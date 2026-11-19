@@ -1,14 +1,32 @@
 # Changelog
 
+## 1.2.0 (2026-11-18)
+
+- Raid target marks show on F-Perl's frames.
+- Fixed: the Ctrl setting for tooltips now shows the tooltip only while Ctrl is held.
+- Focus has its own out-of-range icon option (off by default). Its range icon and hit text follow the Focus options, not the Target options.
+- Fixed: the out-of-range icon on the Target frame showed for units in range.
+- Fixed: frames could fade as out of range in combat.
+- Fixed: Raid > class None turned the classes back on at the next login.
+- Fixed: the buff tooltip's list of players without the buff did not refresh.
+- Fixed: the unlocked raid box did not fit the layout when sorted by class.
+- Fixed: the master looter icon stayed after master loot ended.
+- Hidden health percents round to the nearest whole number (99.6 shows 100).
+- The pet's target frame no longer takes the aura color highlight.
+- Faster layout switches and group changes.
+- Raid Helper: fixed sorting of players without a class, the focus target in the assist list, and the `/fphelper` usage line.
+- The Aura blacklist's "Show if mine" column is removed; it had no effect.
+- The minimap button's tooltip no longer shows memory use (the game's addon list shows it). The minimap menu lists Raid Admin before the Casting Monitor.
+
 ## 1.1.0 (2026-11-17)
 
-- New options window: every option in one place, one tab per frame group, basic options first with a Show advanced options box, search across all tabs, and a Reload button on the options that need `/reload`. It replaces F-Perl's pages in the game's settings list, which also ends the error the game raised, blamed on F-Perl, when searching that list.
-- Unlock mode: a click on a frame (without dragging) opens a popup with that frame's basic options, an All settings button, and a Lock button.
-- Buffs and debuffs can be moved by dragging their blue boxes in unlock mode, raid frames included, or with the Buff X / Y and Debuff X / Y options under Show advanced options.
-- Weapon enchants (rogue poisons, oils, sharpening stones) show first in the Player frame's buff line, with time left and charges; right-click one to remove it. Player > Auras > Weapon enchants switches them off.
-- Right-click one of your buffs on the Player frame to remove it.
-- Hit indicators show with the portrait off, and a new Hit text position option puts them on the portrait's spot or on the name. They show amounts the game hides from addons.
-- The incoming heal glow works when the game hides heal amounts from addons.
+- New options window with one tab per frame group, basic and advanced options, and search. It replaces F-Perl's pages in the game's settings panel.
+- Unlock mode: click a frame to open a popup with its basic options.
+- Buffs and debuffs can be moved by dragging in unlock mode, raid frames included, or with the Buff X / Y and Debuff X / Y options.
+- Weapon enchants (poisons, oils, sharpening stones) show in the Player frame's buff line. Right-click one to remove it.
+- Right-click a buff on the Player frame to remove it.
+- Hit indicators show with the portrait off. New option: Hit text position.
+- Fixed: hit indicators and the incoming heal glow when the game hides the amounts.
 
 ## 1.0.2 (2026-11-15)
 

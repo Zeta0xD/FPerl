@@ -3,16 +3,12 @@
 
 local ArcaneBars = {}
 
---[===[@debug@
-local function d(...)
-	ChatFrame1:AddMessage("F-Perl: "..format(...))
-end
---@end-debug@]===]
-
+-- enable is per frame (its own castBar.enable); cast time text (castTime, inside), the latency
+-- marker (precast) and Blizzard's cast bar (original) are one setting for every bar, player.castBar.
 local conf
 FPerl.RequestConfig(function(new)
 	conf = new
-end, "$Revision:  $")
+end)
 
 
 local min = min
@@ -30,7 +26,7 @@ local CreateFrame = CreateFrame
 
 -- cast times of other units can be secret in restricted content.
 -- When the client offers duration objects the bar is driven by Blizzard
--- (SetTimerDuration); otherwise a simple sweep animation is shown.
+-- (SetTimerDuration); otherwise the bar fills and drains until the cast ends.
 local CanAccess = FPerl.CanAccess
 local IsSecret = FPerl.IsSecret
 local UnitCastingDuration = UnitCastingDuration
@@ -128,7 +124,6 @@ local CASTING_BAR_HOLD_TIME = CASTING_BAR_HOLD_TIME
 local FAILED = FAILED
 local SPELL_FAILED_INTERRUPTED = SPELL_FAILED_INTERRUPTED
 
--- Registers frame to spellcast events.
 local barColours = {
 	main = {r = 1.0, g = 0.7, b = 0.0},
 	channel = {r = 0.0, g = 1.0, b = 0.0},
@@ -140,7 +135,7 @@ local events = {
 	"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_FAILED", "UNIT_SPELLCAST_INTERRUPTED", "UNIT_SPELLCAST_INTERRUPTIBLE", "UNIT_SPELLCAST_NOT_INTERRUPTIBLE", "UNIT_SPELLCAST_DELAYED", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_CHANNEL_STOP", "PLAYER_ENTERING_WORLD"
 }
 
--- enableToggle
+-- listen(self, event)
 -- Each enabled bar listens on the bus (FPerl.On) for the cast events and its target/focus/party event.
 local function listen(self, event)
 	local fn = self.busFn
@@ -194,7 +189,7 @@ local function overrideToggle(value)
 end
 
 -- ActiveCasting
--- See if we're probably still casting a spell, even though some other spell END event occured
+-- True while the unit still casts or channels with more than 0.5 s left, so an end event for another spell does not end the bar
 local function ActiveCasting(self)
 	local t = GetTime() * 1000
 	local name, _, _, _, endTime = UnitCastingInfo(self.unit)
@@ -218,14 +213,14 @@ end
 -- FPerl.ArcaneBar.OnEvent
 function FPerl.ArcaneBar.OnEvent(self, event, unit, ...)
 	-- Override for showPlayer attribute in party.
-	if self.unit == "partyplayer" then
+	if (self.unit == "partyplayer") then
 		self.unit = "player"
 	end
 
 	if (event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_TARGET_CHANGED" or event == "PLAYER_FOCUS_CHANGED" or event == "PARTY_MEMBER_ENABLE" or event == "PARTY_MEMBER_DISABLE") then
 		local nameChannel = UnitChannelInfo(self.unit)
 		local nameSpell = UnitCastingInfo(self.unit)
-		if nameChannel then
+		if (nameChannel) then
 			event = "UNIT_SPELLCAST_CHANNEL_START"
 			unit = self.unit
 		elseif (nameSpell) then
@@ -278,7 +273,7 @@ function FPerl.ArcaneBar.OnEvent(self, event, unit, ...)
 		end
 	elseif ((event == "UNIT_SPELLCAST_STOP" and self.casting) or (event == "UNIT_SPELLCAST_CHANNEL_STOP" and self.channeling)) then
 		local lineGUID = ...
-		if event == "UNIT_SPELLCAST_STOP" and not SameCast(self.castID, lineGUID) then
+		if (event == "UNIT_SPELLCAST_STOP" and not SameCast(self.castID, lineGUID)) then
 			return
 		end
 		if (not ActiveCasting(self)) then
@@ -309,7 +304,7 @@ function FPerl.ArcaneBar.OnEvent(self, event, unit, ...)
 		end
 	elseif (event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED") then
 		local lineGUID = ...
-		if not SameCast(self.castID, lineGUID) then
+		if (not SameCast(self.castID, lineGUID)) then
 			return
 		end
 		if (not self.fadeOut and self:IsShown() and not ActiveCasting(self)) then
@@ -333,7 +328,7 @@ function FPerl.ArcaneBar.OnEvent(self, event, unit, ...)
 			self.fadeOut = 1
 			self.holdTime = GetTime() + (CASTING_BAR_HOLD_TIME or 1)
 		end
-	elseif (event == "UNIT_SPELLCAST_INTERRUPTIBLE") or (event == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE") then
+	elseif ((event == "UNIT_SPELLCAST_INTERRUPTIBLE") or (event == "UNIT_SPELLCAST_NOT_INTERRUPTIBLE")) then
 		if (self:IsShown()) then
 			local name, _, _, startTime, endTime, isTradeSkill = UnitCastingInfo(self.unit)
 			if (not name) then
@@ -430,14 +425,19 @@ end
 
 local function ShowPrecast(self, side)
 	if (self.precast) then
-		if (conf.player.castBar.precast and CanAccess(self.maxValue) and CanAccess(self.startTime)) then
+		-- a cast ends at maxValue, a channel at endTime (its maxValue is not a time)
+		local finish = self.maxValue
+		if (self.channeling) then
+			finish = self.endTime
+		end
+		if (conf.player.castBar.precast and CanAccess(finish) and CanAccess(self.startTime)) then
 			local _, _, _, latencyWorld = GetNetStats()
 			local lag = min(1000, latencyWorld)
 			if (lag < 10) then
 				self.precast:Hide()
 			else
-				local total = self.maxValue - self.startTime
-				if total == 0 then
+				local total = finish - self.startTime
+				if (total <= 0) then
 					total = 1.5
 				end
 				local width = self:GetWidth() / ((total * 1000) / lag)
@@ -535,7 +535,7 @@ function FPerl.ArcaneBar.OnUpdate(self, elapsed)
 	elseif (getTime < self.holdTime) then
 		return
 	elseif (self.flash) then
-		-- A brief, restrained highlight, followed by the existing smooth fade.
+		-- A brief flash up to alpha 0.22, followed by the fade-out below.
 		-- Clamp the final frame too: a long frame must not skip the peak.
 		-- Alphas are kept in fields: inside a range-faded party frame GetAlpha returns a secret.
 		local alpha = min(0.22, (self.flashAlpha or 0) + elapsed * 1.5)

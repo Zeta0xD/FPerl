@@ -10,16 +10,10 @@ FPerl.RequestConfig(function(new)
 		FPerl_Player.conf = conf.player
 		FPerl.MainFrameStart(FPerl_Player, pconf.enable, PlayerFrame)
 	end
-end, "$Revision:  $")
+end)
 
 local perc1F = "%.1f"..PERCENT_SYMBOL
 local percD = "%.0f"..PERCENT_SYMBOL
-
---[===[@debug@
-local function d(...)
-	ChatFrame1:AddMessage(format(...))
-end
---@end-debug@]===]
 
 -- Upvalues
 local floor = floor
@@ -27,7 +21,6 @@ local format = format
 
 local CreateFrame = CreateFrame
 local GetDifficultyColor = GetCreatureDifficultyColor or GetQuestDifficultyColor
-local GetLootMethod = GetLootMethod or C_PartyInfo.GetLootMethod
 local GetNumGroupMembers = GetNumGroupMembers
 local GetPVPTimer = GetPVPTimer
 local GetRaidRosterInfo = GetRaidRosterInfo
@@ -37,20 +30,13 @@ local IsPVPTimerRunning = IsPVPTimerRunning
 local IsResting = IsResting
 local UnitAffectingCombat = UnitAffectingCombat
 local UnitClass = UnitClass
-local UnitFactionGroup = UnitFactionGroup
 local UnitGroupRolesAssigned = UnitGroupRolesAssigned
 local UnitGUID = UnitGUID
-local UnitHasIncomingResurrection = UnitHasIncomingResurrection
-local UnitInParty = UnitInParty
-local UnitInRaid = UnitInRaid
 local UnitIsAFK = UnitIsAFK
 local UnitIsDead = UnitIsDead
 local UnitIsGhost = UnitIsGhost
 local UnitIsGroupAssistant = UnitIsGroupAssistant
 local UnitIsGroupLeader = UnitIsGroupLeader
-local UnitIsMercenary = UnitIsMercenary
-local UnitIsPVP = UnitIsPVP
-local UnitIsPVPFreeForAll = UnitIsPVPFreeForAll
 local UnitIsUnit = UnitIsUnit
 local UnitLevel = UnitLevel
 local UnitOnTaxi = UnitOnTaxi
@@ -61,15 +47,12 @@ local UnitXPMax = UnitXPMax
 local CombatFeedback_Initialize = CombatFeedback_Initialize
 local CombatFeedback_OnUpdate = CombatFeedback_OnUpdate
 
--- secret value helpers from FPerl.lua
+-- secret value helpers from FPerl_Values.lua
 local GetPowerPercent = FPerl.GetPowerPercent
 local SafeBool = FPerl.SafeBool
 
 local PlayerStatusOnUpdate
 local HighlightCallback
-
---local feignDeath = (C_Spell and C_Spell.GetSpellInfo(5384)) and C_Spell.GetSpellInfo(5384).name or GetSpellInfo(5384)
---local spiritOfRedemption = (C_Spell and C_Spell.GetSpellInfo(27827)) and C_Spell.GetSpellInfo(27827).name or GetSpellInfo(27827)
 
 
 ----------------------
@@ -77,6 +60,8 @@ local HighlightCallback
 ----------------------
 function FPerl.Player.OnLoad(self)
 	FPerl.SetChildMembers(self)
+	-- the aura colour highlight is for party and raid frames; this frame shows only the HoT highlight
+	self.hotHighlightOnly = true
 	self.partyid = "player"
 	self.unit = self.partyid
 
@@ -95,7 +80,6 @@ function FPerl.Player.OnLoad(self)
 	self:SetAttribute("type2", "togglemenu")
 	self:SetAttribute("unit", self.partyid)
 
-	--RegisterAttributeDriver(self.nameFrame, "unit", "[vehicleui] vehicle; player")
 	RegisterAttributeDriver(self, "unit", "[vehicleui] vehicle; player")
 
 	FPerl.RegisterClickCastFrame(self.portraitFrame)
@@ -126,7 +110,6 @@ function FPerl.Player.OnLoad(self)
 
 	FPerl.RegisterOptionChanger(FPerl.Player.SetBits, self, "player")
 	FPerl_Highlight:Register(HighlightCallback, self)
-	--self.IgnoreHighlightStates = {AGGRO = true}
 
 	if (FPerl.layout) then
 		self.conf = FPerl.layout.player
@@ -135,7 +118,7 @@ function FPerl.Player.OnLoad(self)
 	FPerl.Player.OnLoad = nil
 end
 
--- HighlightCallback(updateName)
+-- HighlightCallback(updateGUID)
 function HighlightCallback(self, updateGUID)
 	if (updateGUID == UnitGUID("player")) then
 		FPerl_Highlight:SetHighlight(self, updateGUID)
@@ -144,51 +127,7 @@ end
 
 -- UpdateAssignedRoles
 local function UpdateAssignedRoles(self)
-	local unit = self.partyid
-	local icon = self.nameFrame.roleIcon
-	local isTank, isHealer, isDamage
-	if type(UnitGroupRolesAssigned) == "function" then
-		local role = SafeBool(UnitGroupRolesAssigned(unit), nil)
-		isTank = false
-		isHealer = false
-		isDamage = false
-		if role == "TANK" then
-			isTank = true
-		elseif role == "HEALER" then
-			isHealer = true
-		elseif role == "DAMAGER" then
-			isDamage = true
-		end
-	end
-
-	-- role icons option check by playerlin
-	if (conf and conf.oldRoleIcons) then
-		if isTank then
-			icon:SetTexture("Interface\\GroupFrame\\UI-Group-MainTankIcon")
-			icon:Show()
-		elseif isHealer then
-			icon:SetTexture("Interface\\AddOns\\FPerl\\Images\\FPerl_RoleHealer_old")
-			icon:Show()
-		elseif isDamage then
-			icon:SetTexture("Interface\\GroupFrame\\UI-Group-MainAssistIcon")
-			icon:Show()
-		else
-			icon:Hide()
-		end
-	else
-		if isTank then
-			icon:SetTexture("Interface\\AddOns\\FPerl\\Images\\FPerl_RoleTank")
-			icon:Show()
-		elseif isHealer then
-			icon:SetTexture("Interface\\AddOns\\FPerl\\Images\\FPerl_RoleHealer")
-			icon:Show()
-		elseif isDamage then
-			icon:SetTexture("Interface\\AddOns\\FPerl\\Images\\FPerl_RoleDamage")
-			icon:Show()
-		else
-			icon:Hide()
-		end
-	end
+	FPerl.SetRoleIcon(self.nameFrame.roleIcon, UnitGroupRolesAssigned(self.partyid))
 end
 
 -------------------------
@@ -210,25 +149,7 @@ end
 local function UpdateLeader(self)
 	local nf = self.nameFrame
 
-	-- Loot Master
-	local method, pindex, rindex, ml
-	if (UnitInParty("party1") or UnitInRaid("player")) then
-		method, pindex, rindex = GetLootMethod()
-
-		if (FPerl.IsMasterLoot(method)) then
-			if (rindex ~= nil) then
-				ml = SafeBool(UnitIsUnit("raid"..rindex, "player"), false)
-			elseif (pindex and (pindex == 0)) then
-				ml = true
-			end
-		end
-	end
-
-	if (ml) then
-		nf.masterIcon:Show()
-	else
-		nf.masterIcon:Hide()
-	end
+	nf.masterIcon:SetShown(FPerl.IsMasterLooter("player"))
 
 	-- Leader
 	if (UnitIsGroupLeader("player")) then
@@ -298,7 +219,7 @@ end
 
 -- UpdateName()
 local function UpdateName(self)
-	-- full "First Last" (or "First-Realm") display name
+	-- "First Surname" when the client gives a surname, else the name alone
 	playerName = FPerl.UnitFullName(self.partyid)
 	self.nameFrame.text:SetText(playerName)
 	UpdateCombat(self)
@@ -319,15 +240,14 @@ local function UpdateClass(self)
 	end
 end
 
--- There are two different functions to get faction info, used in retail/classic/era.
--- To maintain compatibility, we fake the original function if it's not there.
+-- Where GetWatchedFactionInfo is missing, its returns are built from C_Reputation.GetWatchedFactionData.
 local GetWatchedFactionInfo
-if _G.GetWatchedFactionInfo then
+if (_G.GetWatchedFactionInfo) then
 	GetWatchedFactionInfo = _G.GetWatchedFactionInfo
 else
 	GetWatchedFactionInfo = function()
 		local data = C_Reputation.GetWatchedFactionData()
-		if data then
+		if (data) then
 			return data.name, data.reaction, data.currentReactionThreshold, data.nextReactionThreshold, data.currentStanding, data.factionID
 		end
 		return nil, nil, nil, nil, nil, nil -- documenting that there should be six returns.
@@ -343,23 +263,23 @@ local function UpdateRep(self)
 			local color
 			local perc
 
-			if max == 43000 then
+			if (max == 43000) then
 				max = 42000
 			end
 
-			if (factionID == 1733 or factionID == 1736 or factionID == 1737 or factionID == 1738 or factionID == 1739 or factionID == 1740 or factionID == 1741) and min == 20000 and max == 21000 and value == 20000 then
+			if ((factionID == 1733 or factionID == 1736 or factionID == 1737 or factionID == 1738 or factionID == 1739 or factionID == 1740 or factionID == 1741) and min == 20000 and max == 21000 and value == 20000) then
 				min = 21000
 				value = 21000
 			end
 
-			if name then
+			if (name) then
 				color = FACTION_BAR_COLORS[reaction]
-				if min > 0 and max > 0 and value > 0 and min ~= max and min ~= value then
+				if (min > 0 and max > 0 and value > 0 and min ~= max and min ~= value) then
 					value = value - min
 					max = max - min
 				end
 				min = 0
-				if value > 0 and max > 0 then
+				if (value > 0 and max > 0) then
 					perc = (value * 100) / max
 				else
 					perc = 100
@@ -379,21 +299,21 @@ local function UpdateRep(self)
 			rb:SetStatusBarColor(color.r, color.g, color.b, 1)
 			rb.bg:SetVertexColor(color.r, color.g, color.b, 0.25)
 
-			if perc < 0 then
+			if (perc < 0) then
 				perc = 0
-			elseif perc > 100 then
+			elseif (perc > 100) then
 				perc = 100
 			end
 
 			rb.tex:SetTexCoord(0, perc / 100, 0, 1)
 
-			if max == 1 then
+			if (max == 1) then
 				rb.text:SetText(name)
 			else
 				rb.text:SetFormattedText("%d/%d", value, max)
 			end
 
-			if perc < 100 then
+			if (perc < 100) then
 				rb.percent:SetFormattedText(perc1F, perc)
 			else
 				rb.percent:SetFormattedText(percD, perc)
@@ -456,7 +376,7 @@ local function UpdateXP(self)
 			xpBar:SetStatusBarColor(color.r, color.g, color.b, 1)
 			xpBar.bg:SetVertexColor(color.r, color.g, color.b, 0.25)
 			local x = playerxp / playerxpmax
-			if x > 1 then
+			if (x > 1) then
 				x = 1
 			end
 			xpBar.tex:SetTexCoord(0, x, 0, 1)
@@ -464,7 +384,7 @@ local function UpdateXP(self)
 			restBar:SetValue(playerxp + playerxprest)
 			restBar:SetStatusBarColor(color.r, color.g, color.b, 0.5)
 			local y = (playerxp + playerxprest) / playerxpmax
-			if y > 1 then
+			if (y > 1) then
 				y = 1
 			end
 			restBar.tex:SetTexCoord(0, y, 0, 1)
@@ -474,12 +394,12 @@ local function UpdateXP(self)
 	end
 end
 
--- UpdatePVPTimer
+-- PVPTimerTick
 -- the timer text, every 0.5 s on the scheduler while the timer frame is shown (OnShow / OnHide below)
 local function PVPTimerTick()
 	local timeLeft = GetPVPTimer()
 
-	if timeLeft > 0 then
+	if (timeLeft > 0) then
 		local text = FPerl_Player.nameFrame.pvptimer.text
 		timeLeft = floor(timeLeft / 1000)
 		text:SetFormattedText("%d:%02d", timeLeft / 60, timeLeft % 60)
@@ -493,7 +413,7 @@ end
 
 -- UpdatePVPTimer
 local function UpdatePVPTimer(self)
-	if pconf.pvpIcon and IsPVPTimerRunning() then
+	if (pconf.pvpIcon and IsPVPTimerRunning()) then
 		self.nameFrame.pvptimer:Show()
 	else
 		self.nameFrame.pvptimer:Hide()
@@ -504,7 +424,6 @@ end
 -- UpdatePVP
 local function UpdatePVP(self)
 	-- PVP Status settings
-	--local nf = self.nameFrame
 	if (UnitAffectingCombat(self.partyid)) then
 		self.nameFrame.text:SetTextColor(1, 0, 0)
 	else
@@ -512,27 +431,7 @@ local function UpdatePVP(self)
 	end
 
 	local pvpIcon = self.nameFrame.pvp
-
-	local factionGroup = UnitFactionGroup("player")
-
-	if pconf.pvpIcon and UnitIsPVPFreeForAll("player") then
-		pvpIcon.icon:SetTexture("Interface\\TargetingFrame\\UI-PVP-FFA")
-		pvpIcon:Show()
-	elseif pconf.pvpIcon and factionGroup and factionGroup ~= "Neutral" and UnitIsPVP("player") then
-		pvpIcon.icon:SetTexture("Interface\\TargetingFrame\\UI-PVP-"..factionGroup)
-
-		if type(UnitIsMercenary) == "function" and UnitIsMercenary("player") then
-			if factionGroup == "Horde" then
-				pvpIcon.icon:SetTexture("Interface\\TargetingFrame\\UI-PVP-Alliance")
-			elseif factionGroup == "Alliance" then
-				pvpIcon.icon:SetTexture("Interface\\TargetingFrame\\UI-PVP-Horde")
-			end
-		end
-
-		pvpIcon:Show()
-	else
-		pvpIcon:Hide()
-	end
+	FPerl.UpdatePVPIcon(pvpIcon, pvpIcon.icon, "player", pconf.pvpIcon)
 
 	UpdatePVPTimer(self)
 end
@@ -584,7 +483,6 @@ function FPerl.Player.DruidBarUpdate(self)
 	druidBar.text:SetFormattedText("%d/%d", currMana, barMax)
 	druidBar.percent:SetFormattedText(percD, GetPowerPercent("player", 0))
 
-	--local druidBarExtra
 	if ((FPerl.Player.playerClass == "DRUID" or FPerl.Player.playerClass == "PRIEST") and UnitPowerType(self.partyid) > 0) then -- Shaman's UnitPowerType is buggy
 		if (pconf.values) then
 			druidBar.text:Show()
@@ -597,14 +495,8 @@ function FPerl.Player.DruidBarUpdate(self)
 			druidBar.percent:Hide()
 		end
 		druidBar:Show()
-		--druidBar:SetHeight(10)
-		--druidBarExtra = 1
 	else
-		--druidBar.percent:Hide()
-		--druidBar.text:Hide()
 		druidBar:Hide()
-		--druidBar:SetHeight(1)
-		--druidBarExtra = 0
 	end
 
 	-- Layout per power event on purpose: the bar's shown state, its text and percent, and the other
@@ -631,43 +523,13 @@ local function UpdateMana(self)
 		end
 	end
 
-	if (FPerl.Player.playerClass == "DRUID") or (FPerl.Player.playerClass == "SHAMAN") or (FPerl.Player.playerClass == "PRIEST") then
+	if ((FPerl.Player.playerClass == "DRUID") or (FPerl.Player.playerClass == "SHAMAN") or (FPerl.Player.playerClass == "PRIEST")) then
 		FPerl.Player.DruidBarUpdate(self)
 	end
 end
 
--- UpdateHealPrediction
-local function UpdateHealPrediction(self)
-	if pconf.healprediction then
-		FPerl.SetExpectedHealth(self)
-	else
-		self.statsFrame.expectedHealth:Hide()
-	end
-end
-
--- UpdateAbsorbPrediction
-local function UpdateAbsorbPrediction(self)
-	if pconf.absorbs then
-		FPerl.SetExpectedAbsorbs(self)
-	else
-		self.statsFrame.expectedAbsorbs:Hide()
-	end
-end
-
 local function UpdateResurrectionStatus(self)
-	if UnitHasIncomingResurrection(self.partyid) then
-		if pconf.portrait then
-			self.portraitFrame.resurrect:Show()
-		else
-			self.statsFrame.resurrect:Show()
-		end
-	else
-		if pconf.portrait then
-			self.portraitFrame.resurrect:Hide()
-		else
-			self.statsFrame.resurrect:Hide()
-		end
-	end
+	FPerl.UpdateResurrect(self, pconf.portrait and self.portraitFrame.resurrect or self.statsFrame.resurrect)
 end
 
 -- UpdateHealth
@@ -676,15 +538,13 @@ local function UpdateHealth(self)
 	local sf = self.statsFrame
 	local hb = sf.healthBar
 
-	-- Confirmed that even "player" itself can
-	-- return secret booleans from UnitIsAFK/UnitIsDead/UnitIsGhost on this
-	-- client; guard all of them, matching the sibling fix already
-	-- applied to FPerl.Target.UpdateHealth.
+	-- Even "player" can return secret booleans from UnitIsAFK, UnitIsDead
+	-- and UnitIsGhost on this client, so all of them go through SafeBool,
+	-- as in FPerl.Target.UpdateHealth.
 	self.afk = SafeBool(UnitIsAFK(partyid), false) and conf.showAFK == 1
 
 	FPerl.SetHealthBar(self)
-	UpdateAbsorbPrediction(self)
-	UpdateHealPrediction(self)
+	FPerl.UpdatePrediction(self, pconf, self.statsFrame)
 	UpdateResurrectionStatus(self)
 
 	local greyMsg
@@ -730,7 +590,7 @@ end
 
 
 -- PlayerStatusOnUpdate
--- The lost-control flash. F-Perl's low-health flash is gone: health is secret on Forever, and Blizzard flashes its own.
+-- The lost-control flash. There is no low-health flash: health is secret on this client, and Blizzard's frames flash their own.
 function PlayerStatusOnUpdate(self)
 	if (pconf.fullScreen.enable and not UnitOnTaxi("player")) then
 		if (FPerl.Player.isOutOfControl and not FPerl_OutOfControlFrame.frameFlash) then
@@ -749,7 +609,7 @@ end
 -- FPerl.Player.OnUpdate
 function FPerl.Player.OnUpdate(self, elapsed)
 	local feedback = pconf.hitIndicator
-	if feedback then
+	if (feedback) then
 		CombatFeedback_OnUpdate(self, elapsed)
 	end
 
@@ -762,14 +622,13 @@ end
 -- UpdateBuffs: what the player frame does besides drawing the auras (the aura element,
 -- enabled by FPerl_PlayerBuffs, does that)
 local function UpdateBuffs(self)
-	-- TODO: create a highlight handler for the player too
 	if (conf.highlightDebuffs.enable) then
 		FPerl.CheckDebuffs(self, self.partyid)
 	end
 
 	-- Kept per aura event for a druid: UNIT_AURA is the only event here that refreshes the mana bar
 	-- text after a shapeshift aura (UPDATE_SHAPESHIFT_FORM reaches the druid bar only). Cost: two
-	-- bar writes and one stats layout, no table, no frame. Removal is not verified in game.
+	-- bar writes and one stats layout, no table, no frame.
 	if (FPerl.Player.playerClass == "DRUID") then
 		UpdateMana(self)
 	end

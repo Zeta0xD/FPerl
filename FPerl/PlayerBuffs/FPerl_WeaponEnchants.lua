@@ -4,7 +4,7 @@
 -- without taint. The block is the frame's aura spacer (FPerl.AurasPlace): the buff holder hangs off its
 -- far end, so sizing the block to its icons moves the buffs, also in combat. When the buffs are not the
 -- block nearest the frame, FPerl.AurasPlace sets no flow and the block sits apart, left of the frame.
--- ponytail: wrapped buff lines shift with the first one, so a full line runs past the frame's edge by the enchants' width.
+-- Wrapped buff lines shift with the first one, so a full line runs past the frame's edge by the enchants' width.
 
 FPerl.Enchants = {}
 

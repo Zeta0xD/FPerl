@@ -1,7 +1,8 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
 
-	<Script file="localization.lua"/>
+	<Script file="Localization.lua"/>
 	<Script file="FPerl_RaidMonitor.lua"/>
+	<Script file="FPerl_RaidMonitorCast.lua"/>
 
 	<Button name="FPerl_RaidMonitor_BasicButton" inherits="FPerl_BackdropTemplate" virtual="true">
 		<Scripts>

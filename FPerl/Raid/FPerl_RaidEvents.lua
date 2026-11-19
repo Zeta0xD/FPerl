@@ -15,12 +15,9 @@ local UnitExists = UnitExists
 local UnitGroupRolesAssigned = UnitGroupRolesAssigned
 local UnitGUID = UnitGUID
 local UnitIsAFK = UnitIsAFK
-local UnitIsCharmed = UnitIsCharmed
 local UnitIsDead = UnitIsDead
 local UnitIsDND = UnitIsDND
-local UnitIsPlayer = UnitIsPlayer
 local UnitIsUnit = UnitIsUnit
-local UnitIsVisible = UnitIsVisible
 local UnitName = UnitName
 local CheckDebuffs = FPerl.CheckDebuffs
 local ColourFriendlyUnit = FPerl.ColourFriendlyUnit
@@ -47,7 +44,7 @@ FPerl.RequestConfig(function(newConf)
 	conf = newConf
 	rconf = conf.raid
 	cconf = conf.custom
-end, "$Revision:  $")
+end)
 
 local resSpells = {
 	[FPerl.SpellName(2006)] = true,			-- Resurrection
@@ -88,9 +85,9 @@ local function UpdateUnitByName(name, flagsOnly)
 	end
 end
 
--- HighlightCallback(updateName)
+-- HighlightCallback(self, guid)
 local function HighlightCallback(self, guid)
-	if not guid then
+	if (not guid) then
 		return
 	end
 
@@ -103,7 +100,7 @@ end
 -- UpdateDebuffHighlight
 local function UpdateDebuffHighlight(self)
 	local partyid = self.partyid
-	if not partyid then
+	if (not partyid) then
 		return
 	end
 
@@ -113,37 +110,29 @@ local function UpdateDebuffHighlight(self)
 	ColourFriendlyUnit(self.nameFrame.text, partyid)
 end
 
-------------------
--- Buffs stuffs --
-------------------
 
 -- UpdateCombat
 local function UpdateCombat(self)
 	local partyid = self.partyid
-	if not partyid then
+	if (not partyid) then
 		return
 	end
-	if UnitExists(partyid) and UnitAffectingCombat(partyid) then
+	if (UnitExists(partyid) and UnitAffectingCombat(partyid)) then
 		self.nameFrame.combatIcon:Show()
 	else
 		self.nameFrame.combatIcon:Hide()
 	end
-	-- indirect units can return secret flags; no icon in that case
-	if SafeBool(UnitIsVisible(partyid), false) and SafeBool(UnitIsCharmed(partyid), false) and SafeBool(UnitIsPlayer(partyid), false) then
-		self.nameFrame.warningIcon:Show()
-	else
-		self.nameFrame.warningIcon:Hide()
-	end
+	self.nameFrame.warningIcon:SetShown(FPerl.IsCharmedPlayer(partyid))
 end
 
--- UpdatePlayerFlags(self)
+-- UpdatePlayerFlags(self, partyid)
 local function UpdatePlayerFlags(self, partyid, ...)
 	if (not partyid) then
 		partyid = self:GetAttribute("unit")
 	end
 
 	local f = FrameArray[partyid]
-	if f then
+	if (f) then
 		self = f
 
 		local unitName = RaidUnitName(partyid)
@@ -151,7 +140,7 @@ local function UpdatePlayerFlags(self, partyid, ...)
 			local unitInfo = FPerlRoster[unitName]
 			if (unitInfo) then
 				local change
-				-- same AFK/DND secrecy risk as above.
+				-- AFK and DND status can be secret; SafeBool reads a secret as false
 				if (SafeBool(UnitIsAFK(partyid), false)) then
 					if (not unitInfo.afk) then
 						change = true
@@ -192,13 +181,12 @@ function FPerl.Raid.RosterWork()
 	end
 	Shared.rosterUpdated = nil
 	FPerl.AfterCombat(FPerl.Raid.Position, FPerl_Raid_Frame)
-	if FPerl_Custom and rconf.enable and FPerl_Custom and cconf and cconf.enable then
+	if (FPerl_Custom and rconf.enable and FPerl_Custom and cconf and cconf.enable) then
 		FPerl_Custom:UpdateUnits()
 	end
 	if (not IsInRaid() or (not IsInGroup() and rconf.inParty)) then
 		wipe(Shared.ResArray)
 		wipe(FPerlRoster)
-		--buffUpdates = { }
 	end
 end
 
@@ -209,36 +197,27 @@ end
 
 -- FPerl.Raid.OnUpdate: the combat flash
 function FPerl.Raid.OnUpdate(self, elapsed)
-
-	--local updateHighlights, someUpdate
-	--local enemyUnitList
-	-- Throttling this will fuck up the animations, and create FPS decreases over time
-	--self.time = self.time + elapsed
-	--if (self.time >= 0.2) then
-		--self.time = 0
-		--someUpdate = true
-		local flashing
-		for i, frame in pairs(FrameArray) do
-			if (frame:IsShown()) then
-				if (conf.combatFlash and frame.PlayerFlash) then
-					CombatFlash(frame, elapsed, false)
-				end
-				if (frame.PlayerFlash) then
-					flashing = true
-				end
-			elseif (frame.PlayerFlash) then
-				-- hidden mid-flash: end the flash now, so the frame shows again in its own colour
-				CombatFlash(frame, 1000, false)
+	local flashing
+	for i, frame in pairs(FrameArray) do
+		if (frame:IsShown()) then
+			if (frame.PlayerFlash) then
+				CombatFlash(frame, elapsed, false)
 			end
+			if (frame.PlayerFlash) then
+				flashing = true
+			end
+		elseif (frame.PlayerFlash) then
+			-- hidden mid-flash: end the flash now, so the frame shows again in its own colour
+			CombatFlash(frame, 1000, false)
 		end
+	end
 	-- set by a flash start (UNIT_COMBAT); idle otherwise
 	if (not flashing) then
 		self:SetScript("OnUpdate", nil)
 	end
 end
 
--- The range checks, every 0.2 s on the scheduler (no event reports a unit's distance). The OnUpdate version added every frame's elapsed
--- to one timer, so each pass updated a single frame; this updates every shown frame.
+-- The range checks, every 0.2 s on the scheduler (no event reports a unit's distance). Each pass updates every shown frame.
 FPerl.Every(0.2, function()
 	if (conf and conf.rangeFinder.enabled) then
 		for i, frame in pairs(FrameArray) do
@@ -252,77 +231,41 @@ end)
 -- RaidTargetUpdate
 local function RaidTargetUpdate(self)
 	local icon = self.nameFrame.raidIcon
-	local raidIcon = GetRaidTargetIndex(self.partyid)
-
-	if (CanAccess(raidIcon)) then
-		if (not icon) then
-			icon = self.nameFrame:CreateTexture(nil, "OVERLAY")
-			self.nameFrame.raidIcon = icon
-			icon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
-			icon:SetPoint("LEFT")
-			icon:SetWidth(16)
-			icon:SetHeight(16)
-		else
-			icon:Show()
+	if (not icon) then
+		-- the texture is made on the first mark
+		if (not GetRaidTargetIndex(self.partyid)) then
+			return
 		end
-		SetRaidTargetIconTexture(icon, raidIcon)
-	elseif (icon) then
-		icon:Hide()
+		icon = self.nameFrame:CreateTexture(nil, "OVERLAY")
+		self.nameFrame.raidIcon = icon
+		icon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
+		icon:SetPoint("LEFT")
+		icon:SetSize(16, 16)
 	end
-end
-
-local function SetRoleIconTexture(texture, role)
-	if not rconf.role then
-		return false
-	end
-	if (conf.oldRoleIcons) then
-		if role == "TANK" then
-			texture:SetTexture("Interface\\GroupFrame\\UI-Group-MainTankIcon")
-		elseif role == "HEALER" then
-			texture:SetTexture("Interface\\AddOns\\FPerl\\Images\\FPerl_RoleHealer_old")
-		elseif role == "DAMAGER" then
-			texture:SetTexture("Interface\\GroupFrame\\UI-Group-MainAssistIcon")
-		else
-			return false
-		end
-	else
-		if role == "TANK" then
-			texture:SetTexture("Interface\\AddOns\\FPerl\\Images\\FPerl_RoleTank")
-		elseif role == "HEALER" then
-			texture:SetTexture("Interface\\AddOns\\FPerl\\Images\\FPerl_RoleHealer")
-		elseif role == "DAMAGER" then
-			texture:SetTexture("Interface\\AddOns\\FPerl\\Images\\FPerl_RoleDamage")
-		else
-			return false
-		end
-	end
-	return true
+	FPerl.UpdateRaidIcon(icon, self.partyid)
 end
 
 -- RoleUpdate
 local function RoleUpdate(self, role)
-	if not self then
+	if (not self) then
 		return
 	end
-	if (not CanAccess(role)) then
-		role = nil
+	local icon = self.nameFrame.roleIcon
+	if (not icon) then
+		-- the texture is made on the first role shown
+		if (not rconf.role or not CanAccess(role) or not role) then
+			return
+		end
+		icon = self.nameFrame:CreateTexture(nil, "OVERLAY")
+		self.nameFrame.roleIcon = icon
+		icon:SetPoint("RIGHT", 7, 7)
+		icon:SetWidth(16)
+		icon:SetHeight(16)
 	end
-	local icon = self.nameFrame.roleIcon or nil
-
-	if (role) then
-		if (not icon) then
-			icon = self.nameFrame:CreateTexture(nil, "OVERLAY")
-			self.nameFrame.roleIcon = icon
-			icon:SetPoint("RIGHT", 7, 7)
-			icon:SetWidth(16)
-			icon:SetHeight(16)
-		end
-
-		if (SetRoleIconTexture(icon, role)) then
-			icon:Show()
-		else
-			icon:Hide()
-		end
+	if (rconf.role) then
+		FPerl.SetRoleIcon(icon, role)
+	else
+		icon:Hide()
 	end
 end
 
@@ -340,12 +283,12 @@ end
 
 -- FPerl.Raid.UpdateDisplay
 function FPerl.Raid.UpdateDisplay(self)
-	-- Health must be updated after mana, since ctra flag checks are done here.
+	-- Health updates after mana: UpdateHealth shows the flags (ressing, AFK, dead) and greys the bars over the mana colors.
 	if (rconf.mana) then
 		FPerl.Raid.UpdateManaType(self)
 		UpdateMana(self)
 	end
-	if type(UnitGroupRolesAssigned) == "function" then
+	if (type(UnitGroupRolesAssigned) == "function") then
 		RoleUpdate(self, UnitGroupRolesAssigned(self.partyid))
 	end
 	UpdatePlayerFlags(self)
@@ -354,8 +297,6 @@ function FPerl.Raid.UpdateDisplay(self)
 	UpdateCombat(self)
 	FPerl.UnitUpdateReadyState(self)
 	RaidTargetUpdate(self)
-
-	--buffUpdates[self] = true -- UpdateBuffs(self)
 
 	if (not Shared.SkipHighlightUpdate) then
 		FPerl_Highlight:SetHighlight(self)
@@ -372,7 +313,7 @@ local function HideRaidManagerCVar()
 end
 
 local function HideDefaultRaidFrames()
-	if not rconf.enable then
+	if (not rconf.enable) then
 		return
 	end
 	FPerl.AfterCombat(HideRaidManagerCVar)
@@ -404,11 +345,6 @@ end
 
 -- PLAYER_ENTERING_WORLD
 function Bus.PLAYER_ENTERING_WORLD()
-	--self:UnregisterEvent("PLAYER_ENTERING_WORLD")
-
-	--FPerl.Raid.ChangeAttributes()
-	--FPerl.Raid.RaidTitles()
-
 	FPerl.Raid.ChangeAttributes()
 	FPerl.Raid.Position()
 	FPerl.Raid.SetBits(FPerl_Raid_Frame)
@@ -421,9 +357,6 @@ function Bus.PLAYER_ENTERING_WORLD()
 	end
 
 	FPerl.Raid.UpdateDisplayAll()
-
-	--Events.PLAYER_ENTERING_WORLD = Events.PLAYER_ENTERING_WORLDsmall
-	--Events.PLAYER_ENTERING_WORLDsmall = nil
 end
 
 local rosterGuids = { }
@@ -475,7 +408,7 @@ function Bus.GROUP_ROSTER_UPDATE()
 	BuildGuidMap()
 	if (IsInRaid() or (IsInGroup() and rconf.inParty)) then
 		FPerl_Raid_Frame:Show()
-		if type(UnitGroupRolesAssigned) == "function" then
+		if (type(UnitGroupRolesAssigned) == "function") then
 			if (rconf.role) then
 				for i, frame in pairs(FrameArray) do
 					if (frame.partyid) then
@@ -505,7 +438,7 @@ end
 
 -- UNIT_COMBAT
 function Events:UNIT_COMBAT(unit, action, descriptor, damage, damageType)
-	if unit ~= self.partyid then
+	if (unit ~= self.partyid) then
 		return
 	end
 	-- set first: the flash and hit text animate even when a later line raises on a secret amount
@@ -521,7 +454,7 @@ end
 -- UNIT_NAME_UPDATE
 function Events:UNIT_NAME_UPDATE()
 	UpdateName(self)
-	UpdateHealth(self) -- Added 16th May 2007 - Seems they now fire name update to indicate some change in state.
+	UpdateHealth(self) -- the client also fires UNIT_NAME_UPDATE on some changes of state
 end
 
 -- UNIT_AURA
@@ -577,7 +510,7 @@ function Bus.ROLE_CHANGED_INFORM(event, targetUnit, sourceUnit, oldRole, newRole
 	end
 end
 
--- SetRes
+-- SetResStatus
 local function SetResStatus(resserName, resTargetName, ignoreCounter)
 	if (not resserName) then
 		return
@@ -627,7 +560,7 @@ function Events:UNIT_SPELLCAST_START(unit, lineGUID, spellID)
 		if (not CanAccess(unitTargetName)) then
 			return
 		end
-		if realm and CanAccess(realm) and realm ~= "" then
+		if (realm and CanAccess(realm) and realm ~= "") then
 			unitTargetName = unitTargetName.."-"..realm
 		end
 		if (UnitExists(u) and UnitIsDead(u)) then
@@ -638,7 +571,7 @@ end
 
 -- UNIT_SPELLCAST_STOP
 function Events:UNIT_SPELLCAST_STOP(unit)
-	if unit then
+	if (unit) then
 		local unitName = RaidUnitName(unit)
 		SetResStatus(unitName)
 	end
@@ -646,7 +579,7 @@ end
 
 -- UNIT_SPELLCAST_FAILED
 function Events:UNIT_SPELLCAST_FAILED(unit)
-	if unit then
+	if (unit) then
 		local unitName = RaidUnitName(unit)
 		SetResStatus(unitName, nil, true)
 	end
@@ -679,7 +612,7 @@ Shared.EnableEvents = function(self)
 end
 
 function Events:UNIT_HEAL_PREDICTION(unit)
-	if rconf.healprediction and unit == self.partyid then
+	if (rconf.healprediction and unit == self.partyid) then
 		FPerl.SetExpectedHealth(self)
 	end
 end
@@ -702,14 +635,14 @@ local function SetRaidRoster()
 
 		if (name and (IsInRaid() or (IsInGroup() and rconf.inParty))) then
 			local unit
-			if IsInRaid() then
+			if (IsInRaid()) then
 				unit = "raid"..i
 			else
-				if name == UnitName("player") then
+				if (name == UnitName("player")) then
 					unit = "player"
 					player = true
 				else
-					if player then
+					if (player) then
 						unit = "party"..i - 1
 					else
 						unit = "party"..i
@@ -737,11 +670,10 @@ local function SetRaidRoster()
 			if (r) then
 				NewRoster[name] = r
 				FPerlRoster[name] = nil
-				-- same AFK/DND secrecy risk as above.
+				-- AFK and DND status can be secret; SafeBool reads a secret as false
 				r.afk = SafeBool(UnitIsAFK(unit), false) and GetTime() or nil
 				r.dnd = SafeBool(UnitIsDND(unit), false) and GetTime() or nil
 			else
-				--NewRoster = new()
 				NewRoster[name] = { }
 			end
 		end

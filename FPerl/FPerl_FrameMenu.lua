@@ -1,5 +1,5 @@
 -- Edit on the frame: while the frames are unlocked and out of combat, an insecure overlay covers each listed frame.
--- Dragging it runs the frame's own drag scripts; a click (left or right, cursor moved under 5 px since mouse down) opens
+-- Dragging it runs the frame's own drag scripts; a click (left or right, cursor moved under 5 px sideways since mouse down) opens
 -- FPerl_FramePopup beside the frame: that frame's basic settings rows, built with the options window's controls
 -- (FPerl.OptionsControls.Make), so every value goes through FPerl.SettingsCore.
 --
@@ -36,38 +36,38 @@ local function linesOf(name)
 	local page, _, own = unpack(FRAMES[name])
 	local basic, rank, rows = {}, {}, {}
 	for _, e in ipairs(FPerl.SettingsList) do
-		if e.page == page and e.basic and not (e.showif and not e.showif()) then
+		if (e.page == page and e.basic and not (e.showif and not e.showif())) then
 			basic[#basic + 1] = e
-			if not rank[e.label] then rank[e.label] = #basic end
+			if (not rank[e.label]) then rank[e.label] = #basic end
 		end
 	end
-	if own then
+	if (own) then
 		for _, e in ipairs(FPerl.SettingsList) do
-			if e.page == page and e.section == own and not (e.showif and not e.showif()) then
+			if (e.page == page and e.section == own and not (e.showif and not e.showif())) then
 				local r = e.basic and 0 or rank[e.label]
-				if r then rows[#rows + 1] = {r, #rows, e} end
+				if (r) then rows[#rows + 1] = {r, #rows, e} end
 			end
 		end
-		table.sort(rows, function(a, b) if a[1] ~= b[1] then return a[1] < b[1] end return a[2] < b[2] end)
+		table.sort(rows, function(a, b) if (a[1] ~= b[1]) then return a[1] < b[1] end return a[2] < b[2] end)
 		for i, r in ipairs(rows) do rows[i] = r[3] end
 	else
 		rows = basic
 	end
 	local lines, tags = {}, {}
 	for _, e in ipairs(rows) do
-		if e.inline and tags[e.inline] then
+		if (e.inline and tags[e.inline]) then
 			table.insert(tags[e.inline], e)
 		else
 			local l = {e}
 			lines[#lines + 1] = l
-			if e.inline then tags[e.inline] = l end
+			if (e.inline) then tags[e.inline] = l end
 		end
 	end
 	return lines
 end
 
 local function refresh()
-	if not (popup and popup:IsShown()) then return end
+	if (not (popup and popup:IsShown())) then return end
 	local c = InCombatLockdown() and true or false
 	for _, l in ipairs(shownLines) do l:Refresh(c) end
 end
@@ -76,7 +76,7 @@ local function lineFor(rows)
 	local ids = {}
 	for i, r in ipairs(rows) do ids[i] = r.id end
 	local key = table.concat(ids, "|")
-	if not built[key] then built[key] = FPerl.OptionsControls.Make(popup, rows) end
+	if (not built[key]) then built[key] = FPerl.OptionsControls.Make(popup, rows) end
 	return built[key]
 end
 
@@ -98,7 +98,7 @@ local function create()
 	popup.all:SetScript("OnClick", function()
 		local page = current and FRAMES[current][1]
 		popup:Hide()
-		if page then FPerl.SettingsOpenPage(page) end
+		if (page) then FPerl.SettingsOpenPage(page) end
 	end)
 	popup.lock = CreateFrame("Button", "FPerl_FramePopup_Lock", popup, "UIPanelButtonTemplate")
 	popup.lock:SetHeight(24)
@@ -109,7 +109,7 @@ end
 -- The options window sets OptionsControls.onChange when it loads (after this file): wrap it at the first popup use.
 local function hook()
 	local C = FPerl.OptionsControls
-	if wrapped ~= C.onChange then
+	if (wrapped ~= C.onChange) then
 		local cur = C.onChange
 		wrapped = function(e) cur(e) refresh() end
 		C.onChange = wrapped
@@ -120,13 +120,13 @@ local function place(f)
 	popup:ClearAllPoints()
 	local cx = f:GetCenter()
 	local right = true
-	if cx then right = cx * f:GetEffectiveScale() / UIParent:GetEffectiveScale() < UIParent:GetWidth() / 2 end
-	if right then popup:SetPoint("TOPLEFT", f, "TOPRIGHT", 4, 0) else popup:SetPoint("TOPRIGHT", f, "TOPLEFT", -4, 0) end
+	if (cx) then right = cx * f:GetEffectiveScale() / UIParent:GetEffectiveScale() < UIParent:GetWidth() / 2 end
+	if (right) then popup:SetPoint("TOPLEFT", f, "TOPRIGHT", 4, 0) else popup:SetPoint("TOPRIGHT", f, "TOPLEFT", -4, 0) end
 end
 
 local function open(name)
-	if InCombatLockdown() or combat or FPerl.Locked ~= 0 then return end
-	if not popup then create() end
+	if (InCombatLockdown() or combat or FPerl.Locked ~= 0) then return end
+	if (not popup) then create() end
 	hook()
 	current = name
 	local info = FRAMES[name]
@@ -159,14 +159,14 @@ end
 
 local function close()
 	current = nil
-	if popup then popup:Hide() end
+	if (popup) then popup:Hide() end
 end
 
 FPerl.FramePopup = {
 	Close = close,
 	Lines = function()
 		local out = {}
-		if popup and popup:IsShown() then
+		if (popup and popup:IsShown()) then
 			for i, l in ipairs(shownLines) do out[i] = {ids = l.ids, page = l.page, label = l.label, ctl = l.ctl} end
 		end
 		return out
@@ -178,7 +178,7 @@ local function forward(script)
 	return function(self)
 		local f = self:GetParent()
 		local fn = f:GetScript(script)
-		if fn then fn(f) end
+		if (fn) then fn(f) end
 	end
 end
 local function make(name)
@@ -193,7 +193,7 @@ local function make(name)
 	o:SetScript("OnMouseDown", function() down = GetCursorPosition() end)
 	o:SetScript("OnClick", function()
 		local x = GetCursorPosition()
-		if down and math.abs(x - down) >= 5 then return end -- a drag, not a click
+		if (down and math.abs(x - down) >= 5) then return end -- a drag, not a click
 		open(name)
 	end)
 	o:Hide()
@@ -203,16 +203,16 @@ end
 
 -- Called by FPerl.ArrangeBarUpdate (unlock, lock, combat end): overlays are shown exactly while unlocked and out of combat.
 function FPerl.FrameMenuUpdate()
-	if InCombatLockdown() then return end -- the overlays were hidden by PLAYER_REGEN_DISABLED
+	if (InCombatLockdown()) then return end -- the overlays were hidden by PLAYER_REGEN_DISABLED
 	local on = FPerl.Locked == 0
-	if not on then close() end
+	if (not on) then close() end
 	for _, name in ipairs(ORDER) do
-		if _G[name] then
+		if (_G[name]) then
 			local o = overlays[name]
-			if on then
+			if (on) then
 				o = o or make(name)
 				o:Show()
-			elseif o then
+			elseif (o) then
 				o:Hide()
 			end
 		end

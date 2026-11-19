@@ -4,16 +4,7 @@
 local pconf
 FPerl.RequestConfig(function(new)
 	pconf = new.player
-end, "$Revision:  $")
-
---local playerClass
-
---[===[@debug@
-local function d(fmt, ...)
-	fmt = fmt:gsub("(%%[sdqxf])", "|cFF60FF60%1|r")
-	ChatFrame1:AddMessage("|cFFFF8080PlayerBuffs:|r "..format(fmt, ...), 0.8, 0.8, 0.8)
-end
---@end-debug@]===]
+end)
 
 -- The aura element (FPerl_Unit.lua) draws the auras; these are its settings for the player frame.
 -- the extra rows under the frame (druid / priest mana bar, reputation, experience) that BOTTOM blocks clear
@@ -58,8 +49,7 @@ function FPerl.PlayerBuffs.PlayerBuffSetup(self)
 	self.auraCancel = true -- right-click cancels a buff, as on Blizzard's buff frame
 	FPerl.UnitFrameEnable(self, "Auras")
 
-	-- (re)build the AuraContainer fallback so it picks up any
-	-- option change; no-ops on clients without it, deferred while secret.
+	-- (re)build the AuraContainer so it picks up any option change; deferred while secret.
 	FPerl.AurasRebuild(self)
 
 	FPerl.PlayerBuffs.Position(self)
@@ -74,9 +64,6 @@ local function SetBits(self)
 		FPerl.AfterCombat(SetBits, self)
 		return
 	end
-
-	--local _, class = UnitClass("player")
-	--playerClass = class
 
 	FPerl.PlayerBuffs.PlayerBuffSetup(self)
 

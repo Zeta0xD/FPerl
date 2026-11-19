@@ -22,7 +22,6 @@ local UnitClass = UnitClass
 local UnitInRaid = UnitInRaid
 local UnitIsAFK = UnitIsAFK
 local UnitIsConnected = UnitIsConnected
-local UnitIsDead = UnitIsDead
 local UnitIsDeadOrGhost = UnitIsDeadOrGhost
 local UnitIsDND = UnitIsDND
 local UnitIsVisible = UnitIsVisible
@@ -42,11 +41,8 @@ local conf, rconf
 FPerl.RequestConfig(function(newConf)
 	conf = newConf
 	rconf = conf.raid
-end, "$Revision:  $")
+end)
 
---------------------
--- Click Handlers --
---------------------
 
 -- FPerl.Raid.ScaleRaid
 function FPerl.Raid.ScaleRaid()
@@ -214,13 +210,11 @@ function FPerl.Raid.RaidTitles()
 		end
 	end
 
-	-- A profile saved before this client's newer classes existed (or before
-	-- DefaultRaidClasses() listed all of them) can still have fewer entries
-	-- than CLASS_COUNT; repair it the same way GroupFilter() does, or the
-	-- index below is nil and this errors out before finishing raid setup.
+	-- A profile with fewer class entries than CLASS_COUNT is repaired the way
+	-- GroupFilter() does it; the index below would be nil.
 	for i = 1, Shared.CLASS_COUNT do
 		if (not rconf.class[i]) then
-			rconf.class = DefaultRaidClasses()
+			rconf.class = FPerl.DefaultRaidClasses()
 			break
 		end
 	end
@@ -257,7 +251,7 @@ function FPerl.Raid.RaidTitles()
 
 		if (FPerl.Locked == 0 or (RaidGroupCounts[i] > 0 and enable and rconf.group[i] and not singleGroup)) then
 			if (FPerl.Locked == 0 or rconf.titles) then
-				if rconf.enable then
+				if (rconf.enable) then
 					if (not titleFrame:IsShown()) then
 						titleFrame:Show()
 					end
@@ -271,11 +265,11 @@ function FPerl.Raid.RaidTitles()
 			end
 
 			if (FPerl.Locked == 0) then
-				local rows = conf.sortByClass and RaidGroupCounts[i] or 5
+				local rows = rconf.sortByClass and math.max(1, RaidGroupCounts[i]) or 5
 				virtualFrame:ClearAllPoints()
 				if (rconf.anchor == "TOP") then
 					virtualFrame:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 0, 0)
-					virtualFrame:SetHeight(((rconf.mana and 1 or 0) * rows + 38) * rows + (rconf.spacing * (rows - 1)))
+					virtualFrame:SetHeight(((rconf.mana and 1 or 0) * 5 + 38) * rows + (rconf.spacing * (rows - 1)))
 					virtualFrame:SetWidth(80 + rconf.size.width)
 				elseif (rconf.anchor == "LEFT") then
 					virtualFrame:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 0, 0)
@@ -283,7 +277,7 @@ function FPerl.Raid.RaidTitles()
 					virtualFrame:SetWidth(80 * rows + (rconf.spacing * (rows - 1)) + rconf.size.width)
 				elseif (rconf.anchor == "BOTTOM") then
 					virtualFrame:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 0, 0)
-					virtualFrame:SetHeight(((rconf.mana and 1 or 0) * rows + 38) * rows + (rconf.spacing * (rows - 1)))
+					virtualFrame:SetHeight(((rconf.mana and 1 or 0) * 5 + 38) * rows + (rconf.spacing * (rows - 1)))
 					virtualFrame:SetWidth(80 + rconf.size.width)
 				elseif (rconf.anchor == "RIGHT") then
 					virtualFrame:SetPoint("TOPRIGHT", frame, "BOTTOMRIGHT", 0, 0)
@@ -293,8 +287,8 @@ function FPerl.Raid.RaidTitles()
 				virtualFrame:OnBackdropLoaded()
 				virtualFrame:SetBackdropColor(conf.colour.frame.r, conf.colour.frame.g, conf.colour.frame.b, conf.colour.frame.a)
 				virtualFrame:SetBackdropBorderColor(conf.colour.border.r, conf.colour.border.g, conf.colour.border.b, 1)
-				if rconf.group[i] and (i < 9 or rconf.sortByClass) then
-					if rconf.enable then
+				if (rconf.group[i] and (i < 9 or rconf.sortByClass)) then
+					if (rconf.enable) then
 						virtualFrame:Show()
 					else
 						virtualFrame:Hide()
@@ -375,10 +369,6 @@ local normalRezzers = {
 	PALADIN = true,
 }
 
-local function SortCooldown(a, b)
-	return a.cd < b.cd
-end
-
 local function GetCombatRezzerList()
 	local anyCombat = 0
 	local anyAlive = 0
@@ -395,7 +385,7 @@ local function GetCombatRezzerList()
 		end
 	end
 
-	-- We only need to know about battle rezzers if any normal rezzers are in combat
+	-- The list matters only when a normal rezzer is in combat or fewer than three are alive
 	if (anyCombat > 0 or anyAlive < 3) then
 		local ret = { }
 
@@ -406,14 +396,14 @@ local function GetCombatRezzerList()
 
 				if (not UnitAffectingCombat(raidid)) then
 					if (fileName == "PRIEST" or fileName == "SHAMAN" or fileName == "PALADIN") then
-						tinsert(ret, {["name"] = name, class = fileName, cd = 0})
+						tinsert(ret, {["name"] = name, class = fileName})
 					end
 				else
 					if (fileName == "DRUID") then
 						local myRoster = FPerlRoster[name]
 
 						if (myRoster) then
-							tinsert(ret, {["name"] = name, class = fileName, cd = 0})
+							tinsert(ret, {["name"] = name, class = fileName})
 						end
 					end
 				end
@@ -421,15 +411,9 @@ local function GetCombatRezzerList()
 		end
 
 		if (#ret > 0) then
-			sort(ret, SortCooldown)
-
 			local list = ""
 			for k,v in ipairs(ret) do
 				local name = FPerl.ColourTable[v.class]..v.name.."|r"
-
-				if (v.cd > 0) then
-					name = name.." (in "..SecondsToTime(v.cd)..")"
-				end
 
 				if (list == "") then
 					list = name
@@ -437,10 +421,8 @@ local function GetCombatRezzerList()
 					list = list..", "..name
 				end
 			end
-			--del(ret)
 			return list
 		else
-			--del(ret)
 			return "|c00FF0000"..NONE.."|r"
 		end
 	end
@@ -490,15 +472,6 @@ function FPerl.Raid.RaidTipExtra(unitid)
 			elseif (stats.dnd) then
 				GameTooltip:AddLine(format(FPERL_RAID_TOOLTIP_DND, SecondsToTime(t - stats.dnd)))
 
-			elseif (stats.fd) then
-				if (not UnitIsDead(unitid)) then
-					stats.fd = nil
-				else
-					local x = stats.fd + 360 - t
-					if (x > 0) then
-						GameTooltip:AddLine(format(FPERL_RAID_TOOLTIP_DYING, SecondsToTime(x)))
-					end
-				end
 			end
 
 			if (UnitIsDeadOrGhost(unitid)) then
@@ -519,8 +492,6 @@ end
 
 -- SetMainHeaderAttributes
 local function SetMainHeaderAttributes(self)
-	self:Hide()
-
 	if (rconf.sortAlpha) then
 		self:SetAttribute("sortMethod", "NAME")
 	else
@@ -531,7 +502,7 @@ local function SetMainHeaderAttributes(self)
 	self:SetAttribute("showPlayer", rconf.inParty)
 	self:SetAttribute("showRaid", true)
 
-	if rconf.anchor ~= "BOTTOM" then
+	if (rconf.anchor ~= "BOTTOM") then
 		self:SetAttribute("point", rconf.anchor)
 	end
 	self:SetAttribute("minWidth", 80)
@@ -560,7 +531,7 @@ end
 local function GroupFilter(n)
 	if (rconf.sortByClass) then
 		if (not rconf.class[n]) then
-			rconf.class = DefaultRaidClasses()
+			rconf.class = FPerl.DefaultRaidClasses()
 		end
 		if (rconf.class[n].enable) then
 			return rconf.class[n].name
@@ -579,7 +550,7 @@ local function GroupFilter(n)
 			end
 		end
 		if (invalid) then
-			rconf.class = DefaultRaidClasses()
+			rconf.class = FPerl.DefaultRaidClasses()
 		end
 
 		for i = 1, Shared.CLASS_COUNT do
@@ -595,21 +566,20 @@ local function GroupFilter(n)
 	end
 end
 
--- FPerl_Raid_SetAttributes
+-- FPerl.Raid.ChangeAttributes
 function FPerl.Raid.ChangeAttributes()
 	if (InCombatLockdown()) then
 		FPerl.AfterCombat(FPerl.Raid.ChangeAttributes)
 		return
 	end
-	local d = FPerl.Dev; if d and d.listener then d.Emit("header.rebuild") end
+	local d = FPerl.Dev; if (d and d.listener) then d.Emit("header.rebuild") end
 
 	rconf.anchor = (rconf and rconf.anchor) or "TOP"
 
 	for i = 1, rconf.sortByClass and Shared.CLASS_COUNT or 9 do
 		local groupHeader = raidHeaders[i]
 
-		-- Guard against nil raidHeaders entry
-		if not groupHeader then
+		if (not groupHeader) then
 			break
 		end
 
@@ -617,24 +587,19 @@ function FPerl.Raid.ChangeAttributes()
 		-- that has them already is left as it is (the pass hides, shows and rebuilds it)
 		local key = table.concat({tostring(rconf.sortByRole), tostring(rconf.sortByClass), tostring(rconf.sortAlpha),
 			tostring(rconf.inParty), tostring(rconf.anchor), tostring(rconf.spacing), tostring(GroupFilter(i)), i}, "|")
-		if groupHeader.attributeKey ~= key then
+		if (groupHeader.attributeKey ~= key) then
 		groupHeader.attributeKey = key
 
 		-- Hide this when we change attributes, so the whole re-calc is only done once, instead of for every attribute change
 		groupHeader:Hide()
 
-		if rconf.sortByRole then
+		if (rconf.sortByRole) then
 			groupHeader:SetAttribute("groupBy", "ASSIGNEDROLE")
 			groupHeader:SetAttribute("groupingOrder", "TANK,HEALER,DAMAGER,NONE")
 			groupHeader:SetAttribute("startingIndex", (i - 1) * 5 + 1)
 			groupHeader:SetAttribute("unitsPerColumn", 5)
 			groupHeader:SetAttribute("strictFiltering", nil)
 			groupHeader:SetAttribute("groupFilter", nil)
-			--groupHeader:SetAttribute("useparent-toggleForVehicle", true)
-			--groupHeader:SetAttribute("useparent-allowVehicleTarget", true)
-			--groupHeader:SetAttribute("useparent-unitsuffix", true)
-			--groupHeader:SetAttribute("toggleForVehicle", true)
-			--groupHeader:SetAttribute("allowVehicleTarget", true)
 		else
 			groupHeader:SetAttribute("strictFiltering", not rconf.sortByClass)
 			groupHeader:SetAttribute("groupFilter", GroupFilter(i))
@@ -642,28 +607,29 @@ function FPerl.Raid.ChangeAttributes()
 			groupHeader:SetAttribute("groupingOrder", nil)
 			groupHeader:SetAttribute("startingIndex", 1)
 			groupHeader:SetAttribute("unitsPerColumn", nil)
-			--groupHeader:SetAttribute("useparent-toggleForVehicle", true)
-			--groupHeader:SetAttribute("useparent-allowVehicleTarget", true)
-			--groupHeader:SetAttribute("useparent-unitsuffix", true)
-			--groupHeader:SetAttribute("toggleForVehicle", true)
-			--groupHeader:SetAttribute("allowVehicleTarget", true)
 		end
 
-		-- Fix Secure Header taint in combat
+		SetMainHeaderAttributes(groupHeader)
+
+		-- A shown header rebuilds on every attribute change, so all are set while it is hidden and it rebuilds once
+		-- on Show. A header shown from a negative startingIndex makes buttons beyond the units it shows: done until a
+		-- group or role header holds 5 buttons, and on every pass for a class header, which can show up to 40 members.
+		-- The secure buttons are made out of combat because CreateFrame of a secure frame is blocked in combat
 		local maxColumns = groupHeader:GetAttribute("maxColumns") or 1
 		local unitsPerColumn = groupHeader:GetAttribute("unitsPerColumn") or 5
-		local startingIndex = groupHeader:GetAttribute("startingIndex") or 1
 		local maxUnits = maxColumns * unitsPerColumn
-
-		groupHeader:Show()
-		groupHeader:SetAttribute("startingIndex", - maxUnits + 1)
-		groupHeader:SetAttribute("startingIndex", startingIndex)
-
-		SetMainHeaderAttributes(groupHeader)
+		if (not rconf.sortByClass and groupHeader:GetAttribute("child" .. maxUnits)) then
+			groupHeader:Show()
+		else
+			local startingIndex = groupHeader:GetAttribute("startingIndex") or 1
+			groupHeader:SetAttribute("startingIndex", - maxUnits + 1)
+			groupHeader:Show()
+			groupHeader:SetAttribute("startingIndex", startingIndex)
+		end
 		end
 	end
 
-	-- A shown header makes buttons for every unit its attributes allow, so the decider sees the
+	-- A shown header makes buttons for every unit its attributes allow, so FPerl.GroupVisibilityUpdate sees the
 	-- headers only once they have their attributes.
 	FPerl.Raid.Headers = raidHeaders
 	FPerl.GroupVisibilityUpdate()
@@ -677,7 +643,7 @@ function FPerl.Raid.SetBits(self)
 		FPerl.AfterCombat(FPerl.Raid.SetBits, self)
 		return
 	end
-	local d = FPerl.Dev; if d and d.listener then d.Emit("redisplay.raid") end
+	local d = FPerl.Dev; if (d and d.listener) then d.Emit("redisplay.raid") end
 	if (Shared.raidLoaded) then
 		FPerl.GroupVisibilityUpdate()
 	end

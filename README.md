@@ -76,12 +76,17 @@ Subcommands can be shortened: `/fphelper as` is `/fphelper assists`. Raid Monito
 
 - The raid tools have not yet been reviewed for Forever.
 - Raid Helper: healer mode cannot be turned on.
-- Raid Helper: the `/fphelper` usage line lists `find` and `scale`, which do nothing.
 - In a vehicle, a click on the Player frame's name or portrait targets you, not the vehicle.
 
 ## Reporting bugs
 
 Open an issue at https://github.com/Zeta0xD/FPerl/issues with what you did, what you saw, and the F-Perl version you downloaded. For a Lua error, turn error display on once with `/console scriptErrors 1` and copy the full error text into the issue.
+
+## Forever-only code
+
+F-Perl is built and tested for the Forever client only. `FPerl.ForeverGame` (`FPerl/FPerl_Core.lua`) holds the Forever-only values no API check detects: the surname separator, the playable classes, and the NPC portrait setting for instances. `FPerl.ForeverAPI` (`FPerl/FPerl_Values.lua`) holds the API checks.
+
+The raid tools (`FPerl_RaidAdmin`, `FPerl_RaidHelper`, `FPerl_RaidMonitor`) are not yet reviewed and are not a base to port from.
 
 ## Credits and license
 

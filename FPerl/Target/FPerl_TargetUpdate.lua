@@ -1,18 +1,15 @@
 -- Author: Resike
 -- License: GNU GPL v3, 29 June 2007 (see LICENSE.txt)
 
-local conf, tconf, fconf
+local conf
 FPerl.RequestConfig(function(new)
 	conf = new
-	tconf = conf.target
-	fconf = conf.focus
-end, "$Revision:  $")
+end)
 
 local CanAccess = FPerl.CanAccess
 local IsSecret = FPerl.IsSecret
 local SetAlphaFromBoolean = FPerl.SetAlphaFromBoolean
 local SafeBool = FPerl.SafeBool
-local GetLootMethod = GetLootMethod or C_PartyInfo.GetLootMethod
 local UnitAffectingCombat = UnitAffectingCombat
 local UnitCanAssist = UnitCanAssist
 local UnitExists = UnitExists
@@ -24,7 +21,6 @@ local UnitIsDead = UnitIsDead
 local UnitIsGhost = UnitIsGhost
 local UnitIsGroupAssistant = UnitIsGroupAssistant
 local UnitIsGroupLeader = UnitIsGroupLeader
-local UnitIsUnit = UnitIsUnit
 local UnitPowerMax = UnitPowerMax
 local CombatFeedback_OnUpdate = CombatFeedback_OnUpdate
 local percD = "%d"..PERCENT_SYMBOL
@@ -38,10 +34,8 @@ function FPerl.Target.SetManaType(self)
 		if (self.statsFrame.manaBar:IsShown()) then
 			self.statsFrame.manaBar:Hide()
 
-			if (self == FPerl_Target or self == FPerl_Focus or self == FPerl_TargetTarget or self == FPerl_FocusTarget or self == FPerl_PetTarget or self == FPerl_TargetTargetTarget) then
-				self.statsFrame:SetHeight(28 + ((conf.bar.fat or 0) * 2))
-				FPerl.StatsFrameSetup(self)
-			end
+			self.statsFrame:SetHeight(28 + ((conf.bar.fat or 0) * 2))
+			FPerl.StatsFrameSetup(self)
 		end
 		return
 	end
@@ -51,16 +45,14 @@ function FPerl.Target.SetManaType(self)
 	if (not self.statsFrame.manaBar:IsShown()) then
 		self.statsFrame.manaBar:Show()
 		self.statsFrame.manaBar.text:Show()
-		if (self == FPerl_Target or self == FPerl_Focus or self == FPerl_TargetTarget or self == FPerl_FocusTarget or self == FPerl_PetTarget or self == FPerl_TargetTargetTarget) then
-			self.statsFrame:SetHeight(40)
-			FPerl.StatsFrameSetup(self)
-		end
+		self.statsFrame:SetHeight(40)
+		FPerl.StatsFrameSetup(self)
 	end
 end
 
 local powerStyle = {percent = percD, text = "valued"}
 function FPerl.Target.SetMana(self)
-	if not self.partyid then
+	if (not self.partyid) then
 		self.targetmana = 0
 		self.targetmanamax = 0
 		return
@@ -77,84 +69,15 @@ function FPerl.Target.SetManaAndType(self)
 	FPerl.Target.SetMana(self)
 end
 
--- UpdateHealPrediction
-local function UpdateHealPrediction(self)
-	if self == FPerl_Target then
-		if tconf.healprediction then
-			FPerl.SetExpectedHealth(self)
-		else
-			self.statsFrame.expectedHealth:Hide()
-		end
-	elseif self == FPerl_TargetTarget or self == FPerl_TargetTargetTarget then
-		if self.conf.healprediction then
-			FPerl.SetExpectedHealth(self)
-		else
-			self.statsFrame.expectedHealth:Hide()
-		end
-	elseif self == FPerl_Focus then
-		if fconf.healprediction then
-			FPerl.SetExpectedHealth(self)
-		else
-			self.statsFrame.expectedHealth:Hide()
-		end
-	elseif self == FPerl_FocusTarget then
-		if conf.focustarget.healprediction then
-			FPerl.SetExpectedHealth(self)
-		else
-			self.statsFrame.expectedHealth:Hide()
-		end
-	end
-end
-
--- UpdateAbsorbPrediction
-local function UpdateAbsorbPrediction(self)
-	if self == FPerl_Target then
-		if tconf.absorbs then
-			FPerl.SetExpectedAbsorbs(self)
-		else
-			self.statsFrame.expectedAbsorbs:Hide()
-		end
-	elseif self == FPerl_TargetTarget or self == FPerl_TargetTargetTarget then
-		if self.conf.absorbs then
-			FPerl.SetExpectedAbsorbs(self)
-		else
-			self.statsFrame.expectedAbsorbs:Hide()
-		end
-	elseif self == FPerl_Focus then
-		if fconf.absorbs then
-			FPerl.SetExpectedAbsorbs(self)
-		else
-			self.statsFrame.expectedAbsorbs:Hide()
-		end
-	elseif self == FPerl_FocusTarget then
-		if conf.focustarget.absorbs then
-			FPerl.SetExpectedAbsorbs(self)
-		else
-			self.statsFrame.expectedAbsorbs:Hide()
-		end
-	end
-end
-
 function FPerl.Target.UpdateResurrectionStatus(self)
-	if (SafeBool(UnitHasIncomingResurrection(self.partyid), false)) then
-		if (self == FPerl_Target and tconf.portrait) or (self == FPerl_Focus and fconf.portrait) then
-			self.portraitFrame.resurrect:Show()
-		else
-			self.statsFrame.resurrect:Show()
-		end
-	else
-		if (self == FPerl_Target and tconf.portrait) or (self == FPerl_Focus and fconf.portrait) then
-			self.portraitFrame.resurrect:Hide()
-		else
-			self.statsFrame.resurrect:Hide()
-		end
-	end
+	local portrait = (self == FPerl_Target or self == FPerl_Focus) and self.conf.portrait
+	FPerl.UpdateResurrect(self, portrait and self.portraitFrame.resurrect or self.statsFrame.resurrect)
 end
 
 -- FPerl.Target.UpdateHealth
 function FPerl.Target.UpdateHealth(self)
 	local partyid = self.partyid
-	if not partyid then
+	if (not partyid) then
 		self.targethp = 0
 		self.targetmax = 0
 		self.afk = false
@@ -176,8 +99,7 @@ function FPerl.Target.UpdateHealth(self)
 
 	FPerl.SetHealthBar(self)
 
-	UpdateAbsorbPrediction(self)
-	UpdateHealPrediction(self)
+	FPerl.UpdatePrediction(self, self.conf, self.statsFrame)
 	FPerl.Target.UpdateResurrectionStatus(self)
 
 	-- A readable max of 100 means hp is already a percent: print it as one
@@ -191,7 +113,6 @@ function FPerl.Target.UpdateHealth(self)
 			self.statsFrame.manaBar.percent:Hide()
 			self.statsFrame.healthBar.percent:SetText(FPERL_LOC_GHOST)
 		elseif (dead) then
-			--self.statsFrame.manaBar.percent:Hide()
 			self.statsFrame.healthBar.percent:SetText(FPERL_LOC_DEAD)
 		elseif (offline) then
 			self.statsFrame.manaBar.percent:Hide()
@@ -244,10 +165,10 @@ end
 
 -- FPerl.Target.UpdateRange
 function FPerl.Target.UpdateRange(self)
-	if not self.partyid then
+	if (not self.partyid) then
 		return
 	end
-	if not tconf.range30yard then
+	if (not self.conf.range30yard) then
 		self.nameFrame.rangeIcon:Hide()
 		return
 	end
@@ -261,11 +182,8 @@ function FPerl.Target.UpdateRange(self)
 		SetAlphaFromBoolean(icon, range, 0, icon:GetAlpha())
 		return
 	end
-	local inRange = false
-	if not checkedRange then
-		inRange = true
-	end
-	if not UnitIsConnected(self.partyid) or inRange then
+	local inRange = not checkedRange or range
+	if (not UnitIsConnected(self.partyid) or inRange) then
 		self.nameFrame.rangeIcon:Hide()
 	else
 		self.nameFrame.rangeIcon:Show()
@@ -278,7 +196,7 @@ local function UpdateLeader(self)
 	local partyid = self.partyid
 
 	-- UnitIsGroupLeader/UnitIsGroupAssistant can be secret booleans for a
-	-- secret-identity target; crashed on plain click-to-target.
+	-- secret-identity target.
 	if (SafeBool(UnitIsGroupLeader(partyid), false)) then
 		self.nameFrame.leaderIcon:Show()
 		self.nameFrame.assistIcon:Hide()
@@ -291,26 +209,7 @@ local function UpdateLeader(self)
 		end
 	end
 
-	local masterLooter = false
-	local method, partyID, raidID = GetLootMethod()
-
-	if FPerl.IsMasterLoot(method) then
-		if raidID then
-			if SafeBool(UnitIsUnit("raid"..raidID, partyid), false) then
-				masterLooter = true
-			end
-		elseif partyID then
-			if SafeBool(UnitIsUnit("party"..partyID, partyid), false) or (partyID == 0 and SafeBool(UnitIsUnit("player", partyid), false)) then
-				masterLooter = true
-			end
-		end
-	end
-
-	if masterLooter then
-		self.nameFrame.masterIcon:Show()
-	else
-		self.nameFrame.masterIcon:Hide()
-	end
+	self.nameFrame.masterIcon:SetShown(FPerl.IsMasterLooter(partyid))
 end
 
 -- RaidTargetUpdate
@@ -356,7 +255,7 @@ FPerl.Target.CheckDebuffs = CheckDebuffs
 -- FPerl.Target.UpdateDisplay
 function FPerl.Target.UpdateDisplay(self)
 	local partyid = self.partyid
-	if not UnitExists(partyid) then
+	if (not UnitExists(partyid)) then
 		return
 	end
 
@@ -375,14 +274,14 @@ function FPerl.Target.UpdateDisplay(self)
 
 	RaidTargetUpdate(self)
 
-	if self == FPerl_Target then
+	if (self == FPerl_Target) then
 		FPerl.Target.UpdateCombo(self)
 	end
 	FPerl.UnitUpdatePortrait(self)
 
 	FPerl_Highlight:SetHighlight(self, UnitGUID(partyid))
 
-	if tconf.range30yard then
+	if (self.conf.range30yard) then
 		FPerl.Target.UpdateRange(self)
 	else
 		self.nameFrame.rangeIcon:Hide()
@@ -391,10 +290,8 @@ function FPerl.Target.UpdateDisplay(self)
 
 	FPerl.NoFadeBars()
 
-	-- a fresh target is the most common moment the AuraContainer
-	-- fallback's friend/enemy half-assignment needs to change; rebuild here (a
-	-- no-op on clients without it, deferred while secret) rather than on every
-	-- UNIT_AURA.
+	-- a fresh target can change the containers' order (auraOrder "reaction" follows
+	-- hostility); rebuild here (deferred while secret) rather than on every UNIT_AURA.
 	FPerl.AurasRebuild(self)
 	FPerl.AurasUpdate(self)
 	if (self.conf.highlightDebuffs.enable) then
@@ -407,16 +304,16 @@ end
 -- FPerl.Target.OnUpdate
 function FPerl.Target.OnUpdate(self, elapsed)
 	local partyid = self.partyid
-	if not partyid then
+	if (not partyid) then
 		return
 	end
 
-	local feedback = tconf.hitIndicator or fconf.hitIndicator
-	if feedback then
+	local feedback = self.conf.hitIndicator
+	if (feedback) then
 		CombatFeedback_OnUpdate(self, elapsed)
 	end
 
-	if (conf.combatFlash and self.PlayerFlash) then
+	if (self.PlayerFlash) then
 		CombatFlash(self, elapsed, false)
 	end
 	FPerl.OnUpdateIdle(self, feedback)
@@ -424,15 +321,13 @@ end
 
 -- Range checks every 0.2 s: no event reports a unit's distance
 local function PollRangeOne(self)
-	do
-		local partyid = self and self.partyid
-		if (partyid and self:IsVisible()) then
-			if tconf.range30yard then
-				FPerl.Target.UpdateRange(self)
-			end
-			if conf.rangeFinder.enabled then
-				FPerl.UpdateSpellRange(self, partyid)
-			end
+	local partyid = self and self.partyid
+	if (partyid and self:IsVisible()) then
+		if (self.conf.range30yard) then
+			FPerl.Target.UpdateRange(self)
+		end
+		if (conf.rangeFinder.enabled) then
+			FPerl.UpdateSpellRange(self, partyid)
 		end
 	end
 end

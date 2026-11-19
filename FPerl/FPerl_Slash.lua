@@ -1,8 +1,6 @@
 -- Author: Resike
 -- License: GNU GPL v3, 18 October 2014
 
-FPerl.SetModuleRevision("$Revision:  $")
-
 -- SlashHandler
 local function SlashHandler(msg)
 	local args = { }

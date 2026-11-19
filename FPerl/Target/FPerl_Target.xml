@@ -7,7 +7,7 @@
 
 	<Button name="FPerl_TargetTemplate" inherits="SecureUnitButtonTemplate" virtual="true" clampedToScreen="true" frameStrata="LOW" movable="true" parent="UIParent">
 		<Size>
-			<!-- The size of this frame determines what can be clicked for the menu and moving, hence it is the same size as the name frame. -->
+			<!-- The size of this frame determines what can be clicked for the menu and moving. -->
 			<AbsDimension x="220" y="62"/>
 		</Size>
 		<Scripts>
@@ -144,7 +144,7 @@
 							</Anchors>
 							<TexCoords left="0.49" right="1.0" top="0.0" bottom="0.49"/>
 						</Texture>
-						<!-- 40 Yard Range Icon, re-incarnated... -->
+						<!-- Range Icon -->
 						<Texture name="$parentrangeIcon" file="Interface\Addons\FPerl\Images\FPerl_30Yard" hidden="true">
 							<Size>
 								<AbsDimension x="48" y="19"/>

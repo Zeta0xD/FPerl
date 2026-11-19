@@ -5,7 +5,7 @@
 -- Window state (position, tab, "Show advanced options") is account-wide: FPerlDB.options = {x, y, tab, advanced}; it is
 -- not part of a layout. Which sections are open is session state.
 --
--- API (also what tools/wowless/optionswindow.lua drives): FPerl.Options.Open(tab), SelectTab(name), SetAdvanced(bool),
+-- API: FPerl.Options.Open(tab), SelectTab(name), SetAdvanced(bool),
 -- SetSearch(text), ExpandAll(), Lines(), Refresh().
 
 local C = FPerl.OptionsControls
@@ -20,11 +20,11 @@ local win, scroll, content, box, advanced, tabs, reloadBtn, reloadNote
 local state = {tab = "General", advanced = false, search = "", open = {}}
 local lines, built = {}, {}
 local heads, subs = {}, {}
-local needReload, loadedState = false, false
+local needReload = false
 local tabList = {}
 
 local function saved()
-	if not FPerlDB then return state end
+	if (not FPerlDB) then return state end
 	FPerlDB.options = FPerlDB.options or {}
 	return FPerlDB.options
 end
@@ -32,7 +32,7 @@ end
 local function pageNames()
 	local out, seen = {}, {}
 	for _, e in ipairs(FPerl.SettingsList) do
-		if not seen[e.page] then
+		if (not seen[e.page]) then
 			seen[e.page] = true
 			out[#out + 1] = e.page
 		end
@@ -42,44 +42,44 @@ local function pageNames()
 end
 local function pageOf(name)
 	for _, p in ipairs(FPerl.SettingsPages) do
-		if p.name == name then return p end
+		if (p.name == name) then return p end
 	end
 end
 
 ------------------------------------------------------------------------------------------------ layout
 local function sectionOpen(sec)
 	local o = state.open[sec.key]
-	if o == nil then return sec.hasBasic end
+	if (o == nil) then return sec.hasBasic end
 	return o
 end
 
--- The sections to show, each {key, page, name, rows, hasBasic, lines = {rows...}}.
+-- The sections to show, each {key, page, name, lines = {rows...}, tags, hasBasic}.
 local function collect()
 	local secs, byKey = {}, {}
 	local q = state.search ~= "" and state.search:lower() or nil
 	for _, e in ipairs(FPerl.SettingsList) do
 		local want
-		if q then
+		if (q) then
 			want = (e.label:lower():find(q, 1, true) or (type(e.tip) == "string" and e.tip:lower():find(q, 1, true))) ~= nil
 		else
 			want = e.page == state.tab and (state.advanced or e.basic)
 		end
-		if want and not (e.showif and not e.showif()) then
+		if (want and not (e.showif and not e.showif())) then
 			local key = e.page .. "|" .. e.section
 			local sec = byKey[key]
-			if not sec then
+			if (not sec) then
 				sec = {key = key, page = e.page, name = e.section, lines = {}, tags = {}, hasBasic = false}
 				byKey[key] = sec
 				secs[#secs + 1] = sec
 			end
-			if e.basic then sec.hasBasic = true end
-			if e.inline and sec.tags[e.inline] then
+			if (e.basic) then sec.hasBasic = true end
+			if (e.inline and sec.tags[e.inline]) then
 				local rows = sec.tags[e.inline]
 				rows[#rows + 1] = e
 			else
 				local rows = {e}
 				sec.lines[#sec.lines + 1] = rows
-				if e.inline then sec.tags[e.inline] = rows end
+				if (e.inline) then sec.tags[e.inline] = rows end
 			end
 		end
 	end
@@ -91,7 +91,7 @@ local function lineFor(rows)
 	for i, r in ipairs(rows) do key[i] = r.id end
 	key = table.concat(key, "|")
 	local l = built[key]
-	if not l then
+	if (not l) then
 		l = C.Make(content, rows)
 		built[key] = l
 	end
@@ -100,7 +100,7 @@ end
 
 local function head(i)
 	local h = heads[i]
-	if not h then
+	if (not h) then
 		h = CreateFrame("Button", nil, content)
 		h:SetHeight(24)
 		h.fs = h:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
@@ -111,7 +111,7 @@ local function head(i)
 		h.line:SetPoint("BOTTOMLEFT")
 		h.line:SetPoint("BOTTOMRIGHT")
 		h:SetScript("OnClick", function(self)
-			if self.sec then
+			if (self.sec) then
 				state.open[self.sec.key] = not sectionOpen(self.sec)
 				O.Layout()
 			end
@@ -122,7 +122,7 @@ local function head(i)
 end
 local function sub(i)
 	local s = subs[i]
-	if not s then
+	if (not s) then
 		s = content:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
 		subs[i] = s
 	end
@@ -130,16 +130,16 @@ local function sub(i)
 end
 
 function O.Layout()
-	if not win then return end
+	if (not win) then return end
 	for _, l in pairs(built) do l.box:Hide() end
 	for _, h in ipairs(heads) do h:Hide() end
 	for _, s in ipairs(subs) do s:Hide() end
 	lines = {}
 	local searching = state.search ~= ""
 	local pg = pageOf(state.tab)
-	if pg and not searching then
+	if (pg and not searching) then
 		scroll:Hide()
-		if not pg.frame then
+		if (not pg.frame) then
 			pg.frame = CreateFrame("Frame", nil, win)
 			pg.frame:SetPoint("TOPLEFT", scroll, "TOPLEFT")
 			pg.frame:SetPoint("BOTTOMRIGHT", scroll, "BOTTOMRIGHT")
@@ -149,14 +149,14 @@ function O.Layout()
 		return
 	end
 	for _, p in ipairs(FPerl.SettingsPages) do
-		if p.frame then p.frame:Hide() end
+		if (p.frame) then p.frame:Hide() end
 	end
 	scroll:Show()
 
 	local y, nh, ns = 0, 0, 0
 	local col, rowTop, rowH = 0, 0, 0
 	local function flush()
-		if col == 1 then y = rowTop - rowH - 4 end
+		if (col == 1) then y = rowTop - rowH - 4 end
 		col = 0
 	end
 	local lastPage
@@ -171,10 +171,10 @@ function O.Layout()
 		h:SetWidth(CONTENTW)
 		h.sec = nil
 		local title = sec.name
-		if searching and sec.page ~= lastPage then title = sec.page .. ": " .. sec.name end
+		if (searching and sec.page ~= lastPage) then title = sec.page .. ": " .. sec.name end
 		lastPage = sec.page
 		local open = true
-		if not searching and state.advanced then
+		if (not searching and state.advanced) then
 			h.sec = sec
 			open = sectionOpen(sec)
 			title = (open and "- " or "+ ") .. title .. " (" .. n .. ")"
@@ -182,14 +182,14 @@ function O.Layout()
 		h.fs:SetText(title)
 		h:Show()
 		y = y - 30
-		if open then
+		if (open) then
 			local group
 			for _, rows in ipairs(sec.lines) do
 				local e = rows[1]
 				local l = lineFor(rows)
-				if e.group ~= group then
+				if (e.group ~= group) then
 					group = e.group
-					if group then
+					if (group) then
 						flush()
 						ns = ns + 1
 						local s = sub(ns)
@@ -201,11 +201,11 @@ function O.Layout()
 					end
 				end
 				l.box:ClearAllPoints()
-				if l.full then
+				if (l.full) then
 					flush()
 					l.box:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
 					y = y - l.h - 4
-				elseif col == 0 then
+				elseif (col == 0) then
 					rowTop, rowH, col = y, l.h, 1
 					l.box:SetPoint("TOPLEFT", content, "TOPLEFT", 0, y)
 				else
@@ -227,10 +227,10 @@ end
 
 ------------------------------------------------------------------------------------------------ refresh
 function O.Refresh()
-	if not win or not win:IsShown() then return end
+	if (not win or not win:IsShown()) then return end
 	local combat = InCombatLockdown() and true or false
 	for _, l in ipairs(lines) do l:Refresh(combat) end
-	if reloadBtn then
+	if (reloadBtn) then
 		reloadBtn:SetShown(needReload)
 		reloadNote:SetShown(needReload)
 	end
@@ -243,7 +243,7 @@ function O.Lines()
 end
 
 C.onChange = function(e)
-	if C.reloadRow(e) then needReload = true end
+	if (C.reloadRow(e)) then needReload = true end
 	O.Refresh()
 end
 
@@ -254,10 +254,10 @@ end
 
 function O.SelectTab(name)
 	O.Create()
-	if not tabs[name] then return end
+	if (not tabs[name]) then return end
 	state.tab = name
 	saved().tab = name
-	if state.search ~= "" then
+	if (state.search ~= "") then
 		box:SetText("")
 		state.search = ""
 	end
@@ -278,8 +278,8 @@ end
 function O.SetSearch(text)
 	O.Create()
 	text = text or ""
-	if box:GetText() ~= text then box:SetText(text) end
-	if state.search ~= text then
+	if (box:GetText() ~= text) then box:SetText(text) end
+	if (state.search ~= text) then
 		state.search = text
 		selectedLook()
 		scroll:SetVerticalScroll(0)
@@ -295,14 +295,14 @@ end
 ------------------------------------------------------------------------------------------------ frame
 local function savePosition()
 	local x, y = win:GetLeft(), win:GetBottom()
-	if x and y then
+	if (x and y) then
 		local s = saved()
 		s.x, s.y = x, y
 	end
 end
 
 function O.Create()
-	if win then return win end
+	if (win) then return win end
 	win = CreateFrame("Frame", "FPerl_OptionsWindow", UIParent, "BackdropTemplate")
 	win:Hide()
 	win:SetSize(WIDTH, HEIGHT)
@@ -316,7 +316,7 @@ function O.Create()
 	tinsert(UISpecialFrames, "FPerl_OptionsWindow")
 
 	local s = saved()
-	if s.x and s.y then
+	if (s.x and s.y) then
 		win:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", s.x, s.y)
 	else
 		win:SetPoint("CENTER")
@@ -327,7 +327,7 @@ function O.Create()
 	win:SetScript("OnDragStart", function(self)
 		local _, cy = GetCursorPosition()
 		local top = self:GetTop()
-		if top and (top * self:GetEffectiveScale() - cy) <= 36 * self:GetEffectiveScale() then self:StartMoving() end
+		if (top and (top * self:GetEffectiveScale() - cy) <= 36 * self:GetEffectiveScale()) then self:StartMoving() end
 	end)
 	win:SetScript("OnDragStop", function(self)
 		self:StopMovingOrSizing()
@@ -410,16 +410,16 @@ end
 
 function O.Open(tab)
 	O.Create()
-	if tab and tabs[tab] then
+	if (tab and tabs[tab]) then
 		state.tab = tab
 		saved().tab = tab
-		if state.search ~= "" then
+		if (state.search ~= "") then
 			box:SetText("")
 			state.search = ""
 		end
 		selectedLook()
 	end
-	if win:IsShown() then O.Layout() else win:Show() end
+	if (win:IsShown()) then O.Layout() else win:Show() end
 end
 
 function FPerl.OpenSettings() O.Open() end

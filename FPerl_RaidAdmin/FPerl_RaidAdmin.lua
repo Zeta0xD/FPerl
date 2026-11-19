@@ -1,9 +1,22 @@
 -- Author: Resike
 -- License: GNU GPL v3, 29 June 2007 (see LICENSE.txt)
 
-local AddonName, Addon = ...
+local AddonName = ...
 
-FPerl.SetModuleRevision("$Revision:  $")
+FPerl.DefaultPoints.FPerl_CheckAnchor = {{"CENTER", "UIParent", "CENTER", 0, 0}}
+FPerl.DefaultPoints.FPerl_AdminFrameAnchor = {{"CENTER", "UIParent", "CENTER", 0, 0}}
+FPerl.DefaultPoints.FPerl_RosterTextAnchor = {{"CENTER", "UIParent", "CENTER", 0, -270}}
+
+local function MenuEntry(text, frameName)
+	tinsert(FPerl.MinimapEntries, {
+		text = text,
+		shown = function() return _G[frameName] and not _G[frameName]:IsShown() end,
+		func = function() _G[frameName]:Show() end,
+	})
+end
+MenuEntry(FPERL_MINIMENU_RAIDAD, "FPerl_AdminFrame")
+MenuEntry(FPERL_MINIMENU_ITEMCHK, "FPerl_Check")
+MenuEntry(FPERL_MINIMENU_ROSTERTEXT, "FPerl_RosterText")
 
 local SavedRoster = nil
 local XswapCount = 0
@@ -60,7 +73,6 @@ function FPerl.RaidAdmin.AdminOnLoad(self)
 	SLASH_FPERLRAIDADMIN1 = "/rad"
 	SLASH_FPERLRAIDADMIN2 = "/fpadmin"
 
-	--self:RegisterEvent("VARIABLES_LOADED")
 	self:RegisterEvent("ADDON_LOADED")
 	self:RegisterEvent("GROUP_ROSTER_UPDATE")
 
@@ -86,7 +98,7 @@ function FPerl.RaidAdmin.AdminOnLoad(self)
 	FPerl.RaidAdmin.AdminOnLoad = nil
 end
 
--- FPerl.RaidAdmin.AdminStartup
+-- AdminStartup
 local function AdminStartup(self)
 	FPerl.MigrateSavedNames(AddonName)
 	Defaults()
@@ -104,7 +116,7 @@ local function AdminStartup(self)
 	AdminStartup = nil
 end
 
--- SetupFrameSimple: local, RaidHelper defines a global of the same name with other defaults
+-- SetupFrameSimple: FPerl.RaidHelper.SetupFrameSimple defaults alpha to 0.8, this one to 1
 local function SetupFrameSimple(self, alpha)
 	self:OnBackdropLoaded()
 	self:SetBackdropColor(0, 0, 0, alpha or 1)
@@ -191,7 +203,6 @@ local function LoadRoster()
 	local swapCount = 0
 	local moveCount = 0
 	local CurrentRoster = {}
-	local CurrentGroups = {}
 	local FreeFloating = {}
 
 	-- Store the current raid roster, and a list of players in the raid, but not in the saved roster
@@ -281,14 +292,12 @@ local function LoadRoster()
 
 				if (swapName) then
 					Swap(name, swapName)
-				--break
 				else
 				local done
 					-- Nothing suitable found to swap, see if target group has space
 					if (GroupCount(group) < 5) then
 						Move(name, group)
 					done = true
-						--break
 					end
 
 					-- No space in target group, put them anywhere
@@ -313,25 +322,17 @@ local function LoadRoster()
 					end
 						if (free) then
 							Swap(CurrentRoster[name].index, CurrentRoster[free].index)
-						--break
 						else
 						-- Couldn't put them anywhere, add them to floater list
 							FreeFloating[name] = group
 						end
-				--else
-				--	break
 					end
 				end
 			end
 		end
-
-		--if (moveCount > 0) then		-- or swapCount > 0) then
-		--	break
-		--end
 		end
 
 	if (moveCount == 0 and swapCount == 0) then
-		--ChatFrame7:AddMessage("Finished!")
 		FPerl.RaidAdmin.StopLoad()
 	else
 		WaitingForRoster = GetTime()
@@ -340,7 +341,6 @@ local function LoadRoster()
 		XPendingRosters = XPendingRosters + swapCount
 		XPendingRosters = XPendingRosters + moveCount
 	end
-	--ChatFrame7:AddMessage("Done arranging (swaps: "..swapCount..")  (moves: "..moveCount..")")
 end
 
 -- FPerl.RaidAdmin.AdminOnEvent
@@ -362,7 +362,7 @@ function FPerl.RaidAdmin.AdminOnEvent(self, event, ...)
 	elseif (event == "ADDON_LOADED") then
 		local addon = ...
 
-		if addon == AddonName then
+		if (addon == AddonName) then
 			AdminStartup(self)
 
 			self:UnregisterEvent(event)
@@ -501,7 +501,6 @@ function FPerl.RaidAdmin.AdminControlsOnLoad(self)
 			end
 		end
 
-		local offset = FPerl_AdminFrame_Controls_RosterScrollBarScrollBar:GetValue()
 		if (FauxScrollFrame_Update(FPerl_AdminFrame_Controls_RosterScrollBar, index - 1, 5, 1)) then
 			FPerl_AdminFrame_Controls_RosterScrollBar:Show()
 		else

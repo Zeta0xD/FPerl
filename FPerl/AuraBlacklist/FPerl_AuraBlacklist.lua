@@ -39,7 +39,7 @@ local filteredUnits = {
 local scanUnits = {"target", "focus", "targettarget", "focustarget", "player"}
 
 local db			-- FPerlDB.account.blacklist
-local spells		-- db.spells: [spellID] = {name = "...", showMine = true|nil}
+local spells		-- db.spells: [spellID] = {name = "..."}
 local sorted = {}	-- spell IDs in display order
 local sortKeys = {}
 local config		-- options tab content, built the first time the tab is shown
@@ -115,15 +115,12 @@ local function InitDB()
 	if (type(db.spells) ~= "table") then
 		db.spells = {}
 	end
-	-- Drop anything that is not [integer] = table, and bad name/showMine values, so lookups and sorting stay safe
+	-- Drop anything that is not [integer] = table, and bad names, so lookups and sorting stay safe
 	for id, entry in pairs(db.spells) do
 		if (type(id) ~= "number" or id ~= floor(id) or id < 1 or id > 2^31 or type(entry) ~= "table") then
 			db.spells[id] = nil
 		elseif (type(entry.name) ~= "string") then
 			entry.name = nil
-		end
-		if (db.spells[id] and entry.showMine ~= nil and entry.showMine ~= true) then
-			entry.showMine = nil
 		end
 	end
 	spells = db.spells
@@ -133,8 +130,7 @@ end
 -- FPerl.AurasRebuild asks FPerl.AuraBlacklist.Set(frame) for the spell IDs to drop from the frame's
 -- buff group and merges them into the group's candidate filters (FPerl.AurasGroups). The set holds
 -- every listed ID: Blizzard skips excludeSpellIDs per aura where identity filtering is not permitted,
--- never-secret spells excepted (AuraContainerUtil.CanApplyIdentityCandidateFilters). "Show if mine"
--- cannot be honoured in one group.
+-- never-secret spells excepted (AuraContainerUtil.CanApplyIdentityCandidateFilters).
 
 local excludeSet		-- [spellID] = true for every listed ID; nil when the list is empty
 local setDirty = true	-- rebuild the set on next use
@@ -154,8 +150,8 @@ function FPerl.AuraBlacklist.Set(frame)
 	return excludeSet
 end
 
--- Refresh(frame) - rebuild the frame's containers with the current list (a rebuild in combat stays
--- pending until auras are readable), then show the result
+-- Refresh(frame) - rebuild the frame's containers with the current list (a rebuild while auras are secret
+-- stays pending until they are readable), then show the result
 local function Refresh(frame)
 	if (frame and frame.buffContainer) then
 		FPerl.AurasRebuild(frame)
@@ -196,7 +192,6 @@ local function Config_UpdateList()
 			row.icon:SetTexture((GetSpellTextureFunc and GetSpellTextureFunc(id)) or QUESTION_MARK)
 			row.name:SetText(DisplayName(id, entry))
 			row.idText:SetText(id)
-			row.mine:SetChecked(entry.showMine and true or false)
 			row:Show()
 		else
 			row.spellID = nil
@@ -298,14 +293,13 @@ local function ImportBBF()
 			if (spells[id]) then
 				existing = existing + 1
 			else
-				local name, showMine
+				local name
 				if (type(entry) == "table") then
 					if (type(entry.name) == "string" and entry.name ~= "") then
 						name = entry.name
 					end
-					showMine = entry.showMine and true or nil
 				end
-				spells[id] = {name = name or SpellNameIcon(id), showMine = showMine}
+				spells[id] = {name = name or SpellNameIcon(id)}
 				added = added + 1
 			end
 		else
@@ -343,15 +337,6 @@ local function List_OnMouseWheel(self, delta)
 	local handler = scroll and scroll:GetScript("OnMouseWheel")
 	if (handler) then
 		handler(scroll, delta)
-	end
-end
-
-local function Mine_OnClick(self)
-	local row = self:GetParent()
-	local entry = row.spellID and spells[row.spellID]
-	if (entry) then
-		entry.showMine = self:GetChecked() and true or nil
-		ListChanged(false)
 	end
 end
 
@@ -396,18 +381,9 @@ local function CreateRow(list, i)
 	row.idText:SetSize(64, ROW_HEIGHT)
 	row.idText:SetJustifyH("LEFT")
 
-	row.mine = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-	row.mine:SetSize(22, 22)
-	row.mine:SetPoint("LEFT", 318, 0)
-	row.mine.tooltipTitle = FPERL_AURABL_COL_MINE
-	row.mine.tooltipText = FPERL_AURABL_MINE_DESC
-	row.mine:SetScript("OnClick", Mine_OnClick)
-	row.mine:SetScript("OnEnter", ShowTooltip)
-	row.mine:SetScript("OnLeave", GameTooltip_Hide)
-
 	row.remove = CreateFrame("Button", nil, row, "UIPanelCloseButton")
 	row.remove:SetSize(22, 22)
-	row.remove:SetPoint("LEFT", 370, 0)
+	row.remove:SetPoint("LEFT", 318, 0)
 	row.remove.tooltipTitle = FPERL_AURABL_REMOVE
 	row.remove:SetScript("OnClick", Remove_OnClick)
 	row.remove:SetScript("OnEnter", ShowTooltip)
@@ -486,8 +462,6 @@ local function CreateConfig(parent)
 	colName:SetPoint("BOTTOMLEFT", list, "TOPLEFT", 32, 2)
 	local colID = CreateLabel(f, FPERL_AURABL_COL_ID)
 	colID:SetPoint("BOTTOMLEFT", list, "TOPLEFT", 256, 2)
-	local colMine = CreateLabel(f, FPERL_AURABL_COL_MINE)
-	colMine:SetPoint("BOTTOMLEFT", list, "TOPLEFT", 316, 2)
 
 	local scroll = CreateFrame("ScrollFrame", "FPerl_AuraBlacklist_ConfigScroll", list, "FauxScrollFrameTemplate")
 	scroll:SetPoint("TOPLEFT", 4, -8)

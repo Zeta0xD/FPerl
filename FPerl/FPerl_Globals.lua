@@ -1,16 +1,18 @@
 -- Author: Resike
 -- License: GNU GPL v3, 29 June 2007 (see LICENSE.txt)
 
+-- The backdrop tables, the profile hand-out to modules (FPerl.RequestConfig), the login sequence, layouts
+-- (select, copy, rename, delete, reapply), the defaults backfill and prune, and the raid class list.
+
 FPerl.Locked = 1
 local conf
 local ConfigRequesters = {}
 local playerName
-local maxRevision
 
 local LOCALIZED_CLASS_NAMES_MALE = LOCALIZED_CLASS_NAMES_MALE
 local CLASS_COUNT = 0
 for k, v in pairs(LOCALIZED_CLASS_NAMES_MALE) do
-	if k ~= "Adventurer" and k ~= "TRAVELER" then
+	if (k ~= "Adventurer" and k ~= "TRAVELER") then
 		CLASS_COUNT = CLASS_COUNT + 1
 	end
 end
@@ -113,21 +115,6 @@ FPerl_Frame_Backdrop_32_16_2222 = {
 
 FPerl_BackdropTemplateMixin = CreateFromMixins(BackdropTemplateMixin)
 
-function FPerl.SetModuleRevision(rev)
-	if (rev) then
-		rev = strmatch(rev, "Revision: (%d+)")
-		if (rev) then
-			rev = tonumber(rev)
-			if (not maxRevision or rev > maxRevision) then
-				maxRevision = rev
-			end
-		end
-	end
-end
-local AddRevision = FPerl.SetModuleRevision
-
-FPerl.SetModuleRevision("$Revision:  $")
-
 function FPerl.Notice(...)
 	if (DEFAULT_CHAT_FRAME) then
 		DEFAULT_CHAT_FRAME:AddMessage(FPerl.ProductName.." - |c00FFFF80"..format(...))
@@ -136,12 +123,11 @@ end
 
 -- FPerl.RequestConfig
 -- Setup a callback to give config around to local variables
-function FPerl.RequestConfig(getConfig, rev)
+function FPerl.RequestConfig(getConfig)
 	tinsert(ConfigRequesters, getConfig)
 	if (FPerl.layout) then
 		getConfig(FPerl.layout)
 	end
-	AddRevision(rev)
 end
 
 -- CurrentConfig()
@@ -240,8 +226,7 @@ function FPerl.ResetDefaults()
 end
 
 -- FPerl.ResetFramePositions
--- Forget this character's saved positions and move every frame to its default anchor now.
--- Also the "Default" entry in the layout list.
+-- Forgets the active layout's saved positions and moves every frame to its default anchor now.
 function FPerl.ResetFramePositions()
 	if (InCombatLockdown()) then
 		FPerl.AfterCombat(FPerl.ResetFramePositions)
@@ -259,13 +244,12 @@ function FPerl.ResetFramePositions()
 	end
 end
 
--- CopyTable
+-- FPerl.CopyTable(old)
 function FPerl.CopyTable(old)
 	if (not old) then
 		return
 	end
 
-	--local new = FPerl.GetReusableTable()
 	local new = { }
 
 	for k, v in pairs(old) do
@@ -279,7 +263,7 @@ function FPerl.CopyTable(old)
 	return new
 end
 
--- FPerl.RegisterLDB
+-- RegisterLDB
 local function RegisterLDB()
 	local LDB = LibStub and LibStub("LibDataBroker-1.1", true)
 	if (LDB) then
@@ -427,7 +411,7 @@ end
 -- character's, and re-applies everything (FPerl.ReapplyLayout). The Player, Pet and Target
 -- enable keys and raid.enable need a reload.
 function FPerl.SelectLayout(name)
-	local d = FPerl.Dev; if d and d.listener then d.Emit("layout.select", name) end
+	local d = FPerl.Dev; if (d and d.listener) then d.Emit("layout.select", name) end
 	if (FPerl.LayoutInCombat()) then
 		return
 	end
@@ -544,11 +528,11 @@ end
 -- that differ run (FPerl.Apply); without it, or with a differing key no settings row covers, every
 -- option changer runs.
 function FPerl.ReapplyLayout(before)
-	local d = FPerl.Dev; if d and d.listener then d.Emit("layout.reapply") end
+	local d = FPerl.Dev; if (d and d.listener) then d.Emit("layout.reapply") end
 	FPerl.GiveConfig()
 	FPerl.RestoreAllPositions()
 	FPerl.StartupSpellRange()
-	ValidateClassNames(FPerl.layout.raid)
+	FPerl.ValidateClassNames(FPerl.layout.raid)
 	local need = before and FPerl.LayoutAppliers(before, FPerl.layout)
 	if (need and not need.full) then
 		-- these follow the layout or the restored positions whether or not a key differs: the raid headers and widths,
@@ -674,7 +658,7 @@ end
 -- run before it, an unticked option stored as nil would come back ticked). A stored value is never
 -- replaced. A list (a table with an array part: raid.class, raid.group) is a leaf: a stored list is not
 -- merged with the default one. Where one side is a table and the other is not, the stored value stays.
--- Returns the paths of those mismatches. Keys the defaults lack (savedPositions) are not touched.
+-- Returns the paths of those mismatches. Keys the defaults lack (positions) are not touched.
 function FPerl.Backfill(profile, defaults, report, path)
 	report = report or {}
 	for k, d in pairs(defaults) do
@@ -694,7 +678,7 @@ end
 -- FPerl.Prune(profile, defaults)
 -- The inverse of FPerl.Backfill, run at PLAYER_LOGOUT: deletes every key whose stored value equals the
 -- default, so a default changed later reaches a key the profile never changed (the backfill at the next
--- login restores the pruned keys). Walks the defaults only: keys they lack (savedPositions, extra keys)
+-- login restores the pruned keys). Walks the defaults only: keys they lack (positions, extra keys)
 -- stay. A list is a leaf, compared element by element. A table left empty is deleted because the defaults
 -- hold it, and the backfill recreates it.
 function FPerl.Prune(profile, defaults)
@@ -731,7 +715,7 @@ end
 -- FPerl.PruneConfig()
 -- Prunes the active profile (FPerl.layout, set by every GiveConfig: login, profile switch, Reset Defaults,
 -- Copy Settings) against freshly built defaults. Only that profile: the defaults hold the logged-in
--- character's class (target.hitIndicator), so another character's profile is not pruned with them.
+-- character's class (target.highlightDebuffs), so another character's profile is not pruned with them.
 -- A ConfigDefault function that raises leaves partial defaults, which delete fewer keys, never more.
 function FPerl.PruneConfig()
 	if (type(FPerl.layout) == "table") then
@@ -748,42 +732,34 @@ end
 FPerl.On("PLAYER_LOGOUT", FPerl.PruneConfig)
 
 
--- FPerl.Defaults()
+-- FPerl.Defaults(new)
 function FPerl.Defaults(new)
 	FPerl.OptionsDefaults(new)
 end
 
--- DefaultRaidClasses
--- Must have one entry per class the client knows about (FPerl_Raid.lua's
--- CLASS_COUNT counts LOCALIZED_CLASS_NAMES_MALE), or its repair path rebuilds
--- this, still comes up short for the newer classes, and crashes again on the
--- very next lookup -- which aborts raid frame setup entirely.
-function DefaultRaidClasses()
-	return {
-		{enable = true, name = "WARRIOR"},
-		{enable = true, name = "ROGUE"},
-		{enable = true, name = "HUNTER"},
-		{enable = true, name = "MAGE"},
-		{enable = true, name = "WARLOCK"},
-		{enable = true, name = "PRIEST"},
-		{enable = true, name = "DRUID"},
-		{enable = true, name = "SHAMAN"},
-		{enable = true, name = "PALADIN"},
-		{enable = true, name = "DEATHKNIGHT"},
-		{enable = true, name = "MONK"},
-		{enable = true, name = "DEMONHUNTER"},
-		{enable = true, name = "EVOKER"},
-	}
+-- FPerl.DefaultRaidClasses()
+-- One enabled entry per class of ForeverGame.raidClasses, in that order
+function FPerl.DefaultRaidClasses()
+	local list = {}
+	for i, name in ipairs(FPerl.ForeverGame.raidClasses) do
+		list[i] = {enable = true, name = name}
+	end
+	return list
 end
 
--- ValidateClassNames
-function ValidateClassNames(part)
-	if not part then
+-- FPerl.ValidateClassNames(part)
+-- Replaces part.class with FPerl.DefaultRaidClasses() unless it has CLASS_COUNT entries
+-- (LOCALIZED_CLASS_NAMES_MALE without Adventurer and TRAVELER) naming every class
+-- of ForeverGame.raidClasses
+function FPerl.ValidateClassNames(part)
+	if (not part) then
 		return
 	end
-	-- This should never happen, but I'm sure someone will find a way to break it
 
-	local list = {WARRIOR = false, MAGE = false, ROGUE = false, DRUID = false, HUNTER = false, SHAMAN = false, PRIEST = false, WARLOCK = false, PALADIN = false}
+	local list = {}
+	for _, name in ipairs(FPerl.ForeverGame.raidClasses) do
+		list[name] = false
+	end
 	local valid
 	if (part.class) then
 		local classCount = 0
@@ -814,13 +790,13 @@ function ValidateClassNames(part)
 	end
 
 	if (not valid) then
-		part.class = DefaultRaidClasses(true)
+		part.class = FPerl.DefaultRaidClasses()
 	end
 end
 
 -- FPerl.ValidateSettings()
 function FPerl.ValidateSettings()
-	ValidateClassNames(FPerl.layout.raid)
+	FPerl.ValidateClassNames(FPerl.layout.raid)
 
 	FPerl.ValidateSettings = nil
 end

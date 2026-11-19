@@ -4,7 +4,7 @@
 local conf
 FPerl.RequestConfig(function(new)
 	conf = new
-end, "$Revision:  $")
+end)
 
 local myClass
 local playerAggro, petAggro
@@ -19,7 +19,7 @@ local GetNumSubgroupMembers = GetNumSubgroupMembers
 
 -- FPerl.RaidHelper.AssistsOnLoad(self)
 function FPerl.RaidHelper.AssistsOnLoad(self)
-	if self.SetResizeBounds then
+	if (self.SetResizeBounds) then
 		self:SetResizeBounds(170, 40, 1000, 600)
 	else
 		self:SetMinResize(170, 40)
@@ -89,7 +89,7 @@ function FPerl.RaidHelper.SetFrameSides()
 	FPerl_Assists_Frame.LastSetView = {FPerlRaidHelperDB.AssistsFrame, FPerlRaidHelperDB.TargettingFrame}
 end
 
--- ToggleAssistsFrame()
+-- FPerl.RaidHelper.ToggleAssistsFrame(param)
 function FPerl.RaidHelper.ToggleAssistsFrame(param)
 	if (param == "assists") then
 		if (FPerlRaidHelperDB.AssistsFrame == 1) then
@@ -106,7 +106,7 @@ function FPerl.RaidHelper.ToggleAssistsFrame(param)
 	end
 end
 
--- FPerl.RaidHelper.AssistsViewClose
+-- FPerl.RaidHelper.AssistsViewOpen
 function FPerl.RaidHelper.AssistsViewOpen()
 	FPerlRaidHelperDB.AssistsFrame = 1
 	FPerlRaidHelperDB.TargettingFrame = 1
@@ -120,12 +120,17 @@ function FPerl.RaidHelper.AssistsViewClose()
 	FPerl.RaidHelper.SetFrameSides()
 end
 
--- SortByClass(t1, t2)
+-- SortByClass(t1, t2) - comparator for sort; every entry needs .order, its index in the list before the sort
 local function SortByClass(t1, t2)
-	-- enemy names are secret inside instances and cannot be
-	-- compared, so they keep their scan order
-	if (not FPerl.CanAccess(t1[1]) or not FPerl.CanAccess(t2[1])) then
-		return false
+	-- enemy names are secret inside instances and cannot be compared, so they follow the readable
+	-- names in their scan order (.order): sort needs a consistent comparator, and an inconsistent one
+	-- misorders the list or raises "invalid order function for sorting"
+	local r1, r2 = FPerl.CanAccess(t1[1]), FPerl.CanAccess(t2[1])
+	if (not r1 or not r2) then
+		if ((not r1) ~= (not r2)) then
+			return r1
+		end
+		return t1.order < t2.order
 	end
 	if (t1[2] == t2[2]) then
 		return t1[1] < t2[1]
@@ -144,7 +149,7 @@ local function SortByClass(t1, t2)
 		elseif (t2c ~= "") then
 			t2c = "B"..t2c
 		else
-			t1c = "Z"
+			t2c = "Z"
 		end
 
 		return t1c..t1[1] < t2c..t2[1]
@@ -164,6 +169,9 @@ function FPerl.RaidHelper.MakeAssistsString(List, title)
 		end
 		text = text.."\13"
 
+		for i, unit in ipairs(List) do
+			unit.order = i
+		end
 		sort(List, SortByClass)
 
 		for i,unit in ipairs(List) do
@@ -233,11 +241,7 @@ end
 function FPerl.RaidHelper.AssistsMouseDown(self, button, param)
 	if (button == "LeftButton") then
 		if (not FPerlRaidHelperDB or not FPerlRaidHelperDB.AssistPinned or (IsAltKeyDown() and IsControlKeyDown() and IsShiftKeyDown())) then
-			--if (param and (param == "TOPLEFT" or param == "BOTTOMLEFT" or param == "BOTTOMRIGHT")) then
-			--	self:StartSizing(param)
-			--else
-				FPerl_Assists_FrameAnchor:StartMoving()
-			--end
+			FPerl_Assists_FrameAnchor:StartMoving()
 		end
 
 	elseif (button == "RightButton") then
@@ -260,27 +264,21 @@ end
 
 -- FPerl.RaidHelper.AssistsMouseUp
 function FPerl.RaidHelper.AssistsMouseUp(self, button)
-	--FPerl_Assists_Frame:StopMovingOrSizing()
 	FPerl_Assists_FrameAnchor:StopMovingOrSizing()
 	if (FPerl.SavePosition) then
 		FPerl.SavePosition(FPerl_Assists_FrameAnchor)
 	end
-
-	-- FPerl.RegisterScalableFrame(self, FPerl_Assists_FrameAnchor, nil, nil, nil, true, true)
 end
 
 -- MakeFriendlyUnitList
 local function MakeFriendlyUnitList()
 	local start, prefix, total
-	if IsInRaid() then
+	if (IsInRaid()) then
 		start, prefix, total = 1, "raid", GetNumGroupMembers()
 	else
 		start, prefix, total = 0, "party", GetNumSubgroupMembers()
 	end
 
-	--friendlyUnitList = {"player", "pet"}
-	--FPerl.FreeTable(friendlyUnitList)
-	--friendlyUnitList = FPerl.GetReusableTable()
 	friendlyUnitList = { }
 	tinsert(friendlyUnitList, "player")
 	tinsert(friendlyUnitList, "pet")
@@ -304,13 +302,11 @@ local function MakeFriendlyUnitList()
 	end
 end
 
--- Events
+-- FPerl.RaidHelper.AssistsOnEvent
 function FPerl.RaidHelper.AssistsOnEvent(self, event, unit)
-	-- UNIT_TARGET's own unit argument can itself be an
-	-- indirect unit like "targettarget" (Confirmed crashing
-	-- exactly there) -- this was wrongly judged low-risk earlier in this
-	-- session on the assumption unit would always be a direct party/raid
-	-- member; the live crash disproves that.
+	-- UNIT_TARGET's unit argument can be an indirect unit such as
+	-- "targettarget", for which UnitIsUnit can return a secret boolean
+	-- that errors when tested, so it goes through SafeBool.
 	if (event == "PLAYER_TARGET_CHANGED" or (event == "UNIT_TARGET" and not FPerl.SafeBool(UnitIsUnit(unit, "player"), true))) then
 		doUpdate = true
 	elseif (event == "VARIABLES_LOADED") then
@@ -331,8 +327,6 @@ function FPerl.RaidHelper.AssistsOnEvent(self, event, unit)
 		MakeFriendlyUnitList()
 		doUpdate = true
 	elseif (event == "PLAYER_DEAD" or event == "PLAYER_REGEN_ENABLED") then
-		--FPerl.FreeTable(currentPlayerAggro)
-		--currentPlayerAggro = FPerl.GetReusableTable()
 		currentPlayerAggro = { }
 		if (FPerl_Highlight) then
 			FPerl_Highlight:ClearAll("AGGRO")
@@ -372,8 +366,7 @@ local targetting
 
 -- FoundEnemyBefore
 local function FoundEnemyBefore(FoundEnemy, name)
-	-- same indirect-unit secret-boolean risk as the rest of
-	-- this file; this helper is called from every site already fixed above.
+	-- UnitIsUnit on indirect units can return a secret boolean.
 	for previous in pairs(FoundEnemy) do
 		if (FPerl.SafeBool(UnitIsUnit(previous.."target", name.."target"), false)) then
 			return true
@@ -391,8 +384,7 @@ local function AddEnemy(anyEnemy, FoundEnemy, name)
 			wholeEnemyUnitList[name] = true
 
 			if (FPerl_Highlight and conf and conf.highlight.AGGRO) then
-				-- same doubly-indirect secret-boolean risk as
-				-- below; fixed proactively alongside the confirmed crash.
+				-- namett is doubly indirect, so these booleans can be secret.
 				if (FPerl.SafeBool(UnitInRaid(namett), false) or FPerl.SafeBool(UnitInParty(namett), false)) then
 					local aggroName = UnitName(namett)
 					if (aggroName and FPerl.CanAccess(aggroName)) then
@@ -403,10 +395,8 @@ local function AddEnemy(anyEnemy, FoundEnemy, name)
 		end
 	end
 
-	-- namett (name.."target".."target") is doubly indirect --
-	-- an even higher secret-boolean risk than the single-indirect units
-	-- already fixed above (section 3). Confirmed crashing on
-	-- UnitIsUnit("target", "playertargettarget").
+	-- namett (name.."target".."target") is doubly indirect, so
+	-- UnitIsUnit on it can return a secret boolean.
 	if (FPerl.SafeBool(UnitIsUnit("player", namett), false)) then
 		if (not FoundEnemyBefore(FoundEnemy, name)) then
 			if (not playerAggro and FPerlRaidHelperDB.AggroWarning == 1) then
@@ -418,7 +408,7 @@ local function AddEnemy(anyEnemy, FoundEnemy, name)
 			tinsert(targetting, {UnitName(namet), ""})
 			return true
 		end
-	-- 1.8.3 Added check to see if mob is targetting our target, and add to that list
+	-- A mob targeting the player's target goes on the assists list.
 	elseif (UnitExists("target") and FPerl.SafeBool(UnitIsUnit("target", namett), false)) then
 		-- We can still use the FoundEnemy list, because it's not too important if
 		-- we're targetting ourself and the mob doesn't show on both self and target lists
@@ -429,7 +419,6 @@ local function AddEnemy(anyEnemy, FoundEnemy, name)
 		end
 	elseif (not petAggro and FPerlRaidHelperDB.AggroWarning == 1 and UnitExists(namett) and FPerl.SafeBool(UnitIsUnit("pet", namett), false)) then
 		petAggro = true
-		--petFadeStart = GetTime()
 		FPerl_AggroPet:Show()
 	end
 
@@ -440,14 +429,11 @@ local HealerClasses = {PRIEST = true, SHAMAN = true, PALADIN = true, DRUID = tru
 
 -- FPerl.RaidHelper.UpdateAssists
 function FPerl.RaidHelper.UpdateAssists()
-	--FPerl.FreeTable(wholeEnemyUnitList)
-	--wholeEnemyUnitList = FPerl.GetReusableTable()
 	wholeEnemyUnitList = { }
 
 	local oldPlayerAggro = currentPlayerAggro
-	--currentPlayerAggro = FPerl.GetReusableTable()
 	currentPlayerAggro = { }
-	if FPerlRaidHelperDB and FPerlRaidHelperDB.TargetCounters == 0 then
+	if (FPerlRaidHelperDB and FPerlRaidHelperDB.TargetCounters == 0) then
 		if (FPerl_Target_AssistFrame) then
 			FPerl_Target_AssistFrame:Hide()
 		end
@@ -458,29 +444,17 @@ function FPerl.RaidHelper.UpdateAssists()
 	end
 
 	local selfFlag, enemyFlag
-	if FPerlRaidHelperDB then
+	if (FPerlRaidHelperDB) then
 		selfFlag = FPerlRaidHelperDB.TargetCountersSelf == 1
 		enemyFlag = FPerlRaidHelperDB.TargetCountersEnemy == 1
 	end
 
 	local assistCount, targettingCount, anyEnemy = 0, 0, false
-	--local start, i, total, prefix, name, petname
 
-	--local FoundEnemy = FPerl.GetReusableTable()
 	local FoundEnemy = { }
 
-	-- Re-use all the old tables from last pass
-	--assists = FPerl_Assists_Frame.assists
-	--targetting = FPerl_Assists_Frame.targetting
-	--FPerl.FreeTable(assists)
-	--FPerl.FreeTable(targetting)
-	--assists = { }
-	--targetting = { }
 
-	-- Get new tables
-	--assists = FPerl.GetReusableTable()
 	assists = { }
-	--targetting = FPerl.GetReusableTable()
 	targetting = { }
 
 	playerAggro, petAggro = false, false
@@ -490,10 +464,8 @@ function FPerl.RaidHelper.UpdateAssists()
 		if (UnitExists(name.."target") and not UnitIsDeadOrGhost(name)) then
 			local _, engClass = UnitClass(name)
 
-			-- name.."target" is an indirect unit -- these
-			-- three UnitIsUnit/UnitCanAttack booleans can be secret (section
-			-- 3), Confirmed crashing on UnitIsUnit("target",
-			-- "playertarget").
+			-- name.."target" is an indirect unit, so these
+			-- UnitIsUnit/UnitCanAttack booleans can be secret.
 			if (targetname) then
 				if (FPerl.SafeBool(UnitIsUnit("target", name.."target"), false)) then
 					assistCount = assistCount + 1
@@ -511,7 +483,7 @@ function FPerl.RaidHelper.UpdateAssists()
 
 			-- Count enemy targetting us?
 			if (enemyFlag) then
-				if (FPerl.SafeBool(UnitCanAttack("player", name.."target"), false)) then	-- not UnitIsFriend("player", name.."target")) then
+				if (FPerl.SafeBool(UnitCanAttack("player", name.."target"), false)) then
 					if (AddEnemy(anyEnemy, FoundEnemy, name)) then
 						anyEnemy = true
 						targettingCount = targettingCount + 1
@@ -522,8 +494,8 @@ function FPerl.RaidHelper.UpdateAssists()
 	end
 
 	if (enemyFlag) then
-		-- same indirect-unit secret-boolean shape as above;
-		-- "focustarget" is indirect too. Default to "friend"/"not a match" so
+		-- "focustarget" is indirect, so these booleans can be
+		-- secret. Default to "friend"/"not a match" so
 		-- an unreadable state just skips the aggro warning rather than
 		-- risking a false one.
 		if (not FPerl.SafeBool(UnitIsFriend("player", "focus"), true)) then
@@ -540,7 +512,8 @@ function FPerl.RaidHelper.UpdateAssists()
 
 					FoundEnemy["focus"] = true
 					tinsert(targetting, {UnitName("focus"), ""})
-					return true
+					anyEnemy = true
+					targettingCount = targettingCount + 1
 				end
 			end
 		end
@@ -567,7 +540,7 @@ function FPerl.RaidHelper.UpdateAssists()
 		end
 	end
 
-	if FPerlRaidHelperDB and FPerlRaidHelperDB.ShowTargetCounters == 1 then
+	if (FPerlRaidHelperDB and FPerlRaidHelperDB.ShowTargetCounters == 1) then
 		if (FPerl_Player_TargettingFrame) then
 			if (FPerl_Player) then
 				local color = (conf and conf.colour.border) or (FPerlRaidHelperDB and FPerlRaidHelperDB.BorderColour) or {r = 0.5, g = 0.5, b = 0.5}
@@ -616,8 +589,6 @@ function FPerl.RaidHelper.UpdateAssists()
 		FPerl_Target_AssistFrame:Hide()
 	end
 
-	--FPerl.FreeTable(oldPlayerAggro)
-	--FPerl.FreeTable(FoundEnemy)
 end
 
 -- FPerl.RaidHelper.AssistsGetEnemyUnitList

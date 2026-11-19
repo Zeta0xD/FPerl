@@ -1,4 +1,4 @@
--- FPerl.HitIndicator(self, action, descriptor, damage, damageType) - the hit text on a frame's portrait or name.
+-- FPerl.HitIndicator(self, action, descriptor, damage, damageType, conf) - the hit text on a frame's portrait or name.
 -- A readable amount goes to Blizzard's CombatFeedback_OnCombatEvent. A secret amount cannot (it compares
 -- the amount), so the text is set here from the readable action and flags; the amount is only passed to
 -- AbbreviateNumbers and SetText, which accept a secret. The damage-type colour needs a readable type and
@@ -20,7 +20,7 @@ local AMOUNT_COLOR = {
 function FPerl.HitTextAnchor(self, conf)
 	local fs = self.hitIndicator.text
 	fs:ClearAllPoints()
-	if conf.hitIndicatorPos == "NAME" then
+	if (conf.hitIndicatorPos == "NAME") then
 		fs:SetPoint("CENTER", self.nameFrame, "CENTER", 0, 0)
 		return
 	end
@@ -33,25 +33,25 @@ end
 
 function FPerl.HitIndicator(self, action, descriptor, damage, damageType, conf)
 	FPerl.HitTextAnchor(self, conf)
-	if not IsSecret(damage) then
+	if (not IsSecret(damage)) then
 		return CombatFeedback_OnCombatEvent(self, action, descriptor, damage, damageType)
 	end
 	local fs, height = self.feedbackText, self.feedbackFontHeight
 	local color = AMOUNT_COLOR[action]
 	local text
-	if color then
-		if descriptor == "CRITICAL" or (action == "WOUND" and descriptor == "CRUSHING") then
+	if (color) then
+		if (descriptor == "CRITICAL" or (action == "WOUND" and descriptor == "CRUSHING")) then
 			height = height * 1.5
-		elseif action == "WOUND" and descriptor == "GLANCING" then
+		elseif (action == "WOUND" and descriptor == "GLANCING") then
 			height = height * 0.75
 		end
 		text = AbbreviateNumbers(damage)
 	else
 		color = AMOUNT_COLOR.WOUND
 		text = CombatFeedbackText[action] or ""
-		if action == "IMMUNE" then
+		if (action == "IMMUNE") then
 			height = height * 0.5
-		elseif action == "BLOCK" then
+		elseif (action == "BLOCK") then
 			height = height * 0.75
 		end
 	end

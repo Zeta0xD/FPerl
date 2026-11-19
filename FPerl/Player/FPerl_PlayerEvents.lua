@@ -6,7 +6,7 @@ local conf, pconf
 FPerl.RequestConfig(function(new)
 	conf = new
 	pconf = conf.player
-end, "$Revision:  $")
+end)
 
 -- Upvalues
 local max = max
@@ -35,8 +35,6 @@ local UpdateHealth = FPerl.Player.UpdateHealth
 local UpdateLevel = FPerl.Player.UpdateLevel
 local UpdateBuffs = FPerl.Player.UpdateBuffs
 local PlayerStatusOnUpdate = FPerl.Player.PlayerStatusOnUpdate
-
--- EVENTS AND STUFF
 
 -------------------
 -- Event Handler --
@@ -74,19 +72,17 @@ function FPerl.Elements.PlayerWorld.events:PLAYER_ENTERING_WORLD()
 	end
 
 	FPerl.Player.UpdateDisplay(self)
-
-	--C_Timer.After(0.1, function() FPerl.Player.SetBits(self) end)
 end
 
 -- UNIT_COMBAT
 function Events:UNIT_COMBAT(unit, action, descriptor, damage, damageType)
-	if unit ~= self.partyid then
+	if (unit ~= self.partyid) then
 		return
 	end
 	-- set first: the flash and hit text animate even when a later line raises on a secret amount
 	self:SetScript("OnUpdate", FPerl.Player.OnUpdate)
 
-	if pconf.hitIndicator then
+	if (pconf.hitIndicator) then
 		FPerl.HitIndicator(self, action, descriptor, damage, damageType, pconf)
 	end
 
@@ -198,7 +194,7 @@ end
 
 -- UPDATE_SHAPESHIFT_FORM
 function Events:UPDATE_SHAPESHIFT_FORM()
-	if (FPerl.Player.playerClass == "DRUID") or (FPerl.Player.playerClass == "SHAMAN") or (FPerl.Player.playerClass == "PRIEST") then
+	if ((FPerl.Player.playerClass == "DRUID") or (FPerl.Player.playerClass == "SHAMAN") or (FPerl.Player.playerClass == "PRIEST")) then
 		FPerl.Player.DruidBarUpdate(self)
 	end
 end
@@ -230,7 +226,7 @@ end
 function Events:PLAYER_SPECIALIZATION_CHANGED()
 	FPerl.Player.SetBits(self)
 
-	if FPerl.PlayerBuffs.Position then
+	if (FPerl.PlayerBuffs.Position) then
 		FPerl.PlayerBuffs.Position(FPerl_Player)
 	end
 end
@@ -241,7 +237,7 @@ end
 
 -- PLAYER_CONTROL_LOST
 function Events:PLAYER_CONTROL_LOST()
-	if pconf.fullScreen.enable and not UnitOnTaxi("player") then
+	if (pconf.fullScreen.enable and not UnitOnTaxi("player")) then
 		FPerl.Player.isOutOfControl = true
 	end
 end
@@ -256,23 +252,22 @@ end
 
 -- UNIT_ENTERED_VEHICLE
 function Events:UNIT_ENTERED_VEHICLE(unit, showVehicle)
-	if showVehicle then
+	if (showVehicle) then
 		self.partyid = "vehicle"
 		self.unit = self.partyid
-		if FPerl.ArcaneBar.SetUnit then
+		if (FPerl.ArcaneBar.SetUnit) then
 			FPerl.ArcaneBar.SetUnit(self.nameFrame, "vehicle")
 		end
 		FPerl.Player.UpdateDisplay(self)
-		--FPerl.SetUnitNameColor(self.nameFrame.text, self.partyid)
 	end
 end
 
 -- UNIT_EXITING_VEHICLE
 function Events:UNIT_EXITING_VEHICLE()
-	if self.partyid ~= "player" then
+	if (self.partyid ~= "player") then
 		self.partyid = "player"
 		self.unit = self.partyid
-		if FPerl.ArcaneBar.SetUnit then
+		if (FPerl.ArcaneBar.SetUnit) then
 			FPerl.ArcaneBar.SetUnit(self.nameFrame, "player")
 		end
 		FPerl.Player.UpdateDisplay(self)
@@ -281,7 +276,7 @@ end
 
 -- Element PlayerHeal: on while the option is on (FPerl.RegisterPrediction)
 function FPerl.Elements.PlayerHeal.events:UNIT_HEAL_PREDICTION(unit)
-	if pconf.healprediction and unit == self.partyid then
+	if (pconf.healprediction and unit == self.partyid) then
 		FPerl.SetExpectedHealth(self)
 	end
 end
@@ -293,7 +288,7 @@ function Events:UNIT_ABSORB_AMOUNT_CHANGED(unit)
 end
 
 function Events:INCOMING_RESURRECT_CHANGED(unit)
-	if unit == self.partyid then
+	if (unit == self.partyid) then
 		UpdateResurrectionStatus(self)
 	end
 end
@@ -376,7 +371,7 @@ local function SetBitsLayout(self)
 
 	if (pconf.extendPortrait) then
 		local druidBarExtra
-		if (UnitPowerType(self.partyid) > 0 and not pconf.noDruidBar) and ((FPerl.Player.playerClass == "DRUID") or (FPerl.Player.playerClass == "PRIEST")) then
+		if ((UnitPowerType(self.partyid) > 0 and not pconf.noDruidBar) and ((FPerl.Player.playerClass == "DRUID") or (FPerl.Player.playerClass == "PRIEST"))) then
 			druidBarExtra = 1
 		else
 			druidBarExtra = 0
@@ -392,7 +387,7 @@ end
 
 -- FPerl.Player.SetBits()
 function FPerl.Player.SetBits(self)
-	local d = FPerl.Dev; if d and d.listener then d.Emit("redisplay.player") end
+	local d = FPerl.Dev; if (d and d.listener) then d.Emit("redisplay.player") end
 	if (self.off) then
 		return
 	end
@@ -466,7 +461,7 @@ function FPerl.Player.SetBits(self)
 
 	FPerl.RegisterPrediction(self, pconf, "PlayerHeal")
 
-	if (FPerl.Player.playerClass == "DRUID") or (FPerl.Player.playerClass == "SHAMAN") or (FPerl.Player.playerClass == "PRIEST") then
+	if ((FPerl.Player.playerClass == "DRUID") or (FPerl.Player.playerClass == "SHAMAN") or (FPerl.Player.playerClass == "PRIEST")) then
 		FPerl.Player.DruidBarUpdate(self)
 	end
 
