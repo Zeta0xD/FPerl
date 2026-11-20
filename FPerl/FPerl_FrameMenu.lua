@@ -83,7 +83,8 @@ end
 local function create()
 	popup = CreateFrame("Frame", "FPerl_FramePopup", UIParent, "BackdropTemplate")
 	popup:Hide()
-	popup:SetFrameStrata("DIALOG")
+	-- above Edit Mode's panels (DIALOG), which it would interleave with by frame level; the strata FPerl_OptionsWindow uses
+	popup:SetFrameStrata("FULLSCREEN_DIALOG")
 	popup:SetClampedToScreen(true)
 	popup:EnableMouse(true)
 	popup:SetBackdrop({bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1})

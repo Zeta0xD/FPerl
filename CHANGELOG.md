@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0 (2026-11-20)
+
+- New: F-Perl works with the game's Edit Mode.
+  - F-Perl's frames unlock while Edit Mode is open and lock again when it closes.
+  - They show Edit Mode's blue highlight boxes with their names.
+  - F-Perl and Blizzard frames snap to each other, to Edit Mode's grid, and to the screen's edges and center.
+  - General > Frames > "Blizzard frames snap to F-Perl frames" turns off Blizzard frames snapping to F-Perl's.
+
 ## 1.3.0 (2026-11-20)
 
 - New: in unlock mode, a dragged frame shows a box over all of its art and lines where it will snap; it snaps by its nearest edges.

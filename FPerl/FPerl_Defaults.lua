@@ -66,9 +66,10 @@ local function GlobalConfigDefault(default)
 	}
 
 	default.highlightSelection	= 1
-	default.alignmentGrid		= false	-- the General > Frames grid and snap rows (FPerl_Positions.lua)
+	default.alignmentGrid		= false	-- the General > Frames grid and snap rows (FPerl_ArrangeGrid.lua)
 	default.alignmentSnapToGrid	= false
 	default.arrangeLabels		= false
+	default.editModeSnapToFPerl	= true	-- Blizzard frames snap to F-Perl frames in Edit Mode (FPerl_EditModeSnap.lua)
 	default.combatFlash	= 1
 	default.maximumScale	= 1.5
 	default.showAFK		= 1

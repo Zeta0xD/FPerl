@@ -9,6 +9,7 @@
 	<Script file="FPerl_Slash.lua"/>
 	<Script file="FPerl_Settings.lua"/>
 	<Script file="FPerl_Arrange.lua"/>
+	<Script file="FPerl_EditModeSnap.lua"/>
 	<Script file="FPerl_FrameMenu.lua"/>
 	<Script file="FPerl_SettingsList.lua"/>
 	<Script file="FPerl_SettingsListPages.lua"/>

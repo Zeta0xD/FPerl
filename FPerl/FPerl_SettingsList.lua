@@ -302,6 +302,7 @@ button("general.frames.grid", "Alignment grid", "Show or hide the alignment grid
 check("general.frames.unlock", "Unlock frames", "Show the move handles and the party placeholder frames so frames can be dragged. Not saved: frames are locked after a reload. Closing this window does not lock them.", {get = FPerl.SettingsGetUnlock, set = FPerl.SettingsSetUnlock, nocombat = true, apply = {}})
 check("general.frames.snap", "Snap to grid", "Snap moved F-Perl frames to the visible grid.", {path = "alignmentSnapToGrid", on = true})
 check("general.frames.labels", "Labels", "While frames are unlocked, mark every frame that can be dragged with a box and its name.", {path = "arrangeLabels", on = true, apply = {"arrangelabels"}})
+check("general.frames.editmodesnap", "Blizzard frames snap to F-Perl frames", "In Edit Mode, Blizzard frames snap to F-Perl frames. Turn off if a Blizzard frame lands in the wrong place or an action bar loses its buttons after a drop.", {path = "editModeSnapToFPerl", on = true, apply = {"editmodesnap"}})
 
 R.section = "Layouts"
 dropdown("general.layouts.active", "Layout", "Switch to a layout: its settings and frame positions. Layouts belong to the account, not to a character.", {options = FPerl.SettingsLayoutList, get = FPerl.SettingsGetLayout, set = FPerl.SettingsSelectLayout, nocombat = true, apply = {}})

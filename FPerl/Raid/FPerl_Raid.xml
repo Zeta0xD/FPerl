@@ -305,7 +305,7 @@
 			<OnDragStart>
 				if (FPerl.Locked == 0 or self:GetID() == 99) then
 					if (not InCombatLockdown()) then
-						self:SetFrameStrata("DIALOG")
+						self:SetFrameStrata("HIGH")
 					end
 					self:StartMoving()
 				end

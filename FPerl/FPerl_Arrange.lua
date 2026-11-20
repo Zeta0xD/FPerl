@@ -25,12 +25,14 @@ local function snapText()
 	return FPerl.layout and FPerl.layout.alignmentSnapToGrid and "Snap: on" or "Snap: off"
 end
 
+-- Edit Mode hides the grid whatever the setting says (FPerl.AlignmentGridUpdate)
 local function gridText()
-	return FPerl.layout and FPerl.layout.alignmentGrid and "Grid: on" or "Grid: off"
+	return (not FPerl.InEditMode and FPerl.layout and FPerl.layout.alignmentGrid) and "Grid: on" or "Grid: off"
 end
 
+-- Edit Mode shows the boxes whatever the setting says (FPerl_ArrangeGrid.lua labelsOn)
 local function labelsText()
-	return FPerl.layout and FPerl.layout.arrangeLabels and "Labels: on" or "Labels: off"
+	return (FPerl.InEditMode or (FPerl.layout and FPerl.layout.arrangeLabels)) and "Labels: on" or "Labels: off"
 end
 
 local function button(key, label, x, onClick)
@@ -65,15 +67,17 @@ end)
 labels:SetWidth(80)
 button("Settings", "Settings", 294, function() FPerl.OpenSettings() end)
 
--- the General > Frames Labels row applies through this; FPerl_Positions.lua loads first, so FPerl.ArrangeLabelsUpdate exists
+-- the General > Frames Labels row applies through this; FPerl_ArrangeGrid.lua loads first, so FPerl.ArrangeLabelsUpdate exists
 FPerl.RegisterOptionChanger(function() FPerl.ArrangeLabelsUpdate() end, nil, "arrangelabels")
 
--- Called by FPerl.UnlockFrames, FPerl.LockFrames and at combat end.
+-- Called by FPerl.UnlockFrames, FPerl.LockFrames, Edit Mode enter and exit, and at combat end.
 function FPerl.ArrangeBarUpdate()
 	if (FPerl.Locked == 0 and not InCombatLockdown()) then
 		grid:SetText(gridText())
+		grid:SetEnabled(not FPerl.InEditMode)
 		snap:SetText(snapText())
 		labels:SetText(labelsText())
+		labels:SetEnabled(not FPerl.InEditMode)
 		bar:Show()
 	else
 		bar:Hide()
@@ -138,3 +142,31 @@ function FPerl.UnlockPreview(on)
 end
 
 FPerl.On("PLAYER_REGEN_DISABLED", function() FPerl.UnlockPreview(false) end)
+
+-- Opening the game's Edit Mode unlocks locked frames, except in combat, as the unlock setting does.
+-- Leaving it locks them again unless the player unlocked them, before or during Edit Mode.
+if (EventRegistry) then
+	local owner = {}
+	EventRegistry:RegisterCallback("EditMode.Enter", function()
+		FPerl.InEditMode = true
+		FPerl.EditModeSnapUpdate()
+		if (FPerl.Locked == 1 and not InCombatLockdown()) then
+			FPerl.UnlockFrames(true)
+		else
+			FPerl.AlignmentGridUpdate()
+			FPerl.ArrangeLabelsUpdate()
+			FPerl.ArrangeBarUpdate()
+		end
+	end, owner)
+	EventRegistry:RegisterCallback("EditMode.Exit", function()
+		FPerl.InEditMode = false
+		FPerl.EditModeSnapUpdate()
+		if (FPerl.Locked == 0 and FPerl.UnlockedByEditMode) then
+			FPerl.LockFrames()
+		else
+			FPerl.AlignmentGridUpdate()
+			FPerl.ArrangeLabelsUpdate()
+			FPerl.ArrangeBarUpdate()
+		end
+	end, owner)
+end
