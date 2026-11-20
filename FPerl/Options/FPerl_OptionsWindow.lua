@@ -352,7 +352,8 @@ function O.Create()
 	at:SetPoint("LEFT", advanced, "RIGHT", 6, 0)
 	at:SetText("Show advanced options")
 	advanced.label = at
-	advanced:SetHitRectInsets(0, -(at:GetStringWidth() + 6), 0, 0) -- the label clicks the box
+	-- the label clicks the box; the width can be secret even for plain text, then 140 estimates it
+	advanced:SetHitRectInsets(0, -(FPerl.SafeStringWidth(at, 140) + 6), 0, 0)
 	advanced:SetScript("OnClick", function(self) O.SetAdvanced(self:GetChecked()) end)
 
 	tabs = {}

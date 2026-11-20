@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0 (2026-11-20)
+
+- New: in unlock mode, a dragged frame shows a box over all of its art and lines where it will snap; it snaps by its nearest edges.
+- New: a Labels toggle in unlock mode names every movable frame. The Raid Admin, Raid Helper and Raid Monitor anchors can be dragged by their labels.
+- New: in unlock mode, Target, Focus and their target frames show you, so they can be placed without a target.
+- Fixed: the alignment grid in unlock mode is centered on the screen, and frames snap to it.
+- Less memory churn while the options window is open.
+
 ## 1.2.0 (2026-11-18)
 
 - Raid target marks show on F-Perl's frames.

@@ -12,7 +12,7 @@ Changes in each version: https://github.com/Zeta0xD/FPerl/blob/main/CHANGELOG.md
 - Light on the game: frames update when the game reports a change, not by checking on a timer, and no setting or event redraws every frame when only one part changed.
 - A new options window: every option in one place, one tab per frame group, basic options first, search across all tabs, and changes take effect at once (only switching the Player, Pet or Target frame on or off needs `/reload`).
 - Layouts: named sets of positions and settings, shared by all your characters, switched in the options or with `/fperl layout <name>`.
-- A new unlock mode: unlocking shows a small toolbar with an alignment grid and snapping, and a click on any frame opens a popup of its common settings. Changing a frame's scale keeps it where it is.
+- A new unlock mode: unlocking shows a small toolbar with an alignment grid, snapping and labels, and a click on any frame opens a popup of its common settings. A dragged frame shows a box over all its art and lines where it will snap; labels name every movable frame; Target and Focus show you while unlocked. Changing a frame's scale keeps it where it is.
 - Automatic range fading: F-Perl picks your longest-range spells from your spellbook, so out-of-range units fade without any setup for your class.
 
 ## Install

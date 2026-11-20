@@ -200,17 +200,20 @@ function B.dropdown(line, e, box)
 	dd:SetWidth(COLW - 14)
 	dd:SetPoint("TOPLEFT", 0, -18)
 	dd:SetupMenu(function(_, root)
-		local cur = k.valueOf(e, FPerl.layout)
 		for _, c in ipairs(choices(e)) do
 			local key = c[1]
-			root:CreateRadio(c[2], function() return cur == key end, function()
+			root:CreateRadio(c[2], function() return k.valueOf(e, FPerl.layout) == key end, function()
 				k.store(e, key)
 				C.onChange(e)
 			end)
 		end
 	end)
 	hookTip(dd, line)
-	return dd, fs, function() dd:GenerateMenu() end
+	-- The dropdown rebuilds its menu when it opens. A refresh rebuilds it only when the choices can change (options is a
+	-- function); otherwise Update() re-reads the selection without rebuilding the menu, which relabels the button because
+	-- each radio reads the value when asked.
+	if (type(e.options) == "function") then return dd, fs, function() dd:GenerateMenu() end end
+	return dd, fs, function() dd:Update() end
 end
 
 function B.frames(line, e, box)
@@ -229,7 +232,6 @@ function B.frames(line, e, box)
 	end)
 	hookTip(dd, line)
 	return dd, fs, function()
-		dd:GenerateMenu()
 		local n, all = 0, #FPerl.SettingsFrames
 		for i = 1, all do if (k.ticked(k.maskOf(e.section), i)) then n = n + 1 end end
 		if (dd.OverrideText) then dd:OverrideText(n == 0 and "None" or n == all and "All frames" or (n .. " frames")) end

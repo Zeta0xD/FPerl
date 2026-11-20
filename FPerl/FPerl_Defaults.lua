@@ -68,6 +68,7 @@ local function GlobalConfigDefault(default)
 	default.highlightSelection	= 1
 	default.alignmentGrid		= false	-- the General > Frames grid and snap rows (FPerl_Positions.lua)
 	default.alignmentSnapToGrid	= false
+	default.arrangeLabels		= false
 	default.combatFlash	= 1
 	default.maximumScale	= 1.5
 	default.showAFK		= 1

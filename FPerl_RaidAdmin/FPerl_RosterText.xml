@@ -11,7 +11,7 @@
 		</HitRectInsets>
 		<Scripts>
 			<OnShow>
-				self:SetHitRectInsets(0, -(self.text:GetStringWidth()), 0, 0)
+				self:SetHitRectInsets(0, -FPerl.SafeStringWidth(self.text, 80), 0, 0)
 			</OnShow>
 			<OnEnter>
 				if (self.tooltipText) then
@@ -55,7 +55,7 @@
 			<OnShow>
 				self.text:SetText(format(FPERL_ROSTERTEXT_GROUP, self:GetID()))
 				self.tooltipText = format(FPERL_ROSTERTEXT_GROUP_DESC, self:GetID())
-				self:SetHitRectInsets(0, -(self.text:GetStringWidth()), 0, 0)
+				self:SetHitRectInsets(0, -FPerl.SafeStringWidth(self.text, 80), 0, 0)
 				self:SetChecked(FPerl_RosterText.group[self:GetID()])
 			</OnShow>
 			<OnClick>
@@ -93,7 +93,7 @@
 					self.text:SetText(format(FPERL_ROSTERTEXT_SETN, self:GetID()))
 					self.tooltipText = format(FPERL_ROSTERTEXT_SETN_DESC, self:GetID())
 				end
-				self:SetWidth(self.text:GetStringWidth() + 20)
+				FPerl.SafeSetWidthFromText(self, self.text, 20, 100)
 			</OnShow>
 			<OnClick>
 				for i = 1,8 do
@@ -396,7 +396,7 @@
 						self.text:ClearAllPoints()
 						self.text:SetPoint("RIGHT", self, "LEFT", 2, 0)
 						self.text:SetJustifyH("RIGHT")
-						self:SetHitRectInsets(-(self.text:GetStringWidth()), 0, 0, 0)
+						self:SetHitRectInsets(-FPerl.SafeStringWidth(self.text, 80), 0, 0, 0)
 					</OnShow>
 					<OnClick>
 						FPerl_RosterText.sortAlpha = self:GetChecked()

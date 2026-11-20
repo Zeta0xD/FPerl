@@ -168,6 +168,16 @@ function FPerl.SafeSetWidthFromText(frame, textObject, padding, fallbackWidth)
 	end
 end
 
+-- FPerl.SafeStringWidth(textObject, fallback)
+-- The text's width, or fallback when the width is secret (see FPerl.SafeSetWidthFromText).
+function FPerl.SafeStringWidth(textObject, fallback)
+	local width = textObject:GetStringWidth()
+	if (IsSecret(width)) then
+		return fallback
+	end
+	return width
+end
+
 -- FPerl.UnitFullName(unit)
 -- Forever gives units a mandatory surname in UnitName's second return, joined
 -- as Blizzard displays it ("Ana Forever"). The separator is ForeverGame.nameJoin, not
